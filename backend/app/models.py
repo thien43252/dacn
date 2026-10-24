@@ -2,3 +2,5 @@
 
 Add one import line here whenever a module gains a `models.py`.
 """
+
+from app.auth import models as auth_models  # noqa: F401,E402

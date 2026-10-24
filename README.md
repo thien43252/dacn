@@ -29,6 +29,7 @@ docker compose -f infra/docker-compose.yml up -d --wait
 cd backend
 uv sync
 uv run alembic upgrade head
+uv run python -m scripts.seed_demo   # 4 tài khoản demo, mật khẩu Demo123!
 uv run uvicorn app.main:app --reload --port 8001
 
 # Frontend (http://127.0.0.1:5173, proxy /api -> 8001)
@@ -48,8 +49,11 @@ Test backend không cần database hay API key (LLM adapter `fake`).
 
 ## Trạng thái
 
-Theo kế hoạch 12 tuần. Tuần 1: khung repo, UI đã rebrand, 4 vai trò (giáo viên, học sinh, phụ huynh, quản trị viên)
-với các màn giữ chỗ, backend skeleton có health check và migration bật pgvector.
+Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
+
+- Tuần 1: khung repo, UI đã rebrand, 4 vai trò với các màn giữ chỗ, backend skeleton, migration bật pgvector.
+- Tuần 2: đăng nhập bằng cookie httpOnly (chỉ lưu SHA-256 của token), phân quyền theo vai trò (`require_roles`), seed
+  tài khoản demo; dataset `eval/` gồm 190 câu red-team, 60 câu đối chứng, 101 câu định tuyến.
 
 ## Ghi chú bản quyền
 
