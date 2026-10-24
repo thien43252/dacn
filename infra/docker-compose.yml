@@ -1,0 +1,22 @@
+name: eduagent-hub
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: eduagent
+      POSTGRES_PASSWORD: eduagent
+      POSTGRES_DB: eduagent
+    # Host port 5433 so a local Postgres on 5432 does not conflict.
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eduagent -d eduagent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

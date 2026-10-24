@@ -1,0 +1,64 @@
+/* Raw transfer metadata stays out of the chat; a handoff's mention is shown as its own small bubble. */
+.chat-panel__agents button > span { overflow-wrap: anywhere; text-align: center; }
+
+.chat-panel__agents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.chat-panel__agents button { min-width: 0; min-height: 48px; border-radius: 12px; }
+.chat-panel__agents button > span { overflow-wrap: normal; }
+
+.chat-control-note { grid-column: 1 / -1; margin: 4px 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.chat-reset-confirm { padding: 16px; border-bottom: 1px solid var(--line); background: var(--primary-soft); }
+.chat-reset-confirm p { font-size: 13px; line-height: 1.5; }
+.chat-reset-confirm button { margin: 4px 8px 0 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
+
+/* A mention (one agent or the Orchestrator handing work to another) is its own compact bubble, never part of
+   an agent's reply, so the reader sees who asked whom before the next agent answers. */
+.chat-panel .message--mention { max-width: 82%; border: 1px dashed var(--line-strong); border-radius: 18px 18px 18px 6px; padding: 8px 12px 9px; background: linear-gradient(135deg, var(--primary-soft), var(--accent-soft)); font-size: 12.5px; animation: mention-in 360ms var(--ease-out) both; }
+.message__handoff { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--primary-strong); font-size: 10.5px; font-weight: 700; letter-spacing: 0.01em; white-space: normal; }
+.message__handoff svg { width: 12px; height: 12px; flex: 0 0 12px; color: var(--secondary); }
+.message__mention { display: inline-block; border-radius: var(--radius-pill); padding: 0 7px; color: var(--primary-strong); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); font-weight: 700; white-space: nowrap; }
+.message--user .message__mention { color: var(--surface); background: rgba(255, 255, 255, 0.18); box-shadow: none; }
+@keyframes mention-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } }
+
+/* Header avatar: the fox in a round frame; its style lives in mascot.css. */
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel .message--mention { animation: none; }
+}
+
+/* Result of a teacher "/" command from Progress: summary, bullets, gaps, record links and the sources read. */
+.tool-result { display: grid; gap: var(--space-2); white-space: normal; }
+.tool-result p { margin: 0; }
+.tool-result small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.tool-result__bullets { display: grid; gap: 4px; margin: 0; padding-left: 18px; }
+.tool-result__items { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tool-result__missing, .tool-result__sources { font-size: 12px; }
+.tool-result__missing summary, .tool-result__sources summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.tool-result__missing ul, .tool-result__sources ul { display: grid; gap: 2px; margin: 4px 0 0; padding-left: 18px; }
+.tool-result__sources li { color: var(--muted); overflow-wrap: anywhere; }
+.tool-result--error > strong { color: var(--danger, #b42318); }
+
+/* Teacher plan table: ask Progress about one task; the row being asked about is marked. */
+.plan-table__ask { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); color: var(--primary); background: var(--surface); font-size: 11px; cursor: pointer; white-space: nowrap; }
+.plan-table__ask svg { width: 12px; height: 12px; }
+.plan-table__ask:hover { border-color: var(--primary); background: var(--primary-soft); }
+.plan-table tr[aria-current="true"] td { background: var(--primary-soft); }
+
+/* The task the teacher asked about on the team screen; it travels only with its own group. */
+.chat-focus-chip { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin: 2px 0; color: var(--primary-strong); font-size: 12px; overflow-wrap: anywhere; }
+.chat-focus-chip svg { width: 13px; height: 13px; flex: 0 0 13px; }
+
+/* The group a one-group command reads: a chip under the composer and a small picker above it. */
+.chat-group-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 60%; height: 26px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); color: var(--muted); background: var(--surface); font-size: 12px; cursor: pointer; }
+.chat-group-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-group-chip svg { width: 14px; height: 14px; flex: 0 0 14px; }
+.chat-group-chip:hover:not(:disabled), .chat-group-chip.is-active { color: var(--primary); border-color: var(--primary); background: var(--primary-soft); }
+.chat-group-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.chat-group-picker { grid-column: 1 / -1; display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); box-shadow: var(--shadow-sm, 0 4px 16px rgba(0, 0, 0, 0.08)); }
+/* The composer's send button sits over the top-right corner, so the picker's close button stays left of it. */
+.chat-group-picker__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 44px; font-size: 13px; }
+.chat-group-picker ul { display: grid; gap: 4px; max-height: 200px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.chat-group-picker li button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; background: var(--frosted); text-align: left; cursor: pointer; }
+.chat-group-picker li button:hover, .chat-group-picker li button.is-active { border-color: var(--primary); background: var(--primary-soft); }
+.chat-group-picker li small { color: var(--muted); font-size: 11px; }
+.chat-group-picker__note { margin: 0; color: var(--muted); font-size: 12px; }
+.chat-group-picker__clear { justify-self: start; padding: 4px 8px; border: none; color: var(--primary); background: none; font-size: 12px; cursor: pointer; }

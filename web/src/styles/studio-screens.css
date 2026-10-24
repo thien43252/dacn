@@ -1,0 +1,194 @@
+/* Studio screens (UI_SPEC §3 / §4b): each work screen gets one dominant supporting colour (its tone), a banner with
+   supplied artwork, a soft page wash and small colour cues on headings. Reading and entry surfaces stay white. */
+[data-tone="lemon"] { --tone: #fff8d2; }
+[data-tone="moss"] { --tone: #84d175; }
+[data-tone="aqua"] { --tone: #75cbd1; }
+[data-tone="soft"] { --tone: #dae8fb; }
+
+/* Live-review batch: primary action roles come from shared variants, never the screen tone. */
+.workspace-shell .button--secondary:not(.button--danger, .ca-danger, .rv-btn--danger):hover:not(:disabled) {
+  color: var(--text);
+  background-color: var(--accent);
+}
+/* Text navigation stays distinct from buttons, cards and user/agent content. */
+.workspace-shell :is(.teacher-link, .link-button, .dc-link, .ca-link-button, .ca-lib-item__open, .ca-proposal__open, .tg-card__open, .plan-section-nav a, .proposal-notice button, .policy-link > summary span),
+.workspace-shell .chat-panel .link-button {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  background: transparent;
+}
+.workspace-shell :is(.teacher-link, .link-button, .dc-link, .ca-link-button, .ca-lib-item__open, .ca-proposal__open, .tg-card__open, .plan-section-nav a, .proposal-notice button, .policy-link > summary span):hover,
+.workspace-shell .chat-panel .link-button:hover {
+  color: var(--text);
+  background: transparent;
+  text-decoration: none;
+}
+.workspace-shell :is(.teacher-link, .link-button, .dc-link, .ca-link-button, .ca-lib-item__open, .ca-proposal__open, .plan-section-nav a):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+/* A core agent's name sits on its blue gradient card: white like the Orchestrator's, not the link blue above. */
+.workspace-shell .ca-lib-item--core .ca-lib-item__open,
+.workspace-shell .ca-lib-item--core .ca-lib-item__open:hover {
+  color: #fff;
+}
+.workspace-shell .ca-lib-item--core .ca-lib-item__open:focus-visible {
+  outline-color: #fff;
+}
+
+/* B2 profile: neutral identity/reading surfaces, Lemon skills and Aqua team headers. */
+.profile-page .summary-card--featured {
+  min-height: 0;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: none;
+}
+.profile-page .profile-identity h2 { margin-top: 0; overflow-wrap: anywhere; }
+.profile-page .profile-identity > p { color: var(--muted); overflow-wrap: anywhere; }
+.profile-page .summary-card__footer { flex-wrap: wrap; justify-content: flex-start; gap: 12px 28px; }
+.profile-page .profile-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: start; }
+.profile-page .profile-card { min-width: 0; }
+.profile-page .profile-section__head { margin-bottom: 18px; border-radius: 16px; padding: 16px; gap: 12px; }
+.profile-page .profile-section__head > div { min-width: 0; }
+.profile-page .profile-section__head h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font: 700 20px/1.4 var(--sans); }
+.profile-page .profile-card--skills .profile-section__head { background: var(--accent); }
+.profile-page .profile-card--team .profile-section__head { background: var(--secondary); }
+.profile-page .profile-card .profile-section__head .soft-icon { flex-shrink: 0; color: var(--text); background: transparent; }
+.profile-section__count { border-radius: var(--radius-pill); padding: 4px 10px; color: var(--text); background: var(--surface); font: 600 14px/1.5 var(--sans); }
+.profile-section__note { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+.profile-team__identity { display: grid; gap: 6px; margin-bottom: 18px; overflow-wrap: anywhere; }
+.profile-team__identity p { margin: 0; color: var(--muted); line-height: 1.6; }
+.profile-page .member-list__name { flex-wrap: wrap; }
+.profile-page .skill-list > li { flex-wrap: wrap; }
+.profile-page .skill-list > li > div { min-width: 0; flex: 1 1 140px; overflow-wrap: anywhere; }
+.profile-page .profile-card .soft-icon { color: var(--text); background: var(--secondary); }
+.profile-page .skill-level { color: var(--text); }
+.profile-page .skill-level__meter i { background: var(--line); }
+.profile-page .skill-level__meter i.is-filled { background: var(--text); }
+.profile-page .member-list > li.is-self:not(.is-selected) { background: color-mix(in srgb, var(--secondary) 15%, var(--surface)); }
+.profile-page .member-list .profile-avatar { color: var(--text); background: var(--secondary); }
+.profile-page :is(.member-transfer, .add-skill-button) { color: var(--text); border-color: var(--line-strong); }
+.profile-page :is(.member-transfer, .add-skill-button):hover:not(:disabled) { background: var(--accent); }
+
+@container workspace (max-width: 1000px) {
+  .profile-page .profile-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container workspace (max-width: 640px) {
+  .profile-page .profile-card { padding: 16px; }
+  .profile-page .profile-section__head { padding: 12px; }
+  .profile-page .member-list--selectable > li { grid-template-columns: 44px 38px minmax(0, 1fr); gap: 8px; }
+  .profile-page .member-transfer { grid-column: 2 / -1; justify-self: start; white-space: normal; }
+  .profile-page .team-actions { flex-wrap: wrap; }
+}
+
+/* Page wash: a soft tint of the tone behind the banner that fades out into Canvas (scrolls with the content). */
+.workspace-main[data-tone] {
+  background-color: var(--background);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--tone) 30%, var(--background)) 0, var(--background) 460px);
+  background-repeat: no-repeat;
+  background-size: 100% 460px;
+  background-attachment: local;
+}
+
+.screen-banner {
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  width: min(1536px, calc(100% - 64px));
+  min-height: 212px;
+  margin: 24px auto 4px;
+  padding: 28px 36px;
+  border-radius: var(--radius-card);
+  color: #0c2d45;
+  background: var(--tone);
+}
+/* A lighter disc of the same tone gives the cast depth without a frame. */
+.screen-banner::before { content: ""; position: absolute; z-index: -1; right: -70px; bottom: -150px; width: 440px; height: 440px; border-radius: 50%; background: color-mix(in srgb, var(--tone) 55%, #fff); }
+.screen-banner__copy { position: relative; z-index: 2; max-width: min(48%, 560px); }
+.screen-banner__eyebrow { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; }
+.screen-banner h1 { margin: 6px 0 8px; font: 600 clamp(1.75rem, 2.6vw, 2.375rem)/1.2 var(--font-display); letter-spacing: -0.015em; text-wrap: balance; }
+.screen-banner p { max-width: 52ch; margin: 0; font-size: 15px; line-height: 1.6; }
+/* The cast stands on the banner baseline at the right; sizes are % of the art area, assets are exported at >=2x. */
+.screen-banner__cast { position: absolute; z-index: 1; right: clamp(16px, 4%, 56px); bottom: 0; height: calc(100% - 16px); display: flex; align-items: flex-end; gap: 6px; }
+.screen-banner__item { flex: none; }
+.screen-banner__item.is-high { align-self: flex-start; margin-top: 10%; }
+.screen-banner__item .artwork-motion__inner { height: 100%; width: auto; }
+.screen-banner__item img { display: block; height: 100%; width: auto; }
+
+.screen-banner--compact { min-height: 92px; margin-top: 12px; padding: 14px 28px; }
+.screen-banner--compact h1 { margin: 2px 0 0; font-size: 1.5rem; }
+.screen-banner--compact::before { width: 260px; height: 260px; bottom: -150px; right: -40px; }
+.screen-banner--compact .screen-banner__cast { height: calc(100% - 12px); right: 28px; align-items: center; }
+/* Workflow designer: the admin wizard is the focal point, standing on the banner baseline with head and staff inside it. */
+.screen-banner--compact.screen-banner--feature { min-height: 164px; }
+.screen-banner--compact.screen-banner--feature .screen-banner__cast { height: calc(100% - 12px); align-items: flex-end; }
+
+/* Colour cues inside the work area (tone is inherited from the screen): notebook heading highlighter. */
+.workspace-main[data-tone] :is(.idea-form__head, .plan-card__head, .dc-plan__head, .dc-side__head) {
+  padding: 14px 18px;
+  border-radius: 14px;
+  /* blueprint / notebook dot grid over a wash of the tone */
+  background: radial-gradient(circle, rgb(62 91 163 / 0.26) 1.1px, transparent 1.6px) 0 0 / 14px 14px, color-mix(in srgb, var(--tone) 55%, #fff);
+}
+@container workspace (max-width: 900px) {
+  .screen-banner { width: calc(100% - 48px); padding: 24px 28px; min-height: 196px; }
+  .screen-banner__copy { max-width: 56%; }
+}
+@container workspace (max-width: 640px) {
+  .screen-banner { flex-direction: column; align-items: flex-start; width: calc(100% - 32px); min-height: 0; margin-top: 16px; padding: 20px 20px 0; }
+  .screen-banner__copy { max-width: none; }
+  .screen-banner__cast { position: relative; right: auto; bottom: auto; align-self: flex-end; height: 150px; margin-top: 12px; }
+  .screen-banner--compact { flex-direction: row; align-items: center; padding: 14px 20px; }
+  .screen-banner--compact .screen-banner__cast { display: none; }
+}
+
+/* B4 Agent Library only: copy has its own Aqua region; the forest scene keeps the whole subject/book.
+   No zoom/drift loop on this flattened scene. ArtworkMotion supplies the existing slide-in entrance. */
+.screen-banner--library {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 28px;
+  min-height: 0;
+  padding: 24px 28px;
+}
+.screen-banner--library::before { display: none; }
+.screen-banner--library .screen-banner__copy { min-width: 0; max-width: none; }
+.screen-banner__scene { width: 100%; max-width: 560px; min-width: 0; aspect-ratio: 5 / 2; justify-self: end; overflow: hidden; border-radius: 16px; }
+.screen-banner__scene .artwork-motion__inner { width: 100%; height: 100%; }
+.screen-banner__scene img { display: block; width: 100%; height: 100%; object-fit: contain; }
+@container workspace (max-width: 640px) {
+  .screen-banner--library { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 20px; }
+  .screen-banner--library .screen-banner__scene { max-width: 300px; aspect-ratio: 3 / 2; justify-self: center; }
+  /* Crop outer trees horizontally; retain the full vertical field including the book, face, hand and feet. */
+  .screen-banner--library .screen-banner__scene img { object-fit: cover; object-position: 50% 50%; }
+}
+
+/* Agent Library header: stationary shelves bleed off the top, right and bottom edges of the Pearl Aqua banner; the glowing
+   book and loose book rows float on their own (ArtworkMotion). The canvas keeps a 3:1 box anchored right, so a narrower
+   art zone crops from the left, never the shelves. */
+.screen-banner--workshop { min-height: 212px; padding-block: 28px; }
+.screen-banner--workshop::before { display: none; }
+.screen-banner--workshop .screen-banner__copy { max-width: min(42%, 520px); }
+.library-art { position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; width: min(62%, 700px); overflow: hidden; pointer-events: none; }
+.library-art__canvas { position: absolute; top: 0; right: 0; height: 100%; aspect-ratio: 3.2 / 1; }
+.library-art__shelves { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.library-art__item { position: absolute; }
+.library-art__item .artwork-motion__inner, .library-art__item img { display: block; width: 100%; height: auto; }
+.library-art__glow { left: 52%; top: 56%; width: 26%; filter: drop-shadow(0 0 14px rgb(255 120 235 / 0.55)); }
+.library-art__row-a { left: 7%; top: 12%; width: 9%; }
+.library-art__row-b { left: 12%; top: 68%; width: 8%; }
+.library-art__row-c { left: 3%; top: 42%; width: 8%; }
+@container workspace (max-width: 900px) {
+  .screen-banner--workshop .screen-banner__copy { max-width: 46%; }
+  .library-art__glow { left: 58%; }
+  .library-art { width: 54%; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%); mask-image: linear-gradient(90deg, transparent 0, #000 16%); }
+}
+@container workspace (max-width: 640px) {
+  .screen-banner--workshop { flex-direction: column; align-items: flex-start; padding: 20px 20px 0; }
+  .screen-banner--workshop .screen-banner__copy { max-width: none; }
+  .library-art { position: relative; inset: auto; align-self: stretch; width: auto; height: 150px; margin: 14px -20px 0; -webkit-mask-image: none; mask-image: none; }
+}

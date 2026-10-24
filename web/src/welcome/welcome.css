@@ -1,0 +1,81 @@
+/* Post-login welcome portal. Decorative layers only: the artwork is a flat image, so motion is glow, motes and fades. */
+.welcome-content { display: contents; }
+
+.welcome-portal {
+  position: fixed; inset: 0; z-index: 1900; overflow: hidden; isolation: isolate;
+  background: radial-gradient(ellipse at var(--fx, 60%) var(--fy, 70%), var(--wp-glow, #3e5ba3) 0%, var(--wp-sky, #0e1a3d) 62%);
+  color: #fff;
+}
+/* Neutral deep ink, identical to the portal sky family, so cover -> portal never flashes light or transparent. */
+.welcome-portal--cover { background: #0c1630; }
+.welcome-portal--leaving { opacity: 0; transition: opacity 180ms ease-in; }
+.welcome-portal[data-portal="portal-stone-cyan"] { --wp-glow: #2b6fb8; --wp-sky: #0c1c4a; --wp-light: 120, 220, 255; }
+.welcome-portal[data-portal="portal-stone-violet"] { --wp-glow: #6a35b8; --wp-sky: #120d3f; --wp-light: 214, 140, 255; }
+.welcome-portal[data-portal="portal-stone-amber"] { --wp-glow: #a8651f; --wp-sky: #2b1710; --wp-light: 255, 196, 96; }
+.welcome-portal--neutral { background: var(--background, #f5f7fc); color: var(--text, #0c2d45); }
+
+.welcome-portal__art {
+  position: absolute; inset: 0; z-index: -3; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+  transition: opacity 240ms ease-out;
+}
+.welcome-portal[data-image="loaded"] .welcome-portal__art { opacity: 1; }
+
+/* Left-to-right scrim keeps the greeting legible without darkening the gate; on narrow screens it is top-down. */
+.welcome-portal__scrim {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgb(6 10 30 / 72%) 0%, rgb(6 10 30 / 38%) 40%, transparent 62%);
+}
+.welcome-portal--neutral .welcome-portal__scrim { display: none; }
+
+.welcome-portal__glow { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.welcome-portal__glow::before {
+  content: ""; position: absolute; left: var(--fx); top: var(--fy); width: min(46vw, 520px); aspect-ratio: 1;
+  transform: translate(-50%, -62%);
+  background: radial-gradient(circle, rgb(var(--wp-light) / 38%) 0%, rgb(var(--wp-light) / 12%) 38%, transparent 68%);
+  animation: wp-breathe 3.2s ease-in-out infinite;
+}
+.welcome-portal__glow i {
+  position: absolute; left: calc(var(--fx) + (var(--i) - 3) * 2.6%); top: var(--fy); width: 5px; height: 5px; border-radius: 50%;
+  background: rgb(var(--wp-light)); box-shadow: 0 0 10px 2px rgb(var(--wp-light) / 70%); opacity: 0;
+  animation: wp-mote calc(3.4s + var(--i) * 0.45s) ease-out calc(var(--i) * -0.7s) infinite;
+}
+
+.welcome-portal__copy {
+  position: absolute; left: clamp(24px, 6vw, 96px); top: 50%; transform: translateY(-50%);
+  max-width: min(44vw, 30rem); display: grid; gap: var(--space-4, 16px); justify-items: start;
+}
+.welcome-portal__mark .app-mark { width: 44px; height: 44px; }
+.welcome-portal h1 {
+  margin: 0; font-family: var(--display, serif); font-weight: 600; line-height: 1.12; text-wrap: balance;
+  font-size: clamp(1.9rem, 3.4vw, 3.1rem); text-shadow: 0 2px 24px rgb(0 0 0 / 45%);
+}
+.welcome-portal__loading, .welcome-portal__slow { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
+.welcome-portal__loading { color: rgb(255 255 255 / 88%); }
+.welcome-portal__slow { color: rgb(255 255 255 / 80%); font-size: 0.9375rem; }
+.welcome-portal--neutral .welcome-portal__loading, .welcome-portal--neutral .welcome-portal__slow { color: var(--muted, #52647c); }
+.welcome-portal--neutral .welcome-portal__copy { left: 50%; transform: translate(-50%, -50%); justify-items: center; max-width: 90vw; }
+.welcome-portal__spinner {
+  width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgb(255 255 255 / 35%); border-top-color: currentColor;
+  animation: wp-spin 0.9s linear infinite;
+}
+
+@media (max-width: 720px) {
+  .welcome-portal__scrim { background: linear-gradient(180deg, rgb(6 10 30 / 78%) 0%, rgb(6 10 30 / 45%) 38%, transparent 62%); }
+  .welcome-portal__copy { left: 20px; right: 20px; top: max(8vh, 40px); transform: none; max-width: none; }
+  .welcome-portal h1 { font-size: clamp(1.6rem, 7.2vw, 2.1rem); }
+}
+
+@keyframes wp-breathe { 0%, 100% { opacity: 0.75; scale: 1; } 50% { opacity: 1; scale: 1.08; } }
+@keyframes wp-mote {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  20% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(-34vh) scale(1); }
+}
+@keyframes wp-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-portal, .welcome-portal--leaving, .welcome-portal__art { animation: none; transition: none; }
+  .welcome-portal__glow::before { animation: none; }
+  .welcome-portal__glow i { display: none; }
+  .welcome-portal__spinner { animation: none; border-top-color: rgb(255 255 255 / 35%); }
+}

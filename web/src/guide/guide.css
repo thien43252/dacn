@@ -1,0 +1,107 @@
+/* Book / Wand onboarding guide.
+   Mounted on <body> through a portal. Its own stacking context sits above the app and, inside it, the order is
+   intentional: dim backdrop with the target hole + target light (1) < sparkle trail (2) < companion (4) < card (5).
+   Nothing but the card takes pointer events, and no ancestor of the card carries opacity, filter or backdrop-filter. */
+.guide { position: fixed; inset: 0; z-index: 2000; isolation: isolate; pointer-events: none; }
+.guide[hidden] { display: none; }
+
+/* The "hole": a box over the target whose huge spread is the dim backdrop, so the real target stays undimmed. */
+.guide__halo {
+  position: absolute; left: 0; top: 0; z-index: 1; width: 0; height: 0; opacity: 0; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(12, 45, 69, 0.44);
+}
+.guide__fx { position: absolute; inset: 0; border-radius: inherit; opacity: 0; pointer-events: none; }
+/* Light that appears to radiate from the target: pearl core at the edge, then layers that decay outward. */
+.guide__glow {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; transition: filter 240ms ease;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 0 14px 1px rgba(160, 232, 236, 0.42),
+    0 0 3px 1px rgba(255, 255, 255, 0.95),
+    0 0 11px 3px rgba(214, 248, 249, 0.85),
+    0 0 26px 7px rgba(117, 203, 209, 0.72),
+    0 0 52px 16px rgba(117, 203, 209, 0.42),
+    0 0 98px 34px rgba(117, 203, 209, 0.22),
+    0 0 70px 12px rgba(255, 236, 190, 0.12);
+}
+.guide__halo--hot .guide__glow { filter: brightness(1.2) saturate(1.15); }
+
+/* Light motes: tiny, different sizes and brightness; pearl, aqua and a little champagne. */
+.guide__motes { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.guide__motes i {
+  position: absolute; left: 0; top: 0; width: 5px; height: 5px; margin: -2px 0 0 -2px; border-radius: 50%; opacity: 0;
+  background: #fff; box-shadow: 0 0 6px 2px rgba(117, 203, 209, 0.9);
+}
+.guide__motes i:nth-child(3n) { background: #fff2cc; box-shadow: 0 0 6px 2px rgba(255, 224, 160, 0.85); }
+.guide__motes i:nth-child(3n + 1) { background: #dcf8f9; box-shadow: 0 0 7px 2px rgba(140, 225, 230, 0.95); }
+
+.guide__sparks { position: absolute; left: 0; top: 0; z-index: 2; width: 0; height: 0; pointer-events: none; }
+.guide__sparks i {
+  position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; opacity: 0;
+  background: #fff; box-shadow: 0 0 6px 2px rgba(117, 203, 209, 0.9);
+}
+
+/* Companion: the artwork keeps its own crisp pixels; its glow follows the alpha silhouette (drop-shadow plus a
+   blurred pearl echo of the same cut-out), never a rectangle. */
+.guide__companion { position: absolute; left: 0; top: 0; z-index: 4; opacity: 0; pointer-events: none; will-change: transform; }
+.guide__art { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+.guide__art img { display: block; width: 100%; height: auto; user-select: none; }
+.guide__echo {
+  position: absolute; left: 0; top: 0; transform: scale(1.1); opacity: 0.6;
+  filter: brightness(0) invert(1) blur(8px) drop-shadow(0 0 10px rgba(117, 203, 209, 0.95));
+}
+.guide__book, .guide__wand { position: relative; }
+.guide__book { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 14px rgba(117, 203, 209, 0.75)) drop-shadow(0 8px 10px rgba(12, 45, 69, 0.3)); }
+.guide__wand { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 14px rgba(117, 203, 209, 0.85)) drop-shadow(0 6px 8px rgba(12, 45, 69, 0.25)); }
+
+/* Card: solid and sharp, always above the dim. */
+.guide__card {
+  position: absolute; left: 0; top: 0; z-index: 5; width: min(372px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); opacity: 0; visibility: hidden; pointer-events: auto;
+  display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px);
+  border: 1px solid var(--line, #cdd7e7); border-radius: 20px; color: var(--text, #0c2d45); background: #fff;
+  box-shadow: 0 18px 44px rgba(12, 45, 69, 0.28), 0 2px 6px rgba(12, 45, 69, 0.14);
+}
+/* Small fixed exit while the card is hidden (guide travelling); never a floating navigation footer. */
+.guide__escape {
+  position: absolute; right: 12px; top: 12px; z-index: 5; min-height: 36px; display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line, #cdd7e7); border-radius: var(--radius-pill, 999px); padding: 0 14px 0 12px; color: var(--text, #0c2d45);
+  background: #fff; font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; pointer-events: auto;
+  opacity: 0; visibility: hidden; transition: opacity 140ms ease, visibility 0s linear 140ms;
+}
+.guide__escape.is-on { opacity: 1; visibility: visible; transition-delay: 0s; }
+.guide__escape:hover { background: var(--primary-soft, #dae8fb); }
+.guide__escape:focus-visible { outline: 3px solid var(--primary, #3e5ba3); outline-offset: 2px; }
+.guide__copy { display: grid; gap: var(--space-2, 8px); min-height: 0; overflow-y: auto; align-content: start; overscroll-behavior: contain; }
+.guide__title { margin: 0; padding-right: 32px; font-size: 15px; line-height: 1.3; text-wrap: balance; }
+.guide__text { margin: 0; font-size: 13px; line-height: 1.55; }
+.guide__list { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; line-height: 1.5; }
+.guide__list li::marker { color: var(--primary, #3e5ba3); }
+.guide__meta { margin: 0; color: var(--muted, #52647c); font-size: 12px; font-variant-numeric: tabular-nums; }
+.guide__close {
+  position: absolute; right: 8px; top: 8px; width: 36px; height: 36px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; color: var(--muted, #52647c); background: transparent; cursor: pointer;
+}
+.guide__close:hover { color: var(--text, #0c2d45); background: var(--primary-soft, #dae8fb); }
+
+.guide__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2, 8px); }
+.guide__nav { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2, 8px); margin-left: auto; }
+.guide__btn, .guide__skip { min-height: 40px; padding: 0 16px; font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.guide__skip {
+  border: 0; border-radius: var(--radius-pill, 999px); color: var(--muted, #52647c); background: transparent;
+  font-family: inherit; text-decoration: none; cursor: pointer; transition: color 140ms ease, background-color 140ms ease;
+}
+.guide__skip:hover { color: var(--text, #0c2d45); background: var(--primary-soft, #dae8fb); }
+.guide__card button:focus-visible { outline: 3px solid var(--primary, #3e5ba3); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+  /* Bottom sheet inside the safe area; it moves to the top when the target is in the lower half. */
+  .guide__card { left: 12px; right: 12px; width: auto; max-height: min(72dvh, calc(100dvh - 24px)); top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); transform: none !important; }
+  .guide__card--top { top: calc(12px + env(safe-area-inset-top)); bottom: auto; }
+  .guide__actions { justify-content: flex-end; }
+  .guide__skip { margin-right: auto; }
+}
+
+/* Reduced motion keeps the spotlight and static glow; travel, idle, motes and the trail are off. */
+@media (prefers-reduced-motion: reduce) {
+  .guide__sparks, .guide__motes { display: none; }
+}

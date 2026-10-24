@@ -1,0 +1,244 @@
+
+.maker-landing {
+  --maker-ink: var(--text);
+  --maker-dark: var(--text);
+  --maker-paper: var(--surface);
+  --maker-leaf: #84d175;
+  --maker-yellow: var(--accent);
+  --maker-hero-ink: #0c2d45;
+  --maker-hero-soft: #d4e3f6; /* 11.6:1 on Ink */
+  --maker-muted: var(--muted);
+  color: var(--maker-ink);
+  background: var(--maker-paper);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.7;
+  overflow: clip;
+}
+.maker-landing ::selection { color: var(--maker-dark); background: var(--maker-yellow); }
+.maker-landing a { text-decoration: none; text-underline-offset: 5px; }
+.maker-landing a:focus-visible { outline: 3px solid var(--primary); outline-offset: 6px; }
+.maker-hero a:focus-visible, .maker-opening__foot a:focus-visible { outline-color: var(--maker-yellow); }
+.maker-landing h1, .maker-landing h2, .maker-landing h3, .maker-landing p { margin: 0; }
+.maker-landing h1, .maker-landing h2 { font-family: var(--sans); font-weight: 700; letter-spacing: -0.04em; text-wrap: balance; }
+.maker-wrap { width: min(1240px, calc(100% - 96px)); margin-inline: auto; }
+.maker-skip { position: absolute; top: -100px; left: 20px; z-index: 10; padding: 10px 20px; color: var(--maker-ink); background: var(--maker-yellow); }
+.maker-skip:focus { top: 12px; }
+.maker-opening { background: var(--maker-paper); }
+.maker-nav { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 102px; color: var(--maker-ink); position: relative; z-index: 1; }
+.maker-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; line-height: 1.3; }
+.maker-brand > span { display: grid; }
+.maker-brand small { font-size: 12px; letter-spacing: 0.06em; }
+.maker-brand strong { font-size: 18px; font-weight: 700; letter-spacing: -0.035em; }
+.maker-brand > svg, .maker-brand__dot { color: var(--primary); }
+.maker-nav nav { display: flex; gap: 32px; font-size: 14px; }
+.maker-nav nav a { padding-block: 12px; color: var(--primary); font-weight: 600; transition: color 150ms ease; }
+.maker-nav nav a:hover { color: var(--maker-ink); background: transparent; }
+.maker-nav__entry { display: flex; align-items: center; gap: 15px; padding: 10px 19px; color: var(--maker-ink); border: 1px solid var(--line-strong); border-radius: 100px; font-size: 14px; transition: background 180ms ease; }
+.maker-nav__entry:hover { background: var(--maker-yellow); }
+.maker-nav__entry .icon { width: 17px; height: 17px; }
+.maker-hero { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 32px; align-items: center; position: relative; min-height: 640px; padding-block: 40px 0; color: #fff; }
+.maker-hero::before { content: ""; position: absolute; inset: 0 calc((1240px - 100vw) / 2); z-index: 0; background: radial-gradient(ellipse 46% 78% at 74% 52%, rgb(62 91 163 / 0.55), transparent 72%), var(--maker-hero-ink); }
+.maker-hero__copy { position: relative; z-index: 1; padding-block: 18px; }
+.maker-hero h1 { font-size: clamp(46px, 4.6vw, 68px); line-height: 1.17; }
+.maker-hero h1 span { color: var(--maker-yellow); }
+.maker-hero__copy > p { margin-top: 25px; color: var(--maker-hero-soft); font-size: 16px; line-height: 1.85; max-width: 490px; }
+.maker-hero__actions { margin-top: 31px; display: flex; align-items: flex-start; flex-direction: column; gap: 17px; }
+.maker-cta { display: inline-flex; align-items: center; justify-content: center; gap: 30px; min-height: 55px; padding: 12px 25px; border-radius: 100px; color: var(--surface); background: var(--primary); font-size: 15px; font-weight: 700; box-shadow: 0 8px 24px #00000012; transition: background 180ms ease, box-shadow 180ms ease; }
+.maker-cta:hover { background: var(--primary-strong); box-shadow: 0 10px 28px #00000022; }
+.maker-hero .maker-cta { color: var(--maker-hero-ink); background: var(--maker-yellow); }
+.maker-hero .maker-cta:hover { background: var(--surface); }
+.maker-hero .maker-cta:active { background: color-mix(in srgb, var(--maker-yellow) 85%, var(--maker-hero-ink)); }
+.maker-cta .icon { width: 20px; height: 20px; }
+.maker-journey-link { display: inline-flex; gap: 14px; align-items: center; min-height: 44px; color: var(--maker-hero-soft); font-size: 14px; }
+.maker-journey-link:hover { color: var(--maker-yellow); }
+.maker-journey-link .icon { width: 16px; height: 16px; }
+.maker-hero__invite { margin-top: 26px; display: flex; align-items: center; gap: 11px; }
+.maker-hero__invite p { font-size: 12px; line-height: 1.7; color: var(--maker-hero-soft); }
+.maker-hero__invite strong { font-weight: 500; color: #fff; }
+.maker-hero__scene { position: relative; z-index: 1; align-self: end; min-width: 0; display: flex; justify-content: center; }
+.maker-hero__scene { --hero-h: 680px; }
+.maker-cta:active { background: var(--primary-strong); }
+.maker-landing .maker-art-credit { width: fit-content; font-weight: 600; }
+.maker-landing .maker-art-credit { min-height: 44px; display: inline-flex; align-items: center; }
+.maker-opening__foot { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 25px; min-height: 84px; color: var(--maker-hero-soft); font-size: 12px; }
+.maker-opening__foot::before { content: ""; position: absolute; inset: 0 calc((1240px - 100vw) / 2); background: var(--maker-hero-ink); }
+.maker-opening__foot > * { position: relative; }
+.maker-opening__foot > span { padding-left: 20px; }
+.maker-opening__foot > span::before { content: ""; position: absolute; top: 8px; left: 0; width: 6px; height: 6px; border-radius: 100%; background: var(--maker-yellow); }
+.maker-opening__foot a { display: flex; align-items: center; gap: 20px; min-height: 44px; }
+.maker-opening__foot .icon { width: 17px; height: 17px; }
+.maker-section-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 36px; }
+.maker-landing h2 { font-size: clamp(32px, 3.1vw, 45px); line-height: 1.3; }
+.maker-landing h2 span { color: var(--primary); }
+.maker-section-head > p { color: var(--maker-muted); font-size: 14px; padding-bottom: 5px; }
+.maker-journey { padding-block: 105px 92px; scroll-margin-top: 30px; }
+.maker-journey__trail { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 31px; list-style: none; padding: 0; margin: 46px 0 0; position: relative; }
+.maker-journey__trail::before { content: ""; position: absolute; left: 10%; right: 10%; top: 114px; border-top: 1px dashed var(--line); }
+.maker-journey__trail li { position: relative; }
+.maker-journey__trail li:nth-child(even) { margin-top: 31px; }
+.maker-journey__sketch { height: 165px; position: relative; }
+.maker-journey__sketch svg { display: block; width: 220px; max-width: 100%; margin-inline: auto; position: relative; }
+.maker-journey__sketch > span { position: absolute; bottom: 0; left: 0; display: grid; place-items: center; width: 29px; height: 29px; border-radius: 100%; background: var(--maker-ink); color: var(--maker-paper); font-size: 12px; font-weight: 700; }
+.maker-journey__action { margin-top: 19px !important; font-size: 12px; color: var(--primary); font-weight: 700; }
+.maker-journey h3 { font-size: 19px; letter-spacing: -0.035em; line-height: 1.5; margin-top: 5px; }
+.maker-journey h3 + p { margin-top: 11px; color: var(--maker-muted); font-size: 14px; line-height: 1.9; }
+.maker-journey blockquote { margin: 20px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--maker-muted); font-size: 12px; font-style: italic; line-height: 1.85; }
+.maker-project { display: grid; grid-template-columns: 1fr 1fr; gap: 95px; align-items: center; padding-block: 48px 115px; scroll-margin-top: 50px; }
+.maker-project__drawing { position: relative; min-height: 390px; background: var(--maker-yellow); border-radius: 12px; transform: rotate(-3deg); box-shadow: 0 14px 32px rgb(12 45 69 / 6%); padding: 27px 32px; }
+.maker-project__tape { position: absolute; top: -12px; left: 39%; width: 97px; height: 27px; background: var(--secondary); transform: rotate(6deg); }
+.maker-project__example { font-size: 12px; color: var(--maker-muted); }
+.maker-project__sketch { width: 83%; margin: 25px auto 0; }
+.maker-project__sketch svg { width: 100%; height: auto; }
+.maker-project__annotation { position: absolute; font-size: 11px; color: var(--maker-ink); background: var(--surface); padding: 4px 7px; }
+.maker-project__annotation--one { right: 16px; top: 90px; transform: rotate(4deg); }
+.maker-project__annotation--one::after { content: ""; position: absolute; width: 35px; height: 27px; top: 24px; right: 55px; border-right: 1px solid var(--primary); transform: rotate(17deg); }
+.maker-project__annotation--two { bottom: 64px; left: 23px; transform: rotate(-2deg); }
+.maker-project__signature { display: block; position: absolute; bottom: 23px; left: 32px; right: 32px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 11px; color: var(--maker-muted); }
+.maker-project__copy > p { margin-top: 20px; color: var(--maker-muted); font-size: 14px; max-width: 460px; }
+.maker-project__copy > p:first-of-type { color: var(--maker-ink); font-size: 17px; }
+.maker-project__question { display: flex; align-items: flex-start; gap: 12px; margin-top: 25px; font-size: 13px; color: var(--maker-ink); }
+.maker-project__question .icon { flex-shrink: 0; width: 19px; height: 19px; margin-top: 3px; }
+.maker-inline-link { display: inline-flex; gap: 20px; align-items: center; min-height: 44px; margin-top: 22px; color: var(--primary); font-weight: 600; font-size: 13px; }
+.maker-inline-link:hover { color: var(--maker-ink); background: transparent; }
+.maker-inline-link .icon { width: 19px; }
+.maker-support { background: #f7f8f6; color: var(--maker-ink); padding-block: 88px 62px; scroll-margin-top: 0; }
+.maker-support h2 span { color: var(--primary); }
+.maker-support .maker-section-head > p { color: var(--maker-muted); }
+.maker-guides { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px; margin-top: 49px; }
+.maker-guide { position: relative; }
+.maker-guide__portrait { width: 138px; height: 125px; display: grid; place-items: center; position: relative; margin-bottom: 19px; }
+.maker-guide__portrait::before { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 69px; border-radius: 70% 70% 20% 20%; background: var(--secondary); }
+.maker-guide__portrait .mascot { position: relative; z-index: 1; }
+.maker-guide h3 { font-size: 21px; line-height: 1.4; letter-spacing: -0.025em; color: var(--primary); }
+.maker-guide > strong { display: block; font-size: 13px; margin-top: 8px; color: var(--maker-ink); font-weight: 600; }
+.maker-guide > p { font-size: 14px; line-height: 1.85; margin-top: 6px; color: var(--maker-muted); max-width: 235px; }
+.maker-human { display: flex; align-items: center; gap: 23px; margin-top: 48px; padding-top: 30px; border-top: 1px solid var(--line); }
+.maker-human svg { width: 77px; height: 77px; flex-shrink: 0; }
+.maker-human h3 { font-size: 18px; letter-spacing: -0.025em; line-height: 1.6; }
+.maker-human p { margin-top: 6px; color: var(--maker-muted); font-size: 13px; }
+.maker-close { position: relative; padding-block: 93px 91px; text-align: center; }
+.maker-close h2 { font-size: clamp(34px, 3.6vw, 51px); }
+.maker-close > p { color: var(--maker-muted); font-size: 14px; margin-top: 18px; }
+.maker-close .maker-cta { margin-top: 28px; }
+.maker-close__sprout { position: absolute; left: 1%; top: 100px; width: 180px; transform: rotate(-12deg); opacity: .85; }
+.maker-close__sprout svg { width: 100%; }
+.maker-footer { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-block: 25px 30px; border-top: 1px solid var(--line); }
+.maker-footer > span, .maker-footer > a { font-size: 11px; color: var(--maker-muted); }
+.maker-footer > a { display: flex; gap: 12px; align-items: center; min-height: 44px; color: var(--primary); font-weight: 600; }
+.maker-footer > a:hover { color: var(--maker-ink); background: transparent; }
+.maker-footer .icon { width: 16px; height: 16px; }
+.maker-footer .maker-brand strong { font-size: 16px; }
+.maker-footer .maker-brand small { font-size: 10px; }
+@keyframes maker-sway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+@keyframes maker-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(4px, -5px); } }
+@keyframes maker-breathe { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@media (max-width: 1336px) {
+  .maker-hero::before, .maker-opening__foot::before { left: -48px; right: -48px; }
+  .maker-project { gap: 60px; }
+}
+@media (max-width: 1000px) {
+  .maker-wrap { width: calc(100% - 64px); }
+  .maker-nav { gap: 16px; }
+  .maker-nav nav { gap: 20px; font-size: 12px; }
+  .maker-brand strong { font-size: 16px; }
+  .maker-hero { min-height: 560px; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .maker-hero__scene { --hero-h: 580px; }
+  .maker-hero::before, .maker-opening__foot::before { left: -32px; right: -32px; }
+  .maker-hero h1 { font-size: clamp(43px, 5.5vw, 56px); }
+  .maker-hero__copy > p { font-size: 14px; }
+  .maker-desktop-break { display: none; }
+  .maker-section-head > p { max-width: 270px; font-size: 13px; }
+  .maker-journey__trail { gap: 21px; }
+  .maker-journey h3 { font-size: 17px; }
+  .maker-journey__sketch { height: 145px; }
+  .maker-journey__trail::before { top: 91px; }
+  .maker-project { gap: 38px; }
+  .maker-project__drawing { min-height: 330px; padding-inline: 22px; }
+  .maker-project__sketch { width: 95%; }
+  .maker-project__annotation--one { font-size: 10px; top: 72px; }
+  .maker-guides { gap: 24px; }
+  .maker-close__sprout { width: 115px; left: -15px; }
+}
+@media (max-width: 760px) {
+  .maker-wrap { width: calc(100% - 40px); }
+  .maker-nav { min-height: 82px; }
+  .maker-nav nav { display: none; }
+  .maker-brand { gap: 6px; }
+  .maker-brand strong { font-size: 14px; }
+  .maker-brand small { font-size: 10px; }
+  .maker-brand svg { width: 29px; }
+  .maker-nav__entry { font-size: 12px; gap: 9px; padding-inline: 13px; min-height: 44px; }
+  .maker-hero { grid-template-columns: 1fr; min-height: auto; padding-top: 35px; padding-bottom: 0; }
+  .maker-hero::before { background: radial-gradient(ellipse 80% 40% at 50% 82%, rgb(62 91 163 / 0.55), transparent 72%), var(--maker-hero-ink); }
+  .maker-hero::before, .maker-opening__foot::before { left: -20px; right: -20px; }
+  .maker-hero__copy { padding-block: 0; }
+  .maker-hero h1 { font-size: clamp(43px, 9.5vw, 64px); line-height: 1.2; }
+  .maker-hero__copy > p { margin-top: 21px; font-size: 14px; max-width: 450px; }
+  .maker-hero__actions { margin-top: 25px; gap: 10px; }
+  .maker-cta { min-height: 53px; font-size: 14px; }
+  .maker-hero__invite { margin-top: 17px; }
+  .maker-hero__scene { margin-top: 10px; }
+  .maker-hero__scene { --hero-h: 470px; }
+  .maker-opening__foot { padding-block: 14px 23px; font-size: 10px; }
+  .maker-opening__foot > span { max-width: 225px; }
+  .maker-opening__foot a span { display: none; }
+  .maker-opening__foot a { width: 44px; justify-content: center; }
+  .maker-section-head { display: block; }
+  .maker-section-head > p { max-width: none; margin-top: 19px; font-size: 13px; }
+  .maker-journey { padding-block: 64px 48px; }
+  .maker-journey__trail { grid-template-columns: 1fr 1fr; gap: 27px 24px; margin-top: 27px; }
+  .maker-journey__trail::before { display: none; }
+  .maker-journey__trail li:nth-child(even) { margin-top: 25px; }
+  .maker-journey__sketch { height: 140px; }
+  .maker-journey__action { font-size: 11px; }
+  .maker-journey h3 { font-size: 16px; }
+  .maker-journey h3 + p { font-size: 13px; }
+  .maker-journey blockquote { font-size: 11px; }
+  .maker-project { grid-template-columns: 1fr; gap: 41px; padding-block: 33px 66px; }
+  .maker-project__drawing { width: min(96%, 440px); justify-self: center; min-height: 340px; }
+  .maker-project__sketch { width: 82%; max-width: 340px; }
+  .maker-project__copy > p { font-size: 13px; }
+  .maker-project__copy > p:first-of-type { font-size: 15px; }
+  .maker-support { padding-block: 62px 40px; }
+  .maker-guides { grid-template-columns: 1fr 1fr; gap: 28px 22px; margin-top: 26px; }
+  .maker-guide__portrait { margin-bottom: 13px; width: 118px; height: 113px; }
+  .maker-guide h3 { font-size: 20px; }
+  .maker-guide > strong { font-size: 12px; }
+  .maker-guide > p { font-size: 13px; }
+  .maker-human { gap: 14px; align-items: flex-start; margin-top: 32px; padding-top: 26px; }
+  .maker-human svg { width: 50px; height: 50px; }
+  .maker-human h3 { font-size: 16px; }
+  .maker-human p { font-size: 12px; }
+  .maker-close { padding-block: 65px; }
+  .maker-close h2 { font-size: 33px; }
+  .maker-close > p { font-size: 13px; }
+  .maker-close__sprout { display: none; }
+  .maker-footer { flex-wrap: wrap; row-gap: 9px; padding-block: 22px; }
+  .maker-footer > span { order: 3; width: 100%; font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .maker-landing *, .maker-landing *::before, .maker-landing *::after { animation: none !important; transition: none !important; }
+  html:has(.maker-landing) { scroll-behavior: auto; }
+}
+
+/* Type system, candidate (UI_SPEC §4a). Roles: --font-display = Fraunces 600 for the hero and section headings only;
+   --font-text = Be Vietnam Pro for everything else. Supporting text never drops below 14px. */
+.maker-landing h1, .maker-landing h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.015em; }
+.maker-hero h1 { font-size: var(--t-hero); line-height: 1.2; }
+.maker-landing h2, .maker-close h2 { font-size: var(--t-h2); line-height: 1.25; }
+.maker-landing h3 { font-family: var(--font-text); font-weight: 600; letter-spacing: -0.01em; }
+.maker-brand strong, .maker-footer .maker-brand strong { letter-spacing: -0.01em; }
+.maker-hero__copy > p { font-size: 1.0625rem; line-height: 1.75; }
+.maker-nav nav, .maker-journey-link, .maker-opening__foot, .maker-hero__invite p, .maker-inline-link, .maker-guide > strong { font-size: var(--t-support); }
+.maker-cta, .maker-nav__entry { font-size: 0.9375rem; font-weight: 600; letter-spacing: 0; }
+.maker-section-head > p, .maker-journey h3 + p, .maker-project__copy > p, .maker-guide > p, .maker-human p, .maker-close > p, .maker-journey blockquote, .maker-project__question { font-size: var(--t-support); }
+.maker-journey blockquote { font-style: normal; }
+.maker-project__copy > p:first-of-type { font-size: 1.0625rem; }
+.maker-journey__action, .maker-project__example, .maker-footer > span, .maker-footer > a { font-size: 0.8125rem; }
+.maker-journey h3, .maker-guide h3, .maker-human h3 { line-height: 1.45; }
+.maker-motif { display: block; width: auto; height: 76px; margin: 0 auto 10px; }
+@media (max-width: 760px) {
+  .maker-hero h1 { line-height: 1.22; }
+  .maker-motif { height: 60px; }
+}

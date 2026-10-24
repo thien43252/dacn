@@ -1,0 +1,55 @@
+
+:root {
+  /* Accepted UI_SPEC §3/§4a system, app-wide. Semantic status tokens below keep their own meaning. */
+  --primary: #3e5ba3;
+  --primary-strong: #304982;
+  --secondary: #75cbd1;
+  --accent: #fff8d2;
+  --background: #f5f7fc;
+  --surface: #ffffff;
+  --text: #0c2d45;
+  --muted: #52647c;
+  --muted-soft: #52647c;
+  --line: #cdd7e7;
+  --line-strong: #52647c;
+  --frosted: #ffffff;
+  --frosted-strong: #ffffff;
+  --primary-soft: #dae8fb;
+  --accent-soft: #fff8d2;
+  --success: #287a61;
+  --success-soft: rgba(40, 122, 97, 0.12);
+  --danger: #b4465a;
+  --danger-soft: rgba(180, 70, 90, 0.1);
+  --warning: #946b2d;
+  --warning-soft: rgba(148, 107, 45, 0.12);
+  --shadow: 0 18px 48px rgba(12, 45, 69, 0.1);
+  --shadow-strong: 0 28px 72px rgba(12, 45, 69, 0.16);
+  --shadow-primary: 0 8px 20px rgb(62 91 163 / 16%);
+  --sans: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-display: var(--display);
+  --font-text: var(--sans);
+  --t-hero: clamp(2.5rem, 4.4vw, 4rem);
+  --t-h2: clamp(1.75rem, 2.9vw, 2.5rem);
+  --t-h3: 1.25rem;
+  --t-body: 1rem;
+  --t-support: 0.875rem;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-18: 72px;
+  --radius-control: 16px;
+  --radius-card: 24px;
+  --radius-panel: 30px;
+  --radius-pill: 999px;
+  --sidebar-open: 260px;
+  --sidebar-closed: 88px;
+  --chat-width: clamp(380px, 32vw, 480px);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --slow-ease: cubic-bezier(0.65, 0, 0.35, 1);
+}

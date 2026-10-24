@@ -1,0 +1,109 @@
+/* Work surfaces only: public/landing styles and Admin configuration forms keep their own typography. */
+.workspace-shell {
+  height: 100dvh;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.workspace-shell .sidebar__top,
+.workspace-shell .sidebar__profile { flex-shrink: 0; }
+.workspace-shell .sidebar__nav { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.workspace-shell .sidebar__nav button { font-size: 14px; line-height: 1.5; white-space: normal; }
+.workspace-shell .sidebar__nav button svg { flex-shrink: 0; }
+.workspace-shell .sidebar__profile strong { font-size: 14px; }
+.workspace-shell .sidebar__profile small { font-size: 12px; }
+.workspace-shell .workspace-main { min-height: 0; scrollbar-gutter: stable; scroll-padding-block: 20px; }
+.workspace-shell .workspace-content { min-width: 0; max-width: 1600px; margin-inline: auto; }
+.workspace-shell .workspace-main--fill .workspace-content { width: 100%; }
+.workspace-shell :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--primary-strong);
+  outline-offset: 3px;
+}
+
+/* Read prose comfortably without enlarging headings, metrics, or Admin fields. */
+:is(.workspace-shell--student, .workspace-shell--teacher) :is(.field > span, .field > label) {
+  font-size: 14px;
+  line-height: 1.5;
+}
+:is(.workspace-shell--student, .workspace-shell--teacher) :is(input, textarea, select) {
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.workspace-shell :is(.plan-card, .dc-block, .teacher-plan-brief, .tp-card) p {
+  max-width: 75ch;
+  font-size: 15px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.workspace-shell :is(.plan-card, .dc-block) li { font-size: 14px; line-height: 1.65; }
+.workspace-shell :is(.plan-table td, .reference-list li, .tr-table td) { font-size: 14px; line-height: 1.6; }
+.workspace-shell :is(.version-bar__meta, .version-bar__notice, .reference-list small) {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.workspace-shell .version-bar__actions .button { font-size: 13px; min-height: 44px; }
+.workspace-shell :is(.plan-card__head, .idea-form__head, .dc-plan__head) { flex-wrap: wrap; }
+.workspace-shell :is(.plan-card__head, .idea-form__head, .dc-plan__head) > * { min-width: 0; }
+.workspace-shell :is(.version-bar__identity, .plan-card__head, .dc-plan__head) { overflow-wrap: anywhere; }
+
+/* A wrapped version toolbar can be taller than the viewport; keep all of it in normal flow. */
+.workspace-shell .version-bar { position: static; }
+.workspace-shell .dc-side { position: static; }
+.workspace-shell :is(.plan-surface, .dc-page, .dc-two, .home-top, .home-bottom) > * { min-width: 0; }
+.workspace-shell .plan-lists { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+.workspace-shell .rubric-board__grid { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
+.workspace-shell :is(.home-top, .home-bottom) { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+.workspace-shell :is(.plan-table-wrap, .analysis-table__scroll, .gantt__scroll) { max-width: 100%; }
+.workspace-shell .tr-table-wrap { min-width: 0; max-width: 100%; }
+
+/* Long messages must scroll inside the feed instead of shrinking beneath a fixed composer. */
+.workspace-shell .chat-panel { min-height: 0; }
+.workspace-shell .chat-panel__messages > * { flex-shrink: 0; min-width: 0; }
+.workspace-shell .chat-panel__header { flex-wrap: wrap; gap: 8px; }
+.workspace-shell .chat-panel__header > div:nth-child(2) { flex: 1 1 100px; }
+.workspace-shell .chat-panel__header .icon-button { width: 36px; height: 36px; flex-basis: 36px; }
+.workspace-shell .message__meta { align-items: flex-start; }
+.workspace-shell .message__meta .mascot { flex-shrink: 0; }
+.workspace-shell .chat-jump {
+  position: static;
+  align-self: center;
+  flex-shrink: 0;
+  max-width: calc(100% - 24px);
+  margin: 4px 12px;
+  transform: none;
+  animation: none;
+}
+.workspace-shell .chat-questions { width: 100%; }
+
+@container workspace (max-width: 900px) {
+  .workspace-shell .dc-page { grid-template-columns: minmax(0, 1fr); }
+  .workspace-shell .dc-two { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container workspace (max-width: 640px) {
+  .workspace-shell .workspace-content { padding-inline: 16px; }
+  .workspace-shell :is(.plan-card, .idea-form, .dc-plan) { padding: 16px; }
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  /* Match the existing teacher drawer for students/admins rather than squeeze two work surfaces. */
+  .workspace-shell .chat-panel--open {
+    position: fixed;
+    inset: 12px 12px 12px auto;
+    z-index: 50;
+    width: min(var(--chat-width), calc(100vw - 24px));
+  }
+  .workspace-shell .chat-panel--open .chat-panel__inner { width: 100%; }
+}
+
+@media (max-width: 900px) {
+  .workspace-shell { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .workspace-shell .sidebar__nav button { min-height: 44px; }
+  .workspace-shell .chat-panel--open { inset: 8px 8px max(8px, env(safe-area-inset-bottom)); }
+  .workspace-shell .chat-panel__header .icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+  :is(.workspace-shell--student, .workspace-shell--teacher) :is(input, textarea, select) { font-size: 16px; }
+}
