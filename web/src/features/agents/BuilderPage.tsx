@@ -7,6 +7,7 @@ import { type AgentDetail, type AgentManifest, type AgentRole, ROLE_LABELS, SUBJ
 import { ChatThread, mascotOf, NO_MESSAGES } from "../../components/chat/ChatThread";
 import { Icon } from "../../components/Icon";
 import { Mascot, type MascotName } from "../../components/Mascot";
+import { VersionsPanel } from "../certify/VersionsPanel";
 import { AgentDetailDialog, CertificationBadge } from "./AgentCard";
 
 const AVATARS: MascotName[] = ["owl", "cat", "panda", "penguin", "bear", "bunny", "deer", "frog", "hamster", "hedgehog", "koala", "otter", "raccoon", "redpanda"];
@@ -224,7 +225,7 @@ function AgentEditor({ agent, onSaved }: { agent?: AgentDetail; onSaved: (agent:
           {agent && (
             <>
               <button className="button button--secondary" type="button" disabled={busy || dirty} title={dirty ? "Lưu bản nháp trước" : undefined}
-                onClick={() => void run(() => builderApi.snapshot(agent.id), "Đã tạo phiên bản mới. Phiên bản cần qua kiểm định trước khi học sinh dùng được.")}>
+                onClick={() => void run(() => builderApi.snapshot(agent.id), "Đã tạo phiên bản mới. Bấm “Kiểm định” ở danh sách phiên bản bên dưới để học sinh dùng được.")}>
                 <Icon name="layers" /> Tạo phiên bản
               </button>
               <button className="button button--secondary" type="button" disabled={dirty} onClick={() => { setTryConversation(null); setTryRun((value) => value + 1); setTrying(true); }}><Icon name="play" /> Thử ngay</button>
@@ -234,20 +235,7 @@ function AgentEditor({ agent, onSaved }: { agent?: AgentDetail; onSaved: (agent:
         </div>
       </form>
 
-      {agent && agent.versions.length > 0 && (
-        <section className="ea-card">
-          <h3>Phiên bản</h3>
-          <ul className="ea-versions">
-            {agent.versions.map((version) => (
-              <li key={version.id}>
-                <strong>v{version.version}</strong>
-                <CertificationBadge status={version.certification_status} />
-                <span className="ea-muted">{new Date(version.created_at).toLocaleString("vi-VN")}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {agent && agent.versions.length > 0 && <VersionsPanel agent={agent} onChanged={() => onSaved(agent)} />}
 
       {agent && trying && (
         <section className="ea-card ea-sandbox">

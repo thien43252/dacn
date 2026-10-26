@@ -1,7 +1,8 @@
 """Deterministic offline provider for tests and key-less demos.
 
 Behaviour, in order:
-1. A scripted reply queued with `script()` (tests use this to drive tool calls, guard verdicts, judge scores).
+1. A scripted reply queued with `script()` for that tier: agents use "main"; guards, the router and judges use
+   "small", so `script("...")` drives the agent and `script('{"verdict": "block"}', tier="small")` a guard.
 2. A JSON prompt (system mentions JSON) gets `{}` so callers fall back to their own defaults.
 3. A last user message containing `[[tool:NAME {json}]]` calls that tool once, if it is offered.
 4. Otherwise a short Vietnamese echo, streamed word by word.
@@ -31,15 +32,20 @@ class FakeChatModel:
     provider = "fake"
 
     def __init__(self) -> None:
-        self.queue: list[Scripted] = []
+        self.queues: dict[str, list[Scripted]] = {"main": [], "small": []}
         self.responders: list[Responder] = []
         self.calls: list[dict] = []
 
     def model_for(self, tier: Tier) -> str:
         return f"fake-{tier}"
 
-    def script(self, *items: Scripted | str) -> None:
-        self.queue.extend(Scripted(text=item) if isinstance(item, str) else item for item in items)
+    def script(self, *items: Scripted | str, tier: Tier = "main") -> None:
+        self.queues[tier].extend(Scripted(text=item) if isinstance(item, str) else item for item in items)
+
+    @property
+    def main_calls(self) -> list[dict]:
+        """Agent calls only (guards, the router and judges run on the small tier)."""
+        return [call for call in self.calls if call["tier"] == "main"]
 
     def respond_with(self, responder: Responder) -> None:
         """Registers a function that may answer based on the request (returns None to pass)."""
@@ -50,8 +56,8 @@ class FakeChatModel:
             reply = responder(messages, system, tools, tier)
             if reply is not None:
                 return reply
-        if self.queue:
-            return self.queue.pop(0)
+        if self.queues[tier]:
+            return self.queues[tier].pop(0)
         if "JSON" in system:
             return Scripted(text="{}")
         last = messages[-1] if messages else Message(role="user")

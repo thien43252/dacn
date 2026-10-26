@@ -6,6 +6,8 @@ import { BuilderPage } from "../features/agents/BuilderPage";
 import { HubPage } from "../features/agents/HubPage";
 import { MyAgentsPage } from "../features/agents/MyAgentsPage";
 import { ToolsPage } from "../features/agents/ToolsPage";
+import { AdminAuditPage, TeacherAuditPage } from "../features/audit/AuditPages";
+import { AdminCertificationPage } from "../features/certify/AdminCertificationPage";
 import { ClassDetailPage } from "../features/classes/ClassDetailPage";
 import { StudentHomePage } from "../features/classes/StudentHomePage";
 import { StudentClassesPage } from "../features/classes/StudentClassesPage";
@@ -20,6 +22,7 @@ const screens: Record<string, (route: MatchedRoute) => ReactNode> = {
   "/teacher/classes/:classId": ({ params }) => <ClassDetailPage key={params.classId} classId={params.classId} />,
   "/teacher/hub": () => <HubPage />,
   "/teacher/builder": () => <BuilderPage />,
+  "/teacher/audit": () => <TeacherAuditPage />,
   "/student/home": () => <StudentHomePage />,
   "/student/classes": () => <StudentClassesPage />,
   "/student/hub": () => <HubPage />,
@@ -27,6 +30,8 @@ const screens: Record<string, (route: MatchedRoute) => ReactNode> = {
   "/parent/hub": () => <HubPage />,
   "/admin/agents": () => <HubPage />,
   "/admin/tools": () => <ToolsPage />,
+  "/admin/certification": () => <AdminCertificationPage />,
+  "/admin/audit": () => <AdminAuditPage />,
   "/parent/home": () => <ParentHomePage />,
   "/parent/consent": () => <ParentConsentPage />,
 };

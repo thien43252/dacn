@@ -64,7 +64,19 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
 - Tuần 6: manifest agent, 7 agent nền tảng (`seed/agents`), Agent Hub, cài vào lớp hoặc cá nhân, trình tạo agent có
   phiên bản bất biến, tạo bản sao và phòng thử (sandbox). Học sinh và phụ huynh chỉ dùng được phiên bản đã kiểm định.
 
-Chọn agent hiện theo `@mention` hoặc rơi về `tro-ly-lop`; router bằng LLM là tuần 7, guard đầu vào/đầu ra là tuần 8.
+- Tuần 7: orchestrator chọn agent theo thứ tự: agent chọn trên UI, `@mention`, router LLM (model nhỏ, JSON), router từ
+  khoá (dự phòng và baseline), rồi `tro-ly-lop`. Chính sách lớp giới hạn môn được dùng. Đo bằng
+  `uv run python ../eval/run_routing.py [--router llm]` (router từ khoá: 74% trên `routing_set`).
+- Tuần 8: guard 3 lớp: đầu vào (luật + phân loại LLM, chạy song song với router; ẩn số điện thoại, mật khẩu, địa chỉ;
+  chủ đề cấm của lớp; dấu hiệu tự làm hại thì trả lời hỗ trợ kèm Tổng đài 111), tool guard, đầu ra (luật + LLM, thu hồi
+  câu trả lời đã stream). Mọi quyết định ghi vào `guard_events`; nhật ký cho giáo viên (theo lớp) và admin (kèm chi phí).
+  `GUARD_MODE=full|prompt_only|off` để so sánh ở tuần 11.
+- Tuần 9: pipeline kiểm định: kiểm tra tĩnh manifest, giám khảo LLM đọc hướng dẫn hệ thống, chạy ~36 tình huống
+  red-team và câu hỏi hợp lệ qua runtime thật, giám khảo LLM chấm từng ca, rồi quyết định
+  đạt / cần xem lại / không đạt. Admin duyệt hàng đợi "cần xem lại". Agent đạt và được đăng sẽ lên Hub.
+
+Khi chạy với `LLM_PROVIDER=fake`, giám khảo không chấm được nên kiểm định luôn ra "cần xem lại" (trừ khi kiểm tra tĩnh
+đã loại); số liệu thật cần khoá API.
 
 ## Dùng mô hình thật
 

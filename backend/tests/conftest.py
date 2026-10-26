@@ -3,12 +3,13 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool, StaticPool
 
 import app.models  # noqa: F401
 from app.agents.service import sync_platform_agents
+from app.auth.models import User
 from app.db import Base, use_sessionmaker
 from app.llm.fake import FakeChatModel, FakeEmbedder
 from app.llm.registry import use_chat_model, use_embedder
@@ -70,8 +71,10 @@ async def client(app) -> AsyncIterator[AsyncClient]:
 
 
 @pytest.fixture
-async def as_user(app):
-    """`await as_user("teacher")` returns a logged-in client of its own, so several users can act in one test."""
+async def as_user(app, sessionmaker):
+    """`await as_user("teacher")` returns a logged-in client of its own, so several users can act in one test.
+
+    Admins cannot self-register, so "admin" registers a teacher and promotes it in the database."""
     clients: list[AsyncClient] = []
     counter = 0
 
@@ -84,11 +87,16 @@ async def as_user(app):
             "name": name or f"{role.title()} {counter}",
             "email": f"{role}{counter}@example.com",
             "password": "Secret123",
-            "role": role,
+            "role": "teacher" if role == "admin" else role,
         }
         response = await http.post("/api/auth/register", json=payload)
         assert response.status_code == 201, response.text
         http.user = response.json()["user"]  # type: ignore[attr-defined]
+        if role == "admin":
+            async with sessionmaker() as db:
+                await db.execute(update(User).where(User.id == http.user["id"]).values(role="admin"))  # type: ignore[attr-defined]
+                await db.commit()
+            http.user["role"] = "admin"  # type: ignore[attr-defined]
         return http
 
     yield make

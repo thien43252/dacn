@@ -1,6 +1,10 @@
 import { apiRequest } from "./http";
 import type {
   AgentDetail,
+  AuditLog,
+  Certification,
+  CertificationDetail,
+  UsageReport,
   AgentManifest,
   ChatAgent,
   ClassDocument,
@@ -82,4 +86,28 @@ export const documentsApi = {
     apiRequest<ClassDocument>(`/api/classes/${enc(classId)}/documents/${enc(documentId)}/reprocess`, { method: "POST" }),
   remove: (classId: string, documentId: string) =>
     apiRequest<void>(`/api/classes/${enc(classId)}/documents/${enc(documentId)}`, { method: "DELETE" }),
+};
+
+export const certifyApi = {
+  start: (agentId: string, versionId: string, publish: boolean) =>
+    apiRequest<Certification>(`/api/agents/${enc(agentId)}/versions/${enc(versionId)}/certify`, { method: "POST", body: { publish } }),
+  forAgent: (agentId: string) => apiRequest<Certification[]>(`/api/agents/${enc(agentId)}/certifications`),
+  detail: (certificationId: string) => apiRequest<CertificationDetail>(`/api/certifications/${enc(certificationId)}`),
+  setVisibility: (agentId: string, visibility: "public" | "private") =>
+    apiRequest<{ visibility: string }>(`/api/agents/${enc(agentId)}/visibility`, { method: "PATCH", body: { visibility } }),
+  queue: (status: string) => apiRequest<Certification[]>(`/api/admin/certifications${query({ status })}`),
+  review: (certificationId: string, decision: "certified" | "rejected", note: string) =>
+    apiRequest<Certification>(`/api/admin/certifications/${enc(certificationId)}/review`, { method: "POST", body: { decision, note } }),
+};
+
+export interface AuditFilters {
+  stage?: string;
+  verdict?: string;
+  source?: string;
+}
+
+export const auditApi = {
+  forClass: (classId: string, filters: AuditFilters = {}) => apiRequest<AuditLog>(`/api/classes/${enc(classId)}/audit${query({ ...filters })}`),
+  events: (filters: AuditFilters = {}) => apiRequest<AuditLog>(`/api/audit/events${query({ ...filters })}`),
+  usage: (days: number) => apiRequest<UsageReport>(`/api/admin/usage${query({ days })}`),
 };

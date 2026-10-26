@@ -81,7 +81,7 @@ async def test_class_doc_search_returns_relevant_chunk_only_from_own_class(as_us
     )
     events = await chat(student, "Quang hợp là gì?", class_id=room["id"])
     assert reply_text(events).endswith("Theo tài liệu lớp, quang hợp là ...")
-    result = json.loads(fake_llm.calls[-1]["messages"][-1].content)
+    result = json.loads(fake_llm.main_calls[-1]["messages"][-1].content)
     titles = {hit["title"] for hit in result["results"]}
     assert titles == {"Bài giảng"}
     assert "Quang hợp" in result["results"][0]["content"]

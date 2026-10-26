@@ -5,9 +5,10 @@ import { errorMessage, useResource } from "../../app/useResource";
 import { classesApi } from "../../api-client/classes";
 import { subjectLabel } from "../../api-client/types";
 import { Icon } from "../../components/Icon";
-import { PlaceholderPage } from "../../pages/PlaceholderPage";
 import { SubTabs } from "../shared/SubTabs";
+import { auditApi } from "../../api-client/agents";
 import { ClassAgentsTab } from "../agents/ClassAgentsTab";
+import { AuditLogView } from "../audit/AuditLogView";
 import { DocumentsTab } from "../documents/DocumentsTab";
 import { ClassFormDialog } from "./ClassForm";
 import { MembersTab } from "./MembersTab";
@@ -85,7 +86,7 @@ export function ClassDetailPage({ classId }: { classId: string }) {
           { id: "agents", label: "Agent", description: "Agent đang dùng trong lớp.", render: () => <ClassAgentsTab room={data} /> },
           { id: "documents", label: "Tài liệu", description: "Tài liệu agent được phép đọc khi trả lời trong lớp.", render: () => <DocumentsTab room={data} /> },
           { id: "policy", label: "Chính sách", description: "Quy tắc áp dụng cho mọi agent trong lớp.", render: () => <PolicyTab room={data} /> },
-          { id: "audit", label: "Nhật ký", description: "Các lần hệ thống chặn hoặc cảnh báo trong lớp.", render: () => <PlaceholderPage title="Nhật ký an toàn" week={8} /> },
+          { id: "audit", label: "Nhật ký", description: "Các lần hệ thống chặn hoặc cảnh báo trong lớp.", render: () => <AuditLogView load={(filters) => auditApi.forClass(data.id, filters)} scope={data.id} /> },
         ]}
       />
 

@@ -13,6 +13,7 @@ from app.agents.models import Agent, AgentVersion, Installation
 from app.agents.service import ResolvedAgent, latest_version
 from app.auth.deps import CurrentUser, DbSession, require_roles
 from app.auth.models import Role, User
+from app.certify.models import Certification
 from app.classes import service as classes
 from app.tools.registry import TOOLS
 
@@ -48,6 +49,8 @@ class AgentDetailOut(HubAgentOut):
     forked_from_id: str | None
     draft_manifest: dict[str, Any] | None = None
     versions: list[dict[str, Any]] = []
+    # Latest finished certification of the shown version: status, score, cases per category (public summary).
+    certification: dict[str, Any] | None = None
 
 
 class InstallIn(BaseModel):
@@ -199,8 +202,27 @@ async def hub_detail(agent_id: str, user: CurrentUser, db: DbSession) -> AgentDe
             }
             for v in rows
         ]
+    summary = None
+    if version is not None:
+        latest = await db.scalar(
+            select(Certification)
+            .where(Certification.agent_version_id == version.id, Certification.finished_at.is_not(None))
+            .order_by(Certification.created_at.desc())
+            .limit(1)
+        )
+        if latest is not None:
+            report = latest.report or {}
+            summary = {
+                "id": latest.id,
+                "status": latest.status,
+                "score": latest.score,
+                "cases": len(report.get("cases", [])),
+                "by_category": report.get("by_category", {}),
+                "finished_at": latest.finished_at,
+            }
     return AgentDetailOut(
         **(await _out(db, agent, version)).model_dump(),
+        certification=summary,
         manifest=version.manifest if version else agent.draft_manifest,
         visibility=agent.visibility,
         is_mine=mine,

@@ -142,7 +142,7 @@ async def test_sandbox_runs_draft_without_class_and_hides_from_history(as_user, 
     events = parse_sse(response.text)
     assert next(event for event in events if event["type"] == "agent")["agent"] == "on-thi-hoa-9"
     assert reply_text(events) == "Chào em, cùng ôn Hoá 9 nhé!"
-    assert "Ôn thi Hoá 9" in fake_llm.calls[-1]["system"]
+    assert "Ôn thi Hoá 9" in fake_llm.main_calls[-1]["system"]
     assert (await teacher.get("/api/chat/conversations")).json() == []
     # A normal personal chat still goes to the fallback.
     events = await chat(teacher, "Xin chào")

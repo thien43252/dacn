@@ -54,14 +54,30 @@ def agent_block(manifest: AgentManifest) -> str:
     return "\n\n".join(parts)
 
 
-def build_system_prompt(agent: ResolvedAgent, room: ClassRoom | None, role: str, others: list[ResolvedAgent]) -> str:
+SAFETY_NOTE = """# Lưu ý an toàn cho lượt này
+Lớp bảo vệ phát hiện người dùng có thể đang buồn bã hoặc có ý nghĩ tự làm hại bản thân. Hãy tạm gác nhiệm vụ chuyên môn:
+đáp lại ấm áp, lắng nghe, không phán xét; khuyến khích nói ngay với bố mẹ, thầy cô hoặc người lớn tin cậy; giới thiệu
+Tổng đài quốc gia bảo vệ trẻ em 111 (miễn phí, 24/7). Không đưa bất kỳ thông tin nào về cách thức tự làm hại."""
+
+
+def build_system_prompt(
+    agent: ResolvedAgent,
+    room: ClassRoom | None,
+    role: str,
+    others: list[ResolvedAgent],
+    *,
+    platform_rules: bool = True,
+    safety_note: bool = False,
+) -> str:
     user_line = f"Người đang trò chuyện là {ROLE_NAMES.get(role, role)}."
     roster = ", ".join(f"@{other.slug} ({other.manifest.name})" for other in others if other.slug != agent.slug)
     sections = [
-        PLATFORM_RULES,
+        *([PLATFORM_RULES] if platform_rules else []),
         "# Vai trò của bạn\n" + agent_block(agent.manifest),
         "# Bối cảnh\n" + user_line + "\n" + policy_block(room, role),
     ]
     if roster:
         sections.append(f"Các agent khác người dùng có thể gọi: {roster}.")
+    if safety_note:
+        sections.append(SAFETY_NOTE)
     return "\n\n".join(sections)

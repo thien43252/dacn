@@ -98,7 +98,10 @@ async def available_agents(db: AsyncSession, user: User, room: ClassRoom | None,
         )
         .order_by(Installation.scope, Installation.created_at)
     )
-    allow_personal = room is None or bool((room.policy or {}).get("allow_personal_agents", True))
+    policy = (room.policy or {}) if room is not None else {}
+    allow_personal = room is None or bool(policy.get("allow_personal_agents", True))
+    # A class limited to some subjects keeps students on agents for those subjects (or general-purpose ones).
+    subjects = set(policy.get("allowed_subjects") or [])
     for installation, agent, version in rows:
         if installation.scope == "personal" and not allow_personal:
             continue
@@ -107,6 +110,8 @@ async def available_agents(db: AsyncSession, user: User, room: ClassRoom | None,
             continue
         resolved = _resolved(agent, version, installation.scope, installation)
         if role not in resolved.manifest.target_roles or resolved.slug in found:
+            continue
+        if subjects and role == "student" and not (subjects | {"chung"}) & set(resolved.manifest.subjects):
             continue
         found[resolved.slug] = resolved
     return list(found.values())

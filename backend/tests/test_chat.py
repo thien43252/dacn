@@ -27,7 +27,7 @@ async def test_conversation_history_and_messages_endpoint(as_user, fake_llm) -> 
     fake_llm.script("Trả lời hai")
     await chat(student, "Câu hai", class_id=room["id"], conversation_id=conversation_id)
     # The second turn received the first exchange as history.
-    sent = fake_llm.calls[-1]["messages"]
+    sent = fake_llm.main_calls[-1]["messages"]
     assert [m.content for m in sent if m.role == "user"] == ["Câu một", "Câu hai"]
 
     listed = (await student.get("/api/chat/conversations", params={"class_id": room["id"]})).json()
@@ -101,13 +101,14 @@ async def test_agent_tool_loop_runs_math_check_and_logs_it(as_user, fake_llm, se
     ]
     assert reply_text(events).endswith("Chính xác! Em làm đúng rồi.")
     # The model saw the real sympy verdict as the tool result.
-    tool_message = fake_llm.calls[-1]["messages"][-1]
+    tool_message = fake_llm.main_calls[-1]["messages"][-1]
     assert tool_message.role == "tool" and '"is_correct": true' in tool_message.content
     async with sessionmaker() as db:
         log = (await db.scalars(select(ToolCallLog))).one()
         assert log.tool == "math_check" and not log.is_error and log.denied_reason is None
         purposes = {row.purpose for row in await db.scalars(select(UsageRecord))}
-        assert purposes == {"agent"}
+        # The @mention skipped the router; both guard layers ran on the small tier.
+        assert purposes == {"agent", "input_guard", "output_guard"}
 
 
 async def test_tool_guard_denies_tool_not_in_manifest(as_user, fake_llm, sessionmaker) -> None:

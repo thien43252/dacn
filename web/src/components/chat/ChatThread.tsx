@@ -13,6 +13,8 @@ const TOOL_LABELS: Record<string, string> = {
   math_check: "Đang kiểm tra phép tính",
   progress_summary: "Đang tổng hợp tiến độ học tập",
 };
+/** Route reasons where the orchestrator, not the user, picked the agent. */
+const AUTO_ROUTED = new Set(["llm", "keyword", "sticky"]);
 const MASCOT_NAMES = new Set(["fox", "cat", "panda", "penguin", "owl", "bear", "bunny", "deer", "frog", "hamster", "hedgehog", "koala", "otter", "raccoon", "redpanda"]);
 
 export function mascotOf(avatar: string | undefined): MascotName {
@@ -37,7 +39,7 @@ export interface ThreadMessage {
   id: string;
   role: "user" | "assistant" | "notice";
   content: string;
-  agent?: { slug: string; name: string; avatar: string };
+  agent?: { slug: string; name: string; avatar: string; reason?: string };
   tools: { name: string; status: string }[];
   status: "ok" | "blocked" | "error" | "streaming";
 }
@@ -46,11 +48,13 @@ export function fromStored(messages: StoredMessage[], agents: ChatAgent[]): Thre
   const bySlug = new Map(agents.map((agent) => [agent.slug, agent]));
   return messages.map((message) => {
     const agent = message.agent_slug ? bySlug.get(message.agent_slug) : undefined;
+    // A reply the input guard gave in place of any agent is shown as a notice, as it was live.
+    const guardNotice = message.role === "assistant" && message.status === "blocked" && !message.agent_slug;
     return {
       id: message.id,
-      role: message.role,
+      role: guardNotice ? "notice" : message.role,
       content: message.content,
-      agent: message.agent_slug ? { slug: message.agent_slug, name: agent?.name ?? message.agent_slug, avatar: agent?.avatar ?? "owl" } : undefined,
+      agent: message.agent_slug ? { slug: message.agent_slug, name: agent?.name ?? message.agent_slug, avatar: agent?.avatar ?? "owl", reason: message.meta?.route_reason } : undefined,
       tools: message.meta?.tools ?? [],
       status: message.status,
     };
@@ -159,7 +163,7 @@ export function ChatThread({
           break;
         case "agent":
           ensureReply(event.message_id!);
-          update(event.message_id!, (message) => ({ ...message, agent: { slug: event.agent!, name: event.name ?? event.agent!, avatar: event.avatar ?? "owl" } }));
+          update(event.message_id!, (message) => ({ ...message, agent: { slug: event.agent!, name: event.name ?? event.agent!, avatar: event.avatar ?? "owl", reason: event.reason } }));
           break;
         case "text_delta":
           ensureReply(event.message_id!);
@@ -262,6 +266,7 @@ export function ChatThread({
               <div className="message__meta">
                 <Mascot character={mascotOf(message.agent.avatar)} mood={message.status === "streaming" ? "thinking" : "still"} />
                 <strong>{message.agent.name}</strong>
+                {message.agent.reason && AUTO_ROUTED.has(message.agent.reason) && <span className="ea-muted" title="Orchestrator chọn agent theo nội dung câu hỏi">· tự chọn</span>}
               </div>
             )}
             {message.tools.length > 0 && (

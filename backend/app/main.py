@@ -10,7 +10,10 @@ from fastapi.responses import JSONResponse
 
 from app.agents.router import router as agents_router
 from app.agents.service import sync_platform_agents
+from app.audit.router import router as audit_router
 from app.auth.router import router as auth_router
+from app.certify.pipeline import fail_interrupted
+from app.certify.router import router as certify_router
 from app.chat.router import router as chat_router
 from app.classes.router import router as classes_router
 from app.config import get_settings
@@ -26,8 +29,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         async with session_factory()() as db:
             changed = await sync_platform_agents(db)
+            interrupted = await fail_interrupted(db)
         if changed:
             log.info("platform agents updated: %s", ", ".join(changed))
+        if interrupted:
+            log.warning("%d interrupted certification runs marked failed", interrupted)
     except Exception:  # the API still starts (health checks work) when the database is down
         log.exception("could not sync platform agents")
     yield
@@ -78,6 +84,8 @@ def create_app() -> FastAPI:
     api.include_router(chat_router)
     api.include_router(agents_router)
     api.include_router(documents_router)
+    api.include_router(audit_router)
+    api.include_router(certify_router)
     api.include_router(tools_router)
     app.include_router(api)
     return app

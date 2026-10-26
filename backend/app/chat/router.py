@@ -21,6 +21,7 @@ from app.auth.models import Role, User
 from app.chat.models import ChatMessage, Conversation, UsageRecord
 from app.classes import service as classes
 from app.classes.models import ClassRoom
+from app.config import get_settings
 from app.db import session_factory
 from app.llm.base import Message, Usage
 from app.llm.registry import cost_usd, get_chat_model
@@ -224,6 +225,7 @@ async def run_turn(
         history = [
             Message(role=m.role, content=m.content) for m in reversed(previous) if m.role in ("user", "assistant")
         ]
+        previous_agent = next((m.agent_slug for m in previous if m.role == "assistant" and m.agent_slug), None)
         user_message = ChatMessage(conversation_id=conversation.id, role="user", content=payload.message)
         db.add(user_message)
         # Committed before the agent runs: tools use their own sessions, and the question survives a crashed turn.
@@ -236,6 +238,7 @@ async def run_turn(
             await db.commit()
             return
 
+        settings = get_settings()
         ctx = RunContext(
             db=db,
             user=user,
@@ -245,12 +248,21 @@ async def run_turn(
             agents=agents,
             chat_model=get_chat_model(),
             message_id=message_id,
+            source=kind,
+            guard_mode=settings.guard_mode,
+            router_mode=settings.router_mode,
         )
         started = time.perf_counter()
         final: dict[str, Any] = {}
         try:
             async for mode, chunk in GRAPH.astream(
-                {"ctx": ctx, "text": payload.message, "requested_agent": payload.agent, "history": history},
+                {
+                    "ctx": ctx,
+                    "text": payload.message,
+                    "requested_agent": payload.agent,
+                    "previous_agent": previous_agent,
+                    "history": history,
+                },
                 stream_mode=["custom", "values"],
             ):
                 if mode == "custom":
@@ -277,12 +289,16 @@ async def run_turn(
                 meta={
                     "route_reason": final.get("route_reason"),
                     "tools": final.get("tool_events", []),
+                    "guard": [{"stage": e.stage, "verdict": e.verdict, "category": e.category} for e in ctx.events],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                 },
             )
         )
         if reply_status == "blocked":
             user_message.status = "blocked"
+        # Personal data the input guard redacted is not stored either.
+        if final.get("text") and final["text"] != payload.message:
+            user_message.content = final["text"]
         conversation.updated_at = datetime.now(UTC)
         record_usage(db, user.id, class_id, conversation.id, ctx.usage)
         await db.commit()

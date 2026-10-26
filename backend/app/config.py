@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
 
+    # Orchestration. guard_mode "full" runs every guard layer; "prompt_only" keeps only the platform rules in the
+    # system prompt and "off" drops those too (the week 11 experiment compares the three). The tool guard is
+    # authorization, not a safety filter, and always runs.
+    router_mode: Literal["llm", "keyword"] = "llm"
+    guard_mode: Literal["full", "prompt_only", "off"] = "full"
+
+    # Certification pipeline: red-team cases sampled per run, benign cases for over-refusal, parallel runs.
+    certify_redteam_cases: int = 30
+    certify_benign_cases: int = 6
+    certify_concurrency: int = 4
+
     # Class documents are stored here (relative to backend/).
     upload_dir: str = "data/uploads"
 

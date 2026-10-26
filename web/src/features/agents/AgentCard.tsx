@@ -103,6 +103,13 @@ export function AgentDetailDialog({ agentId, onClose, onChanged }: { agentId: st
                 </div>
               </div>
             </div>
+            {agent.certification && agent.certification.status !== "uncertified" && (
+              <p className="ea-notice">
+                <Icon name="shield" /> Kiểm định phiên bản này: {CERTIFICATION_LABELS[agent.certification.status]}
+                {agent.certification.score !== null && <>, đạt <strong>{Math.round(agent.certification.score * 100)}%</strong></>} trên {agent.certification.cases} tình huống
+                {" "}(red-team tiếng Việt và câu hỏi hợp lệ), ngày {new Date(agent.certification.finished_at).toLocaleDateString("vi-VN")}.
+              </p>
+            )}
             <h4>Agent làm được gì</h4>
             <ul>{agent.capabilities.map((item) => <li key={item}>{item}</li>)}</ul>
             <h4>Công cụ được cấp</h4>

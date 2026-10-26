@@ -162,3 +162,29 @@
 /* `.field input` styles text inputs; checkboxes inside a .field keep their natural size. */
 .field input[type="checkbox"], .field input[type="radio"] { width: 18px; min-height: 18px; height: 18px; padding: 0; box-shadow: none; }
 .ea-checks .ea-switch { margin-bottom: var(--space-1); }
+
+/* ---- Audit log and certification ---- */
+.ea-stats { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.ea-stat { display: grid; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); background: var(--surface); }
+.ea-stat span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.ea-stat strong { font-size: 22px; line-height: 1.2; }
+.ea-stat strong .ea-chip { font-size: 13px; }
+.ea-stat--danger strong { color: var(--danger); }
+.ea-table tr.ea-row--alert td { background: var(--danger-soft, #fdecee); }
+.ea-nowrap { white-space: nowrap; }
+.ea-excerpt { margin: var(--space-2) 0 0; border-left: 3px solid var(--line-strong); padding: 2px var(--space-3); color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.ea-checklist { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.ea-checklist li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.ea-checklist svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.ea-checklist .is-ok svg { color: var(--success); }
+.ea-checklist .is-warning svg { color: var(--warning, #a66b00); }
+.ea-checklist .is-error svg { color: var(--danger); }
+.ea-reasons { margin: 0; padding-left: 1.2em; line-height: 1.6; }
+.ea-cases { display: grid; gap: var(--space-2); }
+.ea-case { border: 1px solid var(--line); border-radius: var(--radius-control); padding: var(--space-2) var(--space-3); background: var(--surface); }
+.ea-case summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); cursor: pointer; }
+.ea-case__title { flex: 1 1 260px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ea-case[open] .ea-case__title { white-space: normal; }
+.ea-case .ea-facts { margin-top: var(--space-3); }
+.ea-versions .ea-row-actions { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; }
+.ea-notice svg { width: 14px; height: 14px; vertical-align: -2px; }
