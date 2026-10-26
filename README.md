@@ -42,6 +42,8 @@ npm run dev
 
 ```bash
 cd backend && uv run pytest -q && uv run ruff check . && uv run ruff format --check .
+# Chạy cùng bộ test trên Postgres (bắt lỗi khác biệt so với SQLite):
+TEST_DATABASE_URL=postgresql+asyncpg://eduagent:eduagent@127.0.0.1:5433/eduagent_test uv run pytest -q
 cd web && npm test && npm run build
 ```
 
@@ -51,9 +53,31 @@ Test backend không cần database hay API key (LLM adapter `fake`).
 
 Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
 
-- Tuần 1: khung repo, UI đã rebrand, 4 vai trò với các màn giữ chỗ, backend skeleton, migration bật pgvector.
-- Tuần 2: đăng nhập bằng cookie httpOnly (chỉ lưu SHA-256 của token), phân quyền theo vai trò (`require_roles`), seed
-  tài khoản demo; dataset `eval/` gồm 190 câu red-team, 60 câu đối chứng, 101 câu định tuyến.
+- Tuần 1: khung repo, UI đã rebrand, 4 vai trò, backend skeleton, migration bật pgvector.
+- Tuần 2: đăng nhập bằng cookie httpOnly, phân quyền theo vai trò, seed demo; dataset `eval/` (190 red-team, 60 đối chứng,
+  101 định tuyến).
+- Tuần 3: lớp học, mã lớp, thành viên, liên kết phụ huynh bằng mã của con, đồng ý của phụ huynh (chặn agent khi chưa
+  đồng ý), chính sách lớp.
+- Tuần 4: LLM adapter (Anthropic, OpenAI, Gemini, `fake`), runtime LangGraph, chat qua SSE, sổ ghi token/chi phí.
+- Tuần 5: tài liệu lớp (PDF/DOCX/TXT/MD) chia đoạn và embed vào pgvector (HNSW cosine); MCP server nội bộ với 5 tool
+  (`class_doc_search`, `quiz_generator`, `rubric_grader`, `math_check`, `progress_summary`) đi qua tool guard.
+- Tuần 6: manifest agent, 7 agent nền tảng (`seed/agents`), Agent Hub, cài vào lớp hoặc cá nhân, trình tạo agent có
+  phiên bản bất biến, tạo bản sao và phòng thử (sandbox). Học sinh và phụ huynh chỉ dùng được phiên bản đã kiểm định.
+
+Chọn agent hiện theo `@mention` hoặc rơi về `tro-ly-lop`; router bằng LLM là tuần 7, guard đầu vào/đầu ra là tuần 8.
+
+## Dùng mô hình thật
+
+Mặc định `LLM_PROVIDER=fake` (chạy offline, trả lời giả). Để dùng Claude, đặt trong `.env`:
+
+```bash
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=...        # model mặc định: claude-opus-5-5 (agent), claude-haiku-5-5 (guard, router)
+EMBEDDING_PROVIDER=openai    # hoặc gemini; Anthropic không có API embedding
+OPENAI_API_KEY=...
+```
+
+Đổi provider embedding thì cần xử lý lại tài liệu (nút "Xử lý lại" hoặc tải lên lại), vì vector của mỗi mô hình khác nhau.
 
 ## Ghi chú bản quyền
 

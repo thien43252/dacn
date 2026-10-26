@@ -12,6 +12,16 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "pgvector>=0.3.6",
+    "langgraph>=1.2.17",
+    "anthropic>=2.3.0",
+    "openai>=3.37.0",
+    "google-genai>=2.33.0",
+    "pyyaml>=6.0.3",
+    "sympy>=1.14.0",
+    "pypdf>=6.21.2",
+    "python-docx>=1.2.0",
+    "mcp>=2.3.0",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]
@@ -35,3 +45,8 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
+# The formatter keeps code at 120 columns; long Vietnamese prompt and message strings stay unbroken on purpose.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Depends"]

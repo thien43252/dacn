@@ -3,4 +3,8 @@
 Add one import line here whenever a module gains a `models.py`.
 """
 
+from app.agents import models as agents_models  # noqa: F401,E402
 from app.auth import models as auth_models  # noqa: F401,E402
+from app.chat import models as chat_models  # noqa: F401,E402
+from app.classes import models as classes_models  # noqa: F401,E402
+from app.knowledge import models as knowledge_models  # noqa: F401,E402

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -7,13 +8,28 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.agents.router import router as agents_router
+from app.agents.service import sync_platform_agents
 from app.auth.router import router as auth_router
+from app.chat.router import router as chat_router
+from app.classes.router import router as classes_router
 from app.config import get_settings
-from app.db import dispose_engine, ping_database
+from app.db import dispose_engine, ping_database, session_factory
+from app.knowledge.router import router as documents_router
+from app.tools.router import router as tools_router
+
+log = logging.getLogger("eduagent")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        async with session_factory()() as db:
+            changed = await sync_platform_agents(db)
+        if changed:
+            log.info("platform agents updated: %s", ", ".join(changed))
+    except Exception:  # the API still starts (health checks work) when the database is down
+        log.exception("could not sync platform agents")
     yield
     await dispose_engine()
 
@@ -58,6 +74,11 @@ def create_app() -> FastAPI:
         return {"status": "ok" if database_up else "degraded", "database": "up" if database_up else "down"}
 
     api.include_router(auth_router)
+    api.include_router(classes_router)
+    api.include_router(chat_router)
+    api.include_router(agents_router)
+    api.include_router(documents_router)
+    api.include_router(tools_router)
     app.include_router(api)
     return app
 

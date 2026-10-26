@@ -24,12 +24,15 @@ interface AppShellProps {
   children: ReactNode;
   /** Fits the page to the viewport height so a canvas-style route never needs page scrolling. */
   fillHeight?: boolean;
+  /** Class the page is about; the chat opens on it. */
+  classId?: string;
 }
 
-export function AppShell({ pathname, pattern, title, eyebrow, description, children, fillHeight = false }: AppShellProps) {
+export function AppShell({ pathname, pattern, title, eyebrow, description, children, fillHeight = false, classId }: AppShellProps) {
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(() => sessionStorage.getItem("sidebar-collapsed") === "true");
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const chatTriggerRef = useRef<HTMLButtonElement>(null);
@@ -123,16 +126,21 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
         <div className="workspace-content">{children}</div>
       </main>
 
-      {user.role !== "admin" && (
+      {/* Admins have no class chat; the student home already embeds the chat. */}
+      {user.role !== "admin" && pattern !== "/student/home" && (
         <>
           <ChatPanel
             open={chatOpen}
+            userId={user.id}
+            role={user.role}
+            contextClassId={classId}
+            onBusyChange={setChatBusy}
             onClose={() => {
               setChatOpen(false);
               requestAnimationFrame(() => chatTriggerRef.current?.focus());
             }}
           />
-          <ChatLauncher buttonRef={chatTriggerRef} open={chatOpen} busy={false} onOpen={() => setChatOpen(true)} />
+          <ChatLauncher buttonRef={chatTriggerRef} open={chatOpen} busy={chatBusy} onOpen={() => setChatOpen(true)} />
         </>
       )}
       <GuideOverlay session={guide.session} pathname={pathname} onFinish={guide.finish} />

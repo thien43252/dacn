@@ -40,11 +40,27 @@ def get_engine() -> AsyncEngine:
     return _engine
 
 
-async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency: one session per request."""
+def session_factory() -> async_sessionmaker[AsyncSession]:
+    """The factory every session comes from. Streaming responses open their own session with it, because a
+    request-scoped dependency session may close before the stream finishes."""
     get_engine()
     assert _sessionmaker is not None
-    async with _sessionmaker() as session:
+    return _sessionmaker
+
+
+def use_sessionmaker(factory: async_sessionmaker[AsyncSession] | None) -> None:
+    """Tests point the whole app (dependencies, streams, background tasks) at their own database."""
+    global _sessionmaker, _engine
+    _sessionmaker = factory
+    if factory is not None:
+        _engine = factory.kw["bind"]
+    else:
+        _engine = None
+
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: one session per request."""
+    async with session_factory()() as session:
         yield session
 
 

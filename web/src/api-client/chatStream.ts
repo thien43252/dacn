@@ -64,6 +64,7 @@ export async function consumeChatStream<T extends ChatStreamEvent>(
   signal: AbortSignal,
   apply: (event: T) => void,
   retryDelayMs = 250,
+  path = "/api/chat/stream",
 ): Promise<void> {
   const cursor = new ReplayText();
   let operation: string | undefined;
@@ -71,10 +72,13 @@ export async function consumeChatStream<T extends ChatStreamEvent>(
   let completed = false;
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await fetch("/api/chat/stream", {
+      const response = await fetch(path, {
         signal, method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body,
       }).catch(() => { throw new Disconnected("Kết nối phản hồi bị gián đoạn."); });
-      if (!response.ok || !response.body) throw new Error("Không nhận được luồng phản hồi.");
+      if (!response.ok || !response.body) {
+        const detail = await response.json().then((data: { detail?: string }) => data.detail).catch(() => undefined);
+        throw new Error(detail || "Không nhận được luồng phản hồi.");
+      }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";

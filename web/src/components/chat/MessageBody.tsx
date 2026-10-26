@@ -1,7 +1,7 @@
 import { memo } from "react";
 
-
-const MENTION = String.raw`(?<![\w@])@(?:Project\s+Design|Feasibility\s*&\s*Capability|Policy\s*&\s*Governance|Safety\s*&\s*Governance|Progress\s*&\s*Evidence|planner|feasibility|safety|progress|all)\b`;
+/** Agent mentions are slugs such as @gia-su-toan. */
+const MENTION = String.raw`(?<![\w@])@[a-z0-9]+(?:-[a-z0-9]+)*\b`;
 const RICH_SPLIT = new RegExp(`(${MENTION}|\\*\\*[^\\n]+?\\*\\*)`, "gi");
 const PLAIN_SPLIT = new RegExp(`(${MENTION})`, "gi");
 

@@ -4,6 +4,7 @@ import "./styles/typography.css";
 import "./styles/global.css";
 import "./styles/app.css";
 import "./styles/controls.css";
+import "./styles/eduagent.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

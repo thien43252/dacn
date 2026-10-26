@@ -17,15 +17,20 @@ class Settings(BaseSettings):
     session_hours: int = 12
     cookie_secure: bool = False
 
-    # LLM adapter (week 4). The small model serves guards and the router, the main model serves agents.
+    # LLM adapter. The small model serves guards, the router and judges; the main model serves agents.
+    # Empty model names use the provider's defaults where it has them (Anthropic: claude-opus-5-5 / claude-haiku-5-5).
     llm_provider: Literal["openai", "anthropic", "gemini", "fake"] = "fake"
     llm_main_model: str = ""
     llm_small_model: str = ""
+    llm_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     embedding_provider: Literal["openai", "gemini", "fake"] = "fake"
     embedding_model: str = ""
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
+
+    # Class documents are stored here (relative to backend/).
+    upload_dir: str = "data/uploads"
 
 
 @lru_cache
