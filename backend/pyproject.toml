@@ -38,6 +38,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["slow: runs the eval scripts as subprocesses (deselect with -m 'not slow')"]
 
 [tool.ruff]
 line-length = 120

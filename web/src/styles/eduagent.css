@@ -188,3 +188,14 @@
 .ea-case .ea-facts { margin-top: var(--space-3); }
 .ea-versions .ea-row-actions { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; }
 .ea-notice svg { width: 14px; height: 14px; vertical-align: -2px; }
+
+/* ---- Learning reports ---- */
+.ea-stat__small { font-size: 16px !important; }
+.ea-bars { display: grid; gap: var(--space-2); margin: 0; }
+.ea-bars__plot { display: flex; align-items: flex-end; gap: 2px; height: 140px; border-bottom: 1px solid var(--line); }
+.ea-bars__col { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+.ea-bars__col:hover .ea-bars__bar { opacity: 0.8; }
+.ea-bars__bar { width: min(28px, 70%); min-height: 0; border-radius: 4px 4px 0 0; background: var(--primary); }
+.ea-bars__value { margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.ea-bars__axis { display: flex; gap: 2px; }
+.ea-bars__axis span { flex: 1; color: var(--muted); font-size: 11px; text-align: center; }

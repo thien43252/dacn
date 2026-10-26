@@ -13,6 +13,7 @@ import { StudentHomePage } from "../features/classes/StudentHomePage";
 import { StudentClassesPage } from "../features/classes/StudentClassesPage";
 import { TeacherClassesPage } from "../features/classes/TeacherClassesPage";
 import { ParentConsentPage, ParentHomePage } from "../features/family/ParentPages";
+import { ParentReportsPage } from "../features/reports/ReportPages";
 import { NotFoundPage } from "./NotFoundPage";
 import { PlaceholderPage } from "./PlaceholderPage";
 
@@ -34,6 +35,7 @@ const screens: Record<string, (route: MatchedRoute) => ReactNode> = {
   "/admin/audit": () => <AdminAuditPage />,
   "/parent/home": () => <ParentHomePage />,
   "/parent/consent": () => <ParentConsentPage />,
+  "/parent/reports": () => <ParentReportsPage />,
 };
 
 export function WorkspacePage({ pathname }: { pathname: string }) {

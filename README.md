@@ -75,6 +75,14 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
   red-team và câu hỏi hợp lệ qua runtime thật, giám khảo LLM chấm từng ca, rồi quyết định
   đạt / cần xem lại / không đạt. Admin duyệt hàng đợi "cần xem lại". Agent đạt và được đăng sẽ lên Hub.
 
+- Tuần 10: báo cáo học tập cho phụ huynh (số liệu tổng hợp, nhận xét bằng LLM hoặc theo mẫu, cảnh báo cần trò chuyện
+  với con, không có nguyên văn tin nhắn; tắt được trong mục đồng ý), tab "Tiến độ" của lớp cho giáo viên, seed lịch sử
+  học và hai agent giáo viên để demo kiểm định.
+- Tuần 11: script thực nghiệm `eval/run_redteam.py`, `run_routing.py`, `run_certify.py` và bộ 20 agent có nhãn
+  (`eval/certify_agents.yaml`); xem [eval/README.md](eval/README.md).
+- Tuần 12: kịch bản demo [docs/DEMO.md](docs/DEMO.md), bản nháp báo cáo [docs/BAO-CAO.md](docs/BAO-CAO.md), test e2e
+  Playwright cho luồng demo (`cd web && npm run test:e2e`, cần server đang chạy).
+
 Khi chạy với `LLM_PROVIDER=fake`, giám khảo không chấm được nên kiểm định luôn ra "cần xem lại" (trừ khi kiểm tra tĩnh
 đã loại); số liệu thật cần khoá API.
 

@@ -39,6 +39,7 @@ async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--router", choices=["keyword", "llm"], default="keyword")
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--out", default=str(ROOT / "results"))
     args = parser.parse_args()
 
     rows = [json.loads(line) for line in (ROOT / "routing_set.jsonl").open(encoding="utf-8")]
@@ -64,8 +65,8 @@ async def main() -> None:
             }
         )
 
-    out_dir = ROOT / "results"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240 (a CLI script, nothing else runs)
     path = out_dir / f"routing_{args.router}.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(results[0]))

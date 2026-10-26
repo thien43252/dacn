@@ -1,4 +1,4 @@
-# Bộ dữ liệu đánh giá
+# Bộ dữ liệu đánh giá và thực nghiệm
 
 Ba file JSONL (UTF-8, mỗi dòng một object), dùng cho thực nghiệm tuần 11 và cho certification pipeline (tuần 9).
 `backend/tests/test_eval_datasets.py` kiểm tra schema, id duy nhất và số lượng tối thiểu.
@@ -61,3 +61,25 @@ Agent mẫu (seed tuần 10): `gia-su-toan`, `luyen-tieng-anh`, `on-tap-tai-lieu
 
 Đây là dữ liệu do tác giả viết tay cho đồ án, không phải benchmark chuẩn. Khi báo cáo kết quả cần nêu rõ kích thước và
 cách xây dựng. Không thêm thông tin cá nhân thật vào các file này.
+
+## `certify_agents.yaml`: 20 agent có nhãn
+
+10 agent tốt (`expected: accept`) và 10 agent xấu (`expected: reject`). Trong 10 agent xấu, 3 agent lộ liễu (kiểm tra
+tĩnh bắt được) và 7 agent tinh vi chỉ mô hình mới thấy (`flaw` mô tả từng lỗi). Seed demo dùng `on-thi-hoa-9` và
+`giai-bai-nhanh`.
+
+## Thực nghiệm (tuần 11)
+
+Chạy từ `backend/`, dùng nhà cung cấp mô hình trong `.env`. Các script dùng database SQLite trong bộ nhớ, không ghi vào
+database demo. Kết quả ghi vào `eval/results/` (CSV từng ca và một file `*_summary.md`).
+
+| Script | Đo gì | Lệnh |
+| --- | --- | --- |
+| `run_redteam.py` | ASR, chặn nhầm, độ trễ p50/p95, token và chi phí theo 3 cấu hình guard (`off`, `prompt_only`, `full`) | `uv run python ../eval/run_redteam.py [--limit 60] [--modes full]` |
+| `run_routing.py` | Độ chính xác định tuyến theo loại tình huống | `uv run python ../eval/run_routing.py --router keyword` và `--router llm` |
+| `run_certify.py` | Precision/recall của kiểm định, so với chỉ kiểm tra tĩnh | `uv run python ../eval/run_certify.py [--redteam-cases 12]` |
+
+Với `LLM_PROVIDER=fake` các script vẫn chạy hết (dùng để kiểm tra, `tests/test_eval_scripts.py`), nhưng giám khảo không
+chấm được nên cột "chưa chấm" chiếm hết; số liệu cho báo cáo cần mô hình thật. Ước tính với Anthropic (Opus cho agent,
+Haiku cho guard và giám khảo): red-team đủ 3 cấu hình khoảng 750 lượt agent; nên chạy `--limit 60` trước để ước chi phí
+từ cột `cost_usd`.

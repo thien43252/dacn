@@ -10,6 +10,7 @@ import { auditApi } from "../../api-client/agents";
 import { ClassAgentsTab } from "../agents/ClassAgentsTab";
 import { AuditLogView } from "../audit/AuditLogView";
 import { DocumentsTab } from "../documents/DocumentsTab";
+import { ClassProgressTab } from "../reports/ReportPages";
 import { ClassFormDialog } from "./ClassForm";
 import { MembersTab } from "./MembersTab";
 import { PolicyTab } from "./PolicyTab";
@@ -85,6 +86,7 @@ export function ClassDetailPage({ classId }: { classId: string }) {
           { id: "members", label: "Thành viên", description: "Học sinh, phụ huynh đã liên kết và trạng thái đồng ý.", render: () => <MembersTab room={data} /> },
           { id: "agents", label: "Agent", description: "Agent đang dùng trong lớp.", render: () => <ClassAgentsTab room={data} /> },
           { id: "documents", label: "Tài liệu", description: "Tài liệu agent được phép đọc khi trả lời trong lớp.", render: () => <DocumentsTab room={data} /> },
+          { id: "progress", label: "Tiến độ", description: "Học sinh hỏi bài thế nào trong lớp này.", render: () => <ClassProgressTab room={data} /> },
           { id: "policy", label: "Chính sách", description: "Quy tắc áp dụng cho mọi agent trong lớp.", render: () => <PolicyTab room={data} /> },
           { id: "audit", label: "Nhật ký", description: "Các lần hệ thống chặn hoặc cảnh báo trong lớp.", render: () => <AuditLogView load={(filters) => auditApi.forClass(data.id, filters)} scope={data.id} /> },
         ]}

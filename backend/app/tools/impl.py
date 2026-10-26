@@ -2,21 +2,18 @@
 and validated arguments, and returns a JSON-serialisable dict."""
 
 import re
-from collections import Counter
-from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.auth.models import User
-from app.chat.models import ChatMessage, Conversation
-from app.classes import service as classes
 from app.classes.models import ClassMember, Consent, ParentLink
 from app.db import session_factory
 from app.knowledge import service as knowledge
 from app.llm.base import LLMError, complete_json
 from app.llm.registry import get_chat_model
+from app.reports import service as reports
 
 if TYPE_CHECKING:
     from app.tools.registry import ToolContext
@@ -239,12 +236,6 @@ class ProgressArgs(BaseModel):
     days: int = Field(default=7, ge=1, le=60)
 
 
-STOPWORDS = set(
-    "là của và có không cho em mình bạn này với được thì một những các trong để về như làm gì nào sao vậy ạ nhé "
-    "giúp hãy đi rồi đã sẽ ra vào khi thế nhưng hay hoặc từ theo bài câu ơi cái đó đây nè tôi con cô thầy".split()
-)
-
-
 async def progress_summary(ctx: "ToolContext", args: ProgressArgs) -> dict:
     async with session_factory()() as db:
         if ctx.role == "parent":
@@ -267,8 +258,7 @@ async def progress_summary(ctx: "ToolContext", args: ProgressArgs) -> dict:
             raise ToolFailure("Không tìm thấy học sinh phù hợp.")
         if len(students) > 1 and ctx.role == "parent":
             return {"needs_choice": [s.name for s in students], "note": "Hỏi phụ huynh đang hỏi về con nào."}
-        since = datetime.now(UTC) - timedelta(days=args.days)
-        reports = []
+        reports_out: list[dict] = []
         for student in students[:30]:
             if ctx.role == "parent":
                 allowed = await db.scalar(
@@ -277,42 +267,11 @@ async def progress_summary(ctx: "ToolContext", args: ProgressArgs) -> dict:
                     )
                 )
                 if allowed is False:
-                    reports.append({"student": student.name, "note": "Phụ huynh đã tắt báo cáo học tập cho con."})
+                    reports_out.append({"student": student.name, "note": "Phụ huynh đã tắt báo cáo học tập cho con."})
                     continue
-            query = (
-                select(
-                    ChatMessage.role,
-                    ChatMessage.content,
-                    ChatMessage.agent_slug,
-                    ChatMessage.status,
-                    ChatMessage.created_at,
-                )
-                .join(Conversation, Conversation.id == ChatMessage.conversation_id)
-                .where(Conversation.user_id == student.id, ChatMessage.created_at >= since)
-            )
-            if ctx.role == "teacher":
-                query = query.where(Conversation.class_id == ctx.class_id)
-            rows = list(await db.execute(query))
-            asked = [row for row in rows if row.role == "user"]
-            agents = Counter(row.agent_slug for row in rows if row.role == "assistant" and row.agent_slug)
-            words = Counter(
-                word
-                for row in asked
-                for word in re.findall(r"[a-zà-ỹđ]{3,}", row.content.lower())
-                if word not in STOPWORDS
-            )
-            days_active = len({row.created_at.date() for row in asked})
-            classes_count = len(await classes.classes_for(db, student))
-            reports.append(
-                {
-                    "student": student.name,
-                    "period_days": args.days,
-                    "questions_asked": len(asked),
-                    "active_days": days_active,
-                    "agents_used": dict(agents.most_common(5)),
-                    "frequent_keywords": [word for word, _ in words.most_common(8)],
-                    "blocked_messages": sum(1 for row in rows if row.status == "blocked"),
-                    "classes": classes_count,
-                }
-            )
-    return {"reports": reports, "note": "Số liệu tổng hợp; không chứa nguyên văn tin nhắn của học sinh."}
+            data = await reports.activity(db, student.id, args.days, ctx.class_id if ctx.role == "teacher" else None)
+            data["last_active"] = data["last_active"].isoformat() if data["last_active"] else None
+            data.pop("daily")
+            # The count of wellbeing signals goes to the adult; the details stay in the teacher's audit log.
+            reports_out.append({"student": student.name, **data})
+    return {"reports": reports_out, "note": "Số liệu tổng hợp; không chứa nguyên văn tin nhắn của học sinh."}

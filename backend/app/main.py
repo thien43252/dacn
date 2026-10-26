@@ -19,6 +19,7 @@ from app.classes.router import router as classes_router
 from app.config import get_settings
 from app.db import dispose_engine, ping_database, session_factory
 from app.knowledge.router import router as documents_router
+from app.reports.router import router as reports_router
 from app.tools.router import router as tools_router
 
 log = logging.getLogger("eduagent")
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     api.include_router(documents_router)
     api.include_router(audit_router)
     api.include_router(certify_router)
+    api.include_router(reports_router)
     api.include_router(tools_router)
     app.include_router(api)
     return app

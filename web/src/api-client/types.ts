@@ -344,3 +344,30 @@ export interface ClassDocument {
 }
 
 export const ROLE_LABELS: Record<AgentRole, string> = { teacher: "Giáo viên", student: "Học sinh", parent: "Phụ huynh" };
+
+export interface Activity {
+  period_days: number;
+  questions_asked: number;
+  active_days: number;
+  daily: { date: string; questions: number }[];
+  agents_used: Record<string, number>;
+  subjects: Record<string, number>;
+  frequent_keywords: string[];
+  blocked_messages: number;
+  wellbeing_alerts: number;
+  last_active: string | null;
+}
+
+export interface LearningReport {
+  student_id: string;
+  student_name: string;
+  activity: Activity;
+  narrative: { summary: string; highlights: string[]; suggestions: string[]; generated_by: "llm" | "template" };
+  generated_at: string;
+}
+
+export interface ProgressRow {
+  student_id: string;
+  student_name: string;
+  activity: Activity;
+}
