@@ -1,4 +1,7 @@
-"""OpenAI Chat Completions adapter (streaming, function tools) and embeddings."""
+"""OpenAI Chat Completions adapter (streaming, function tools) and embeddings.
+
+Also serves OpenAI-compatible gateways (OPENAI_BASE_URL). Some gateways reject the newer `max_completion_tokens`
+and `stream_options` parameters; on such a 400 the call is retried once with the classic `max_tokens`."""
 
 import json
 from collections.abc import AsyncIterator
@@ -31,17 +34,42 @@ def _to_openai(system: str, messages: list[Message]) -> list[dict[str, Any]]:
     return out
 
 
+def _detail(error: openai.APIStatusError) -> str:
+    body = error.body if isinstance(error.body, dict) else {}
+    message = (body.get("error") or {}).get("message") if isinstance(body.get("error"), dict) else body.get("message")
+    return str(message or error.message)[:200]
+
+
 class OpenAIChatModel:
     provider = "openai"
 
-    def __init__(self, api_key: str, main_model: str, small_model: str) -> None:
+    def __init__(self, api_key: str, main_model: str, small_model: str, base_url: str = "") -> None:
         if not main_model or not small_model:
             raise LLMError("Cần đặt LLM_MAIN_MODEL và LLM_SMALL_MODEL khi dùng OpenAI.")
-        self.client = openai.AsyncOpenAI(api_key=api_key or None)
+        if not api_key:
+            raise LLMError("Chưa đặt OPENAI_API_KEY trong .env.")
+        self.client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or None)
         self.models = {"main": main_model, "small": small_model}
+        # Switched off after a gateway rejects the newer parameters, for the rest of the process.
+        self.modern_params = True
 
     def model_for(self, tier: Tier) -> str:
         return self.models[tier]
+
+    async def _create(self, params: dict[str, Any], max_tokens: int):
+        if self.modern_params:
+            try:
+                return await self.client.chat.completions.create(
+                    **params, max_completion_tokens=max_tokens, stream_options={"include_usage": True}
+                )
+            except openai.BadRequestError as error:
+                if not any(
+                    word in str(error)
+                    for word in ("max_completion_tokens", "stream_options", "unsupported", "Unrecognized", "unknown")
+                ):
+                    raise
+                self.modern_params = False
+        return await self.client.chat.completions.create(**params, max_tokens=max_tokens)
 
     async def stream(
         self,
@@ -56,9 +84,7 @@ class OpenAIChatModel:
         params: dict[str, Any] = {
             "model": model,
             "messages": _to_openai(system, messages),
-            "max_completion_tokens": max_tokens,
             "stream": True,
-            "stream_options": {"include_usage": True},
         }
         if tools:
             params["tools"] = [
@@ -73,7 +99,7 @@ class OpenAIChatModel:
         finish = "stop"
         usage = Usage(provider=self.provider, model=model)
         try:
-            response = await self.client.chat.completions.create(**params)
+            response = await self._create(params, max_tokens)
             async for chunk in response:
                 if chunk.usage:
                     usage.input_tokens = chunk.usage.prompt_tokens or 0
@@ -96,7 +122,7 @@ class OpenAIChatModel:
         except openai.RateLimitError as error:
             raise LLMError("Đã vượt giới hạn gọi mô hình. Thử lại sau ít phút.") from error
         except openai.APIStatusError as error:
-            raise LLMError(f"Lỗi từ OpenAI ({error.status_code}).") from error
+            raise LLMError(f"Lỗi từ máy chủ mô hình ({error.status_code}): {_detail(error)}") from error
         except openai.APIConnectionError as error:
             raise LLMError("Không kết nối được tới OpenAI.") from error
 
@@ -115,6 +141,10 @@ class OpenAIChatModel:
                     invalid=not isinstance(arguments, dict) or finish == "length",
                 )
             )
+        if not usage.output_tokens:
+            # Gateways without usage in the stream: a rough count so the ledger is not empty.
+            usage.input_tokens = sum(len(m.content) for m in messages) // 4 + len(system) // 4
+            usage.output_tokens = max(1, len("".join(text_parts)) // 4)
         stop = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "refusal"}
         yield Completion(
             message=Message(role="assistant", content="".join(text_parts), tool_calls=calls),
@@ -126,8 +156,8 @@ class OpenAIChatModel:
 class OpenAIEmbedder:
     provider = "openai"
 
-    def __init__(self, api_key: str, model: str, dimensions: int) -> None:
-        self.client = openai.AsyncOpenAI(api_key=api_key or None)
+    def __init__(self, api_key: str, model: str, dimensions: int, base_url: str = "") -> None:
+        self.client = openai.AsyncOpenAI(api_key=api_key or None, base_url=base_url or None)
         self.model = model or "text-embedding-3-small"
         self.dimensions = dimensions
 

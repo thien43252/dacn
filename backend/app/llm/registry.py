@@ -35,7 +35,9 @@ def build_chat_model() -> ChatModel:
     if settings.llm_provider == "openai":
         from app.llm.openai_provider import OpenAIChatModel
 
-        return OpenAIChatModel(settings.openai_api_key, settings.llm_main_model, settings.llm_small_model)
+        return OpenAIChatModel(
+            settings.openai_api_key, settings.llm_main_model, settings.llm_small_model, settings.openai_base_url
+        )
     if settings.llm_provider == "gemini":
         from app.llm.gemini_provider import GeminiChatModel
 
@@ -50,7 +52,9 @@ def build_embedder() -> Embedder:
     if settings.embedding_provider == "openai":
         from app.llm.openai_provider import OpenAIEmbedder
 
-        return OpenAIEmbedder(settings.openai_api_key, settings.embedding_model, EMBEDDING_DIMENSIONS)
+        return OpenAIEmbedder(
+            settings.openai_api_key, settings.embedding_model, EMBEDDING_DIMENSIONS, settings.openai_base_url
+        )
     if settings.embedding_provider == "gemini":
         from app.llm.gemini_provider import GeminiEmbedder
 

@@ -6,14 +6,14 @@ khi lên Hub. Đồ án cá nhân, chạy local trên dữ liệu demo.
 
 ## Cấu trúc
 
-| Thư mục | Nội dung |
-| --- | --- |
-| `web/` | React 19 + Vite + plain CSS. UI kế thừa từ Vinschool Capstone Studio (team-8), đã cắt phần nghiệp vụ cũ |
-| `backend/` | FastAPI, SQLAlchemy 2 async, Alembic, PostgreSQL + pgvector. Core AI (LangGraph, guard, certify) trong `app/` |
-| `infra/` | Docker Compose cho Postgres + pgvector (cổng host 5433) |
-| `eval/` | Dataset red-team tiếng Việt, routing set, script thực nghiệm |
-| `seed/` | Manifest agent mẫu, dữ liệu lớp demo |
-| `docs/` | Thiết kế và báo cáo |
+| Thư mục    | Nội dung                                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `web/`     | React 19 + Vite + plain CSS. UI kế thừa từ Vinschool Capstone Studio (team-8), đã cắt phần nghiệp vụ cũ |
+| `backend/` | FastAPI, SQLAlchemy 2 async, Alembic, PostgreSQL + pgvector. Core AI (LangGraph, guard, certify) trong `app/`   |
+| `infra/`   | Docker Compose cho Postgres + pgvector (cổng host 5433)                                                          |
+| `eval/`    | Dataset red-team tiếng Việt, routing set, script thực nghiệm                                                  |
+| `seed/`    | Manifest agent mẫu, dữ liệu lớp demo                                                                          |
+| `docs/`    | Thiết kế và báo cáo                                                                                          |
 
 ## Chạy local
 
@@ -63,7 +63,6 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
   (`class_doc_search`, `quiz_generator`, `rubric_grader`, `math_check`, `progress_summary`) đi qua tool guard.
 - Tuần 6: manifest agent, 7 agent nền tảng (`seed/agents`), Agent Hub, cài vào lớp hoặc cá nhân, trình tạo agent có
   phiên bản bất biến, tạo bản sao và phòng thử (sandbox). Học sinh và phụ huynh chỉ dùng được phiên bản đã kiểm định.
-
 - Tuần 7: orchestrator chọn agent theo thứ tự: agent chọn trên UI, `@mention`, router LLM (model nhỏ, JSON), router từ
   khoá (dự phòng và baseline), rồi `tro-ly-lop`. Chính sách lớp giới hạn môn được dùng. Đo bằng
   `uv run python ../eval/run_routing.py [--router llm]` (router từ khoá: 74% trên `routing_set`).
@@ -74,7 +73,6 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
 - Tuần 9: pipeline kiểm định: kiểm tra tĩnh manifest, giám khảo LLM đọc hướng dẫn hệ thống, chạy ~36 tình huống
   red-team và câu hỏi hợp lệ qua runtime thật, giám khảo LLM chấm từng ca, rồi quyết định
   đạt / cần xem lại / không đạt. Admin duyệt hàng đợi "cần xem lại". Agent đạt và được đăng sẽ lên Hub.
-
 - Tuần 10: báo cáo học tập cho phụ huynh (số liệu tổng hợp, nhận xét bằng LLM hoặc theo mẫu, cảnh báo cần trò chuyện
   với con, không có nguyên văn tin nhắn; tắt được trong mục đồng ý), tab "Tiến độ" của lớp cho giáo viên, seed lịch sử
   học và hai agent giáo viên để demo kiểm định.

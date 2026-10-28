@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     embedding_provider: Literal["openai", "gemini", "fake"] = "fake"
     embedding_model: str = ""
     openai_api_key: str = ""
+    # OpenAI-compatible gateways (e.g. https://api.vilao.ai/v1); empty means api.openai.com.
+    openai_base_url: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
 
