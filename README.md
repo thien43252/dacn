@@ -97,6 +97,21 @@ OPENAI_API_KEY=...
 
 Đổi provider embedding thì cần xử lý lại tài liệu (nút "Xử lý lại" hoặc tải lên lại), vì vector của mỗi mô hình khác nhau.
 
+## Tracing (Langfuse)
+
+Tắt mặc định. Tạo project trên [Langfuse](https://cloud.langfuse.com) (hoặc self-host), lấy API key rồi đặt trong `.env`:
+
+```bash
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_BASE_URL=           # trống = Langfuse Cloud EU; https://us.cloud.langfuse.com hoặc http://localhost:3000
+```
+
+Mỗi lượt chat (và mỗi case kiểm định) là một trace: span cho từng node của graph (`screen`, `classify`, `select_agent`,
+`gate`, `run_agent`, `review`), generation cho mỗi lần gọi mô hình (token, chi phí, thời gian ra token đầu), span cho
+mỗi tool. Trace gắn `user_id` và `session_id` = id cuộc hội thoại; bước bị guard chặn có level `WARNING`. Case kiểm định
+có score `certify_outcome`. Mọi chuỗi gửi đi đều qua bộ ẩn thông tin cá nhân của guard (`app/tracing.py`).
+
 ## Ghi chú bản quyền
 
 Mascot trong `web/src/assets/mascots` theo MIT (xem `LICENSE` cùng thư mục). Ảnh minh họa trong

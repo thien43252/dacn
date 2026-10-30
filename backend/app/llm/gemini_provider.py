@@ -47,14 +47,20 @@ def _to_contents(messages: list[Message]) -> list[types.Content]:
     return contents
 
 
+THINKING_LEVELS = {"low": "LOW", "medium": "MEDIUM", "high": "HIGH", "xhigh": "HIGH", "max": "HIGH"}
+
+
 class GeminiChatModel:
     provider = "gemini"
 
-    def __init__(self, api_key: str, main_model: str, small_model: str) -> None:
+    def __init__(self, api_key: str, main_model: str, small_model: str, effort: str = "medium") -> None:
         if not main_model or not small_model:
             raise LLMError("Cần đặt LLM_MAIN_MODEL và LLM_SMALL_MODEL khi dùng Gemini.")
         self.client = genai.Client(api_key=api_key or None)
         self.models = {"main": main_model, "small": small_model}
+        self.effort = effort
+        # Models without thinking levels (Gemini 2.x) reject the parameter; after one 400 it is left out for them.
+        self.no_thinking_level: set[str] = set()
 
     def model_for(self, tier: Tier) -> str:
         return self.models[tier]
@@ -86,14 +92,29 @@ class GeminiChatModel:
         model_parts: list[types.Part] = []
         usage = Usage(provider=self.provider, model=model)
         finish = "STOP"
+        if model not in self.no_thinking_level:
+            # Guards and the router want speed; agents get the configured depth.
+            level = "LOW" if tier == "small" else THINKING_LEVELS.get(self.effort, "MEDIUM")
+            config["thinking_config"] = types.ThinkingConfig(thinking_level=level)
         try:
-            stream = await self.client.aio.models.generate_content_stream(
-                model=model, contents=_to_contents(messages), config=types.GenerateContentConfig(**config)
-            )
+            try:
+                stream = await self.client.aio.models.generate_content_stream(
+                    model=model, contents=_to_contents(messages), config=types.GenerateContentConfig(**config)
+                )
+            except errors.ClientError as error:
+                if "thinking" not in str(error).lower() or "thinking_config" not in config:
+                    raise
+                self.no_thinking_level.add(model)
+                del config["thinking_config"]
+                stream = await self.client.aio.models.generate_content_stream(
+                    model=model, contents=_to_contents(messages), config=types.GenerateContentConfig(**config)
+                )
             async for chunk in stream:
                 if chunk.usage_metadata:
-                    usage.input_tokens = chunk.usage_metadata.prompt_token_count or 0
-                    usage.output_tokens = chunk.usage_metadata.candidates_token_count or 0
+                    meta = chunk.usage_metadata
+                    usage.input_tokens = meta.prompt_token_count or 0
+                    # Thinking tokens are billed as output.
+                    usage.output_tokens = (meta.candidates_token_count or 0) + (meta.thoughts_token_count or 0)
                 for candidate in chunk.candidates or []:
                     if candidate.finish_reason:
                         finish = str(
@@ -116,7 +137,12 @@ class GeminiChatModel:
                                 )
                             )
         except errors.APIError as error:
-            raise LLMError(f"Lỗi từ Gemini ({getattr(error, 'code', '?')}).") from error
+            if getattr(error, "code", None) in (401, 403):
+                raise LLMError("Khoá API Gemini không hợp lệ hoặc chưa được cấp quyền.") from error
+            if getattr(error, "code", None) == 429:
+                raise LLMError("Đã vượt giới hạn gọi mô hình hoặc hết hạn mức. Thử lại sau ít phút.") from error
+            detail = str(getattr(error, "message", "") or error)[:200]
+            raise LLMError(f"Lỗi từ Gemini ({getattr(error, 'code', '?')}): {detail}") from error
 
         raw = types.Content(role="model", parts=model_parts).model_dump(exclude_none=True)
         stop = (

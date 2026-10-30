@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
+from app import tracing
 from app.agents.service import ResolvedAgent, available_agents
 from app.auth.deps import CurrentUser, DbSession
 from app.auth.models import Role, User
@@ -254,29 +255,45 @@ async def run_turn(
         )
         started = time.perf_counter()
         final: dict[str, Any] = {}
-        try:
-            async for mode, chunk in GRAPH.astream(
-                {
-                    "ctx": ctx,
-                    "text": payload.message,
-                    "requested_agent": payload.agent,
-                    "previous_agent": previous_agent,
-                    "history": history,
-                },
-                stream_mode=["custom", "values"],
-            ):
-                if mode == "custom":
-                    yield sse(chunk)
-                else:
-                    final = chunk
-        except Exception as error:  # a crashed turn still ends the stream cleanly for the UI
-            final = {"reply": "", "status": "error", "error": type(error).__name__}
+        with tracing.start_trace(
+            kind,
+            user_id=user.id,
+            session_id=conversation.id,
+            tags=[kind, role],
+            metadata={"class_id": class_id, "message_id": message_id, "guard_mode": settings.guard_mode},
+            input=payload.message,
+        ) as trace:
+            ctx.trace = trace
+            try:
+                async for mode, chunk in GRAPH.astream(
+                    {
+                        "ctx": ctx,
+                        "text": payload.message,
+                        "requested_agent": payload.agent,
+                        "previous_agent": previous_agent,
+                        "history": history,
+                    },
+                    stream_mode=["custom", "values"],
+                ):
+                    if mode == "custom":
+                        yield sse(chunk)
+                    else:
+                        final = chunk
+            except Exception as error:  # a crashed turn still ends the stream cleanly for the UI
+                final = {"reply": "", "status": "error", "error": type(error).__name__}
 
-        agent = final.get("agent")
-        reply_status = final.get("status", "error")
-        reply = final.get("reply") or (
-            "Đã có lỗi khi tạo câu trả lời. Vui lòng thử lại." if reply_status == "error" else ""
-        )
+            agent = final.get("agent")
+            reply_status = final.get("status", "error")
+            reply = final.get("reply") or (
+                "Đã có lỗi khi tạo câu trả lời. Vui lòng thử lại." if reply_status == "error" else ""
+            )
+            if trace is not None:
+                trace.update(
+                    output=reply,
+                    level={"blocked": "WARNING", "error": "ERROR"}.get(reply_status),
+                    status_message=final.get("error") or final.get("blocked_stage"),
+                    metadata={"status": reply_status, "agent": agent.slug if agent else None},
+                )
         db.add(
             ChatMessage(
                 id=message_id,

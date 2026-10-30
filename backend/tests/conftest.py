@@ -15,6 +15,9 @@ from app.llm.fake import FakeChatModel, FakeEmbedder
 from app.llm.registry import use_chat_model, use_embedder
 from app.main import create_app
 
+# Tests never send traces, even when the repo-root .env has Langfuse keys (env vars override the .env file).
+os.environ["LANGFUSE_PUBLIC_KEY"] = ""
+
 
 @pytest.fixture
 async def sessionmaker() -> AsyncIterator[async_sessionmaker[AsyncSession]]:

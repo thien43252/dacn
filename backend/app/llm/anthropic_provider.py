@@ -121,7 +121,7 @@ class AnthropicChatModel:
         except anthropic.RateLimitError as error:
             raise LLMError("Đã vượt giới hạn gọi mô hình. Thử lại sau ít phút.") from error
         except anthropic.APIStatusError as error:
-            raise LLMError(f"Lỗi từ Anthropic ({error.status_code}).") from error
+            raise LLMError(f"Lỗi từ Anthropic ({error.status_code}): {str(error.message)[:200]}") from error
         except anthropic.APIConnectionError as error:
             raise LLMError("Không kết nối được tới Anthropic.") from error
 

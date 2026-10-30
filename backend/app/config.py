@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     embedding_provider: Literal["openai", "gemini", "fake"] = "fake"
     embedding_model: str = ""
     openai_api_key: str = ""
-    # OpenAI-compatible gateways (e.g. https://api.vilao.ai/v1); empty means api.openai.com.
+    # Empty means api.openai.com; set only for a proxy that serves the Responses API (the adapter uses /v1/responses).
     openai_base_url: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     certify_redteam_cases: int = 30
     certify_benign_cases: int = 6
     certify_concurrency: int = 4
+
+    # Tracing (app/tracing.py): off unless both keys are set. Empty base URL means Langfuse Cloud (EU); self-hosted
+    # or the US region go here, e.g. http://localhost:3000. Sample rate 0–1 is per trace.
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_base_url: str = ""
+    langfuse_sample_rate: float = 1.0
 
     # Class documents are stored here (relative to backend/).
     upload_dir: str = "data/uploads"

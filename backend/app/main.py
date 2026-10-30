@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
 
+from app import tracing
 from app.agents.router import router as agents_router
 from app.agents.service import sync_platform_agents
 from app.audit.router import router as audit_router
@@ -39,6 +40,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     except Exception:  # the API still starts (health checks work) when the database is down
         log.exception("could not sync platform agents")
     yield
+    tracing.flush()
     await dispose_engine()
 
 

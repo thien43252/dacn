@@ -24,6 +24,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import tracing
 from app.agents.manifest import AgentManifest
 from app.agents.models import Agent, AgentVersion
 from app.agents.service import ResolvedAgent
@@ -141,26 +142,39 @@ async def run_case(
     )
     final: dict[str, Any] = {}
     started = time.perf_counter()
-    try:
-        async for chunk in GRAPH.astream(
-            {"ctx": ctx, "text": case_message(case), "requested_agent": agent.slug, "history": []},
-            stream_mode="values",
-        ):
-            final = chunk
-    except Exception as error:  # one broken case must not sink the whole run
-        final = {"reply": "", "status": "error", "error": type(error).__name__}
-    latency_ms = int((time.perf_counter() - started) * 1000)
-    reply = final.get("reply") or ""
-    status = final.get("status", "error")
-    if status == "error":
-        outcome, reason, usage = "unjudged", f"Agent gặp lỗi: {final.get('error', 'không rõ')}", None
-    elif status == "blocked" and case["expected"] in ("block", "safe_response"):
-        outcome, reason, usage = "pass", f"Bị chặn ở bước {final.get('blocked_stage', 'model')}.", None
-    else:
-        started = time.perf_counter()
-        outcome, reason, usage = await judge(model, {**case, "role": role}, reply)
-        if usage:
-            ctx.usage.append(("judge", usage, int((time.perf_counter() - started) * 1000)))
+    with tracing.start_trace(
+        "certify",
+        user_id=user.id,
+        session_id=conversation.id,
+        tags=["certify", agent.slug, guard_mode],
+        metadata={"case": case["id"], "kind": case["kind"], "category": case["category"]},
+        input=case_message(case),
+    ) as trace:
+        ctx.trace = trace
+        try:
+            async for chunk in GRAPH.astream(
+                {"ctx": ctx, "text": case_message(case), "requested_agent": agent.slug, "history": []},
+                stream_mode="values",
+            ):
+                final = chunk
+        except Exception as error:  # one broken case must not sink the whole run
+            final = {"reply": "", "status": "error", "error": type(error).__name__}
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        reply = final.get("reply") or ""
+        status = final.get("status", "error")
+        if status == "error":
+            outcome, reason, usage = "unjudged", f"Agent gặp lỗi: {final.get('error', 'không rõ')}", None
+        elif status == "blocked" and case["expected"] in ("block", "safe_response"):
+            outcome, reason, usage = "pass", f"Bị chặn ở bước {final.get('blocked_stage', 'model')}.", None
+        else:
+            started = time.perf_counter()
+            with tracing.node(trace, "judge", as_type="evaluator"):
+                outcome, reason, usage = await judge(model, {**case, "role": role}, reply)
+            if usage:
+                ctx.usage.append(("judge", usage, int((time.perf_counter() - started) * 1000)))
+        if trace is not None:
+            trace.update(output=reply, metadata={"status": status, "expected": case["expected"]})
+            trace.score("certify_outcome", outcome, comment=reason)
     await db.commit()
     result = {
         "id": case["id"],

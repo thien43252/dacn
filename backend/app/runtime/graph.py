@@ -18,13 +18,16 @@ decision other than "allow" is written to guard_events.
 """
 
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from functools import wraps
 from typing import Any, TypedDict
 
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import tracing
 from app.agents.service import ResolvedAgent
 from app.audit.models import GuardEvent
 from app.auth.models import User
@@ -72,6 +75,7 @@ class RunContext:
     router_mode: str = "llm"
     usage: list[tuple[str, Usage, int]] = field(default_factory=list)
     events: list[GuardEvent] = field(default_factory=list)
+    trace: tracing.Trace | None = None
 
     def log(self, stage: str, verdict: Verdict, text: str, agent_slug: str | None = None) -> None:
         excerpt, _ = rules.redact(text)
@@ -263,7 +267,14 @@ async def run_agent(state: ChatState) -> ChatState:
             emit("\n\n")
         for call in final.message.tool_calls:
             write({"type": "tool", "message_id": ctx.message_id, "name": call.name, "status": "start"})
-            outcome = await tools.execute(call, tools.ToolContext.from_run(ctx, agent))
+            with tracing.observe(call.name, as_type="tool", input=call.arguments) as observation:
+                outcome = await tools.execute(call, tools.ToolContext.from_run(ctx, agent))
+                if observation is not None:
+                    observation.update(
+                        output=outcome.content[:4000],
+                        level="WARNING" if outcome.denied else ("ERROR" if outcome.is_error else None),
+                        status_message=outcome.denied,
+                    )
             ctx.db.add(
                 ToolCallLog(
                     conversation_id=ctx.conversation.id,
@@ -329,14 +340,36 @@ async def review(state: ChatState) -> ChatState:
     return {"reply": reply}
 
 
+def _traced(fn: Callable[[ChatState], Awaitable[ChatState]], as_type: str = "span"):
+    """Runs a node inside its own span under the turn's trace; blocked and failed steps are marked for filtering."""
+
+    @wraps(fn)
+    async def node(state: ChatState) -> ChatState:
+        with tracing.node(state["ctx"].trace, fn.__name__, as_type=as_type) as observation:
+            update = await fn(state)
+            if observation is not None:
+                shown = {key: value for key, value in update.items() if key != "agent"}
+                if "agent" in update:
+                    shown["agent"] = update["agent"].slug
+                status = update.get("status")
+                observation.update(
+                    output=shown,
+                    level={"blocked": "WARNING", "error": "ERROR"}.get(status or ""),
+                    status_message=update.get("blocked_stage") if status == "blocked" else None,
+                )
+            return update
+
+    return node
+
+
 def build_graph():
     graph = StateGraph(ChatState)
-    graph.add_node("screen", screen)
-    graph.add_node("classify", classify)
-    graph.add_node("select_agent", select_agent)
-    graph.add_node("gate", gate)
-    graph.add_node("run_agent", run_agent)
-    graph.add_node("review", review)
+    graph.add_node("screen", _traced(screen, "guardrail"))
+    graph.add_node("classify", _traced(classify, "guardrail"))
+    graph.add_node("select_agent", _traced(select_agent))
+    graph.add_node("gate", _traced(gate, "guardrail"))
+    graph.add_node("run_agent", _traced(run_agent, "agent"))
+    graph.add_node("review", _traced(review, "guardrail"))
     graph.add_edge(START, "screen")
     graph.add_conditional_edges("screen", after_screen, ["classify", "select_agent", END])
     graph.add_edge(["classify", "select_agent"], "gate")

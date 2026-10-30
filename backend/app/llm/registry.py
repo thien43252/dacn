@@ -3,6 +3,7 @@
 from app.config import get_settings
 from app.llm.base import ChatModel, Embedder, LLMError
 from app.llm.fake import FakeChatModel, FakeEmbedder
+from app.tracing import TracedChatModel, get_langfuse
 
 EMBEDDING_DIMENSIONS = 768
 
@@ -36,12 +37,18 @@ def build_chat_model() -> ChatModel:
         from app.llm.openai_provider import OpenAIChatModel
 
         return OpenAIChatModel(
-            settings.openai_api_key, settings.llm_main_model, settings.llm_small_model, settings.openai_base_url
+            settings.openai_api_key,
+            settings.llm_main_model,
+            settings.llm_small_model,
+            settings.openai_base_url,
+            settings.llm_effort,
         )
     if settings.llm_provider == "gemini":
         from app.llm.gemini_provider import GeminiChatModel
 
-        return GeminiChatModel(settings.gemini_api_key, settings.llm_main_model, settings.llm_small_model)
+        return GeminiChatModel(
+            settings.gemini_api_key, settings.llm_main_model, settings.llm_small_model, settings.llm_effort
+        )
     if settings.llm_provider == "fake":
         return FakeChatModel()
     raise LLMError(f"LLM_PROVIDER không hợp lệ: {settings.llm_provider}")
@@ -65,7 +72,7 @@ def build_embedder() -> Embedder:
 def get_chat_model() -> ChatModel:
     global _chat
     if _chat is None:
-        _chat = build_chat_model()
+        _chat = TracedChatModel(build_chat_model()) if get_langfuse() else build_chat_model()
     return _chat
 
 
