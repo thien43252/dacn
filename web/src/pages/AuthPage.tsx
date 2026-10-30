@@ -3,7 +3,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { canAccessPath, getHomePath, navigate } from "../app/router";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError, type RegisterPayload } from "../auth/api";
-import { validateLogin, validateRegistration, type FieldErrors } from "../auth/validation";
+import { PASSWORD_RULES, validateLogin, validateRegistration, type FieldErrors } from "../auth/validation";
 import { Icon } from "../components/Icon";
 import { Logo } from "../components/Logo";
 import { HeroStudent } from "../components/HeroStudent";
@@ -32,6 +32,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -110,8 +111,19 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               </div>
             )}
             <label className="field"><span>Email</span><input autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="ban@email.com" aria-invalid={Boolean(errors.email)} />{errors.email && <small className="field__error">{errors.email}</small>}</label>
-            <label className="field"><span>Mật khẩu</span><input autoComplete={isRegister ? "new-password" : "current-password"} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Ít nhất 8 ký tự" aria-invalid={Boolean(errors.password)} />{errors.password && <small className="field__error">{errors.password}</small>}</label>
-            {isRegister && <label className="field"><span>Xác nhận mật khẩu</span><input autoComplete="new-password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Nhập lại mật khẩu" aria-invalid={Boolean(errors.confirmPassword)} />{errors.confirmPassword && <small className="field__error">{errors.confirmPassword}</small>}</label>}
+            <label className="field"><span>Mật khẩu</span><input autoComplete={isRegister ? "new-password" : "current-password"} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onFocus={() => setPasswordFocused(true)} onBlur={() => setPasswordFocused(false)} placeholder="Ít nhất 8 ký tự" aria-invalid={Boolean(errors.password)} aria-describedby={isRegister && password ? "password-rules" : undefined} />
+              {isRegister && password && (passwordFocused || !PASSWORD_RULES.every((rule) => rule.test(password))) ? (
+                <ul className="password-rules" id="password-rules" aria-live="polite">
+                  {PASSWORD_RULES.map((rule) => {
+                    const ok = rule.test(password);
+                    const state = ok ? "is-ok" : "is-missing";
+                    return <li key={rule.label} className={state}><span aria-hidden="true">{ok ? "✓" : "•"}</span>{rule.label}<span className="visually-hidden">{ok ? ": đạt" : ": chưa đạt"}</span></li>;
+                  })}
+                </ul>
+              ) : errors.password && <small className="field__error">{errors.password}</small>}</label>
+            {isRegister && <label className="field"><span>Xác nhận mật khẩu</span><input autoComplete="new-password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Nhập lại mật khẩu" aria-invalid={Boolean(errors.confirmPassword || (confirmPassword && confirmPassword !== password))} />
+              {(errors.confirmPassword || (confirmPassword && confirmPassword !== password)) ? <small className="field__error">Mật khẩu xác nhận chưa khớp.</small>
+                : confirmPassword && <small className="password-match">✓ Mật khẩu khớp</small>}</label>}
             {serverError && <div className="form-error" role="alert">{serverError}</div>}
             <button className="button button--primary button--full" type="submit" disabled={submitting}>{submitting ? <><span className="button-spinner" /> Đang xử lý</> : <>{isRegister ? "Tạo tài khoản" : "Đăng nhập"} <Icon name="arrow-right" /></>}</button>
           </form>

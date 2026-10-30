@@ -41,3 +41,12 @@
   .auth-layout .auth-story { display: none; }
   .auth-layout .auth-form-wrap { min-height: 100dvh; padding: 88px 24px 32px; }
 }
+
+/* Live password checklist on the register form. */
+.password-rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; margin: 6px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.password-rules li { display: flex; gap: 6px; align-items: baseline; }
+.password-rules li span[aria-hidden] { width: 12px; text-align: center; font-weight: 700; }
+.password-rules li.is-ok { color: var(--success); }
+.password-rules li.is-missing { color: var(--danger); }
+.password-match { color: var(--success); font-size: 13px; }
+@media (max-width: 480px) { .password-rules { grid-template-columns: minmax(0, 1fr); } }
