@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import InterfaceError, OperationalError
 
 from app.agents.router import router as agents_router
 from app.agents.service import sync_platform_agents
@@ -55,6 +56,15 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
     )
 
 
+async def database_unavailable(_: Request, exc: Exception) -> JSONResponse:
+    """A stopped Postgres surfaces as a raw connection error; answer 503 with a readable message instead of a 500."""
+    log.error("database unavailable: %s", exc)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Không kết nối được cơ sở dữ liệu. Vui lòng thử lại sau."},
+    )
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="EduAgent Hub API", version="0.1.0", lifespan=lifespan)
@@ -66,6 +76,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_exception_handler(RequestValidationError, validation_error)
+    for exc_type in (ConnectionError, OperationalError, InterfaceError):
+        app.add_exception_handler(exc_type, database_unavailable)
 
     api = APIRouter(prefix="/api")
 
