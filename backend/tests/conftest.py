@@ -19,6 +19,16 @@ from app.main import create_app
 os.environ["LANGFUSE_PUBLIC_KEY"] = ""
 
 
+def pytest_collection_modifyitems(config, items):
+    """Tests marked `dify` talk to a real Dify; they only run when DIFY_BASE_URL is set in the environment."""
+    if os.environ.get("DIFY_BASE_URL"):
+        return
+    skip = pytest.mark.skip(reason="needs a running Dify: set DIFY_BASE_URL and the app keys")
+    for item in items:
+        if "dify" in item.keywords:
+            item.add_marker(skip)
+
+
 @pytest.fixture
 async def sessionmaker() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     """A fresh database per test: in-memory SQLite by default, or Postgres when TEST_DATABASE_URL is set.

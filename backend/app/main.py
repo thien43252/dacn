@@ -85,8 +85,8 @@ def create_app() -> FastAPI:
 
     @api.get("/health")
     async def health() -> dict[str, str]:
-        """Liveness: the process is up. Does not touch the database."""
-        return {"status": "ok"}
+        """Liveness: the process is up and which agent runtime it uses. Does not touch the database."""
+        return {"status": "ok", "engine": get_settings().runtime_engine}
 
     @api.get("/health/ready")
     async def ready() -> dict[str, str]:

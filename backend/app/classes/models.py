@@ -30,6 +30,8 @@ class ClassRoom(TimestampMixin, Base):
     require_parent_consent: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     policy: Mapped[dict] = mapped_column(JSON, default=lambda: dict(DEFAULT_POLICY))
     archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The class's own Dify knowledge base, created with its first document (one per class).
+    dify_dataset_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
 
 
 class ClassMember(Base):

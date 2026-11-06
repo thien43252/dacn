@@ -39,7 +39,10 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["slow: runs the eval scripts as subprocesses (deselect with -m 'not slow')"]
+markers = [
+    "slow: runs the eval scripts as subprocesses (deselect with -m 'not slow')",
+    "dify: needs a running Dify (DIFY_BASE_URL and app keys); skipped otherwise",
+]
 
 [tool.ruff]
 line-length = 120

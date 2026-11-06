@@ -33,11 +33,11 @@ phải fail trước khi làm phần tương ứng.
 
 **Purpose**: cấu hình, thư mục và khung test cho Dify
 
-- [ ] T001 Thêm vào `Settings` trong `backend/app/config.py`: `runtime_engine: Literal["langgraph", "dify"] = "langgraph"`, `dify_base_url: str = "http://127.0.0.1:8080"`, `dify_triage_key`, `dify_runner_key`, `dify_runner_raw_key`, `dify_dataset_key` (đều `str = ""`), `dify_timeout_s: float = 30.0`, `mcp_token: str = ""`, `mcp_public_url: str = "http://host.docker.internal:8001/mcp"`
-- [ ] T002 [P] Thêm khối biến môi trường Dify vào `.env.example` đúng như quickstart.md mục 1 (`RUNTIME_ENGINE`, `DIFY_BASE_URL`, `DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`, `DIFY_DATASET_KEY`, `DIFY_TIMEOUT_S`, `MCP_TOKEN`, `MCP_PUBLIC_URL`), mỗi biến có chú thích tiếng Việt một dòng
-- [ ] T003 [P] Tạo `infra/dify/README.md` với các mục: phiên bản Dify ghim (≥ 1.13.3), lấy `docker/docker-compose.yaml` chính thức, đổi nginx sang `127.0.0.1:8080`, `extra_hosts: host.docker.internal:host-gateway` cho Linux, import 3 DSL, thêm MCP provider `eduagent-tools`, tạo API key, mục trống "Ghi chú spike" (research R13)
-- [ ] T004 [P] Đăng ký marker `dify` trong cấu hình pytest của `backend/pyproject.toml` và thêm fixture tự skip test `@pytest.mark.dify` khi không có `DIFY_BASE_URL` trong `backend/tests/conftest.py`
-- [ ] T005 [P] Tạo thư mục `backend/tests/fixtures/dify/` kèm `README.md` mô tả từng fixture sẽ có (research R14) và cách ghi lại từ Dify thật
+- [X] T001 Thêm vào `Settings` trong `backend/app/config.py`: `runtime_engine: Literal["langgraph", "dify"] = "langgraph"`, `dify_base_url: str = "http://127.0.0.1:8080"`, `dify_triage_key`, `dify_runner_key`, `dify_runner_raw_key`, `dify_dataset_key` (đều `str = ""`), `dify_timeout_s: float = 30.0`, `mcp_token: str = ""`, `mcp_public_url: str = "http://host.docker.internal:8001/mcp"`
+- [X] T002 [P] Thêm khối biến môi trường Dify vào `.env.example` đúng như quickstart.md mục 1 (`RUNTIME_ENGINE`, `DIFY_BASE_URL`, `DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`, `DIFY_DATASET_KEY`, `DIFY_TIMEOUT_S`, `MCP_TOKEN`, `MCP_PUBLIC_URL`), mỗi biến có chú thích tiếng Việt một dòng
+- [X] T003 [P] Tạo `infra/dify/README.md` với các mục: phiên bản Dify ghim (≥ 1.13.3), lấy `docker/docker-compose.yaml` chính thức, đổi nginx sang `127.0.0.1:8080`, `extra_hosts: host.docker.internal:host-gateway` cho Linux, import 3 DSL, thêm MCP provider `eduagent-tools`, tạo API key, mục trống "Ghi chú spike" (research R13)
+- [X] T004 [P] Đăng ký marker `dify` trong cấu hình pytest của `backend/pyproject.toml` và thêm fixture tự skip test `@pytest.mark.dify` khi không có `DIFY_BASE_URL` trong `backend/tests/conftest.py`
+- [X] T005 [P] Tạo thư mục `backend/tests/fixtures/dify/` kèm `README.md` mô tả từng fixture sẽ có (research R14) và cách ghi lại từ Dify thật
 
 ---
 
@@ -49,14 +49,14 @@ phải fail trước khi làm phần tương ứng.
 
 - [ ] T006 Spike Dify (thủ công, cần Dify thật): dựng Dify theo `infra/dify/README.md`, dựng bản thử triage + runner, trả lời 6 câu hỏi của research R12 (Fixed Value nhận `{{#start.ctx#}}`; tên/nội dung sự kiện stream, có `message_replace`, `message_end` có token; giới hạn input paragraph ≥ 12000; độ trễ chữ đầu tiên p95 ≤ 3 s; Agent node với chế độ reasoning; Question Classifier với tiếng Việt không dấu). Ghi kết quả vào mục "Ghi chú spike" của `infra/dify/README.md`. Nếu câu 1 và phương án dự phòng R6 đều không đạt, hoặc câu 4 vượt xa 3 s → DỪNG, báo người dùng
 - [ ] T007 Ghi fixture từ spike vào `backend/tests/fixtures/dify/`: `runner_plain.sse`, `runner_tool.sse`, `runner_tool_denied.sse`, `runner_message_replace.sse`, `runner_error_midstream.sse`, `runner_conversation_not_found.json`, `triage_safe.json`, `triage_block.json`, `triage_self_harm_risk.json`, `triage_self_harm_method.json`, `triage_routing.json`, `suggested.json`, `dataset_retrieve.json`, `indexing_status_completed.json`, `indexing_status_error.json`. Thay mọi khóa API và id người dùng thật bằng giá trị giả
-- [ ] T008 Tạo migration `backend/migrations/versions/0006_dify_runtime.py` (down_revision = 0005): thêm `conversations.dify_conversation_id` `String(64)` nullable; `classes.dify_dataset_id` `String(64)` nullable **unique**; `documents.dify_document_id` `String(64)` nullable; `documents.dify_batch` `String(64)` nullable. Có `downgrade()` xóa đúng 4 cột. Không sửa migration cũ
-- [ ] T009 [P] Thêm cột `dify_conversation_id: Mapped[str | None] = mapped_column(String(64))` vào `Conversation` trong `backend/app/chat/models.py`
-- [ ] T010 [P] Thêm cột `dify_dataset_id: Mapped[str | None] = mapped_column(String(64), unique=True)` vào `Class` trong `backend/app/classes/models.py`
-- [ ] T011 [P] Thêm cột `dify_document_id` và `dify_batch` (`String(64)`, nullable) vào `Document` trong `backend/app/knowledge/models.py`
-- [ ] T012 Tạo `backend/app/runtime/engine.py`: tách phần thân gọi `GRAPH` khỏi `run_turn()` trong `backend/app/chat/router.py` thành `run_langgraph_turn()`; `engine.run_turn()` chọn `langgraph` hoặc `dify` theo `settings.runtime_engine` (nhánh `dify` tạm raise `NotImplementedError`). `chat/router.py` và `backend/app/agents/sandbox.py` gọi qua `engine`; giữ nguyên chữ ký và thứ tự sự kiện SSE hiện tại
-- [ ] T013 Ghi khóa `meta.engine` (`"langgraph" | "dify"`) vào tin nhắn `assistant` khi lưu trong `backend/app/chat/router.py`
-- [ ] T014 [P] `GET /api/health` trong `backend/app/main.py` trả thêm trường `engine` = `settings.runtime_engine`; cập nhật `backend/tests/test_health.py`
-- [ ] T015 Chạy toàn bộ test backend với `runtime_engine="langgraph"`; mọi test hiện có phải pass sau T008–T014
+- [X] T008 Tạo migration `backend/migrations/versions/0006_dify_runtime.py` (down_revision = 0005): thêm `conversations.dify_conversation_id` `String(64)` nullable; `classes.dify_dataset_id` `String(64)` nullable **unique**; `documents.dify_document_id` `String(64)` nullable; `documents.dify_batch` `String(64)` nullable. Có `downgrade()` xóa đúng 4 cột. Không sửa migration cũ
+- [X] T009 [P] Thêm cột `dify_conversation_id: Mapped[str | None] = mapped_column(String(64))` vào `Conversation` trong `backend/app/chat/models.py`
+- [X] T010 [P] Thêm cột `dify_dataset_id: Mapped[str | None] = mapped_column(String(64), unique=True)` vào `Class` trong `backend/app/classes/models.py`
+- [X] T011 [P] Thêm cột `dify_document_id` và `dify_batch` (`String(64)`, nullable) vào `Document` trong `backend/app/knowledge/models.py`
+- [X] T012 Tạo `backend/app/runtime/engine.py`: tách phần thân gọi `GRAPH` khỏi `run_turn()` trong `backend/app/chat/router.py` thành `run_langgraph_turn()`; `engine.run_turn()` chọn `langgraph` hoặc `dify` theo `settings.runtime_engine` (nhánh `dify` tạm raise `NotImplementedError`). `chat/router.py` và `backend/app/agents/sandbox.py` gọi qua `engine`; giữ nguyên chữ ký và thứ tự sự kiện SSE hiện tại
+- [X] T013 Ghi khóa `meta.engine` (`"langgraph" | "dify"`) vào tin nhắn `assistant` khi lưu trong `backend/app/chat/router.py`
+- [X] T014 [P] `GET /api/health` trong `backend/app/main.py` trả thêm trường `engine` = `settings.runtime_engine`; cập nhật `backend/tests/test_health.py`
+- [X] T015 Chạy toàn bộ test backend với `runtime_engine="langgraph"`; mọi test hiện có phải pass sau T008–T014
 
 **Checkpoint**: Spike đạt, schema mới có, engine cũ vẫn chạy qua `engine.run_turn()`.
 
@@ -72,7 +72,7 @@ phải fail trước khi làm phần tương ứng.
 
 - [ ] T016 [P] [US1] Test MCP qua HTTP trong `backend/tests/test_mcp_http.py`: thiếu/sai bearer → 401 và không tool nào chạy; `ctx` không tồn tại → lỗi "Ngữ cảnh gọi công cụ không hợp lệ hoặc đã hết hạn."; handle quá 10 phút → cùng lỗi; tool không thuộc manifest, sai vai trò, tool cần lớp mà handle không có `class_id` → từ chối và có `guard_events` (stage `tool`, category `tool_denied`); tham số sai → lỗi tool, không có `guard_events`; mọi lần gọi có một dòng `tool_calls` và `arguments` không chứa `ctx`; sự kiện `tool` `start` rồi `done`/`denied`/`error` vào hàng đợi đúng `message_id` (contracts/mcp-tools.md)
 - [ ] T017 [P] [US1] Test client Dify trong `backend/tests/test_runtime_dify.py` bằng `httpx.MockTransport`: triage blocking parse đủ `verdict`, `category`, `reason`, `agent`, `route_reason`; runner `runner_plain.sse` → `text_delta` generation 0 với `text_offset` tính theo UTF-16 (có ký tự tiếng Việt và emoji); `message_end` → `dify_message_id` và usage; `task_id` lấy từ sự kiện đầu tiên
-- [ ] T018 [P] [US1] Test lượt chat đầy đủ với `runtime_engine="dify"` trong `backend/tests/test_runtime_dify.py`: thứ tự SSE `operation → conversation → agent → (text_delta | tool)* → done` (contracts/chat-sse.md); lượt đầu gửi `conversation_id=""` và lưu `dify_conversation_id`; lượt sau gửi lại mã đó; `user` gửi Dify là `users.id`, không có email/tên (FR-016); `roster` chỉ gồm agent của `available_agents()`; agent triage trả về ngoài `roster` → dùng `tro-ly-lop`; triage lỗi/timeout → `error` rồi `done(status="error")` và runner KHÔNG được gọi (fail closed)
+- [ ] T018 [P] [US1] Test lượt chat đầy đủ với `runtime_engine="dify"` trong `backend/tests/test_runtime_dify.py`: thứ tự SSE `operation → conversation → agent → (text_delta | tool)* → done` (contracts/chat-sse.md); lượt đầu gửi `conversation_id=""` và lưu `dify_conversation_id`; lượt sau gửi lại mã đó; `user` gửi Dify là `users.id`, không có email/tên (FR-016); `roster` chỉ gồm agent của `available_agents()`; agent triage trả về ngoài `roster` → dùng `tro-ly-lop`; triage lỗi/timeout → `error` rồi `done(status="error")` và runner KHÔNG được gọi (fail closed); học sinh chưa có đồng ý phụ huynh hoặc vừa bị rút đồng ý → `done(status="consent_required")`, KHÔNG gọi triage (FR-015); `requested_agent` không còn trong `roster` (agent bị gỡ khỏi lớp) → không dùng agent đó
 - [ ] T019 [P] [US1] Test `context_reset` và dừng trong `backend/tests/test_runtime_dify.py`: runner trả lỗi không tìm thấy hội thoại (`runner_conversation_not_found.json`) → gửi lại với `conversation_id=""`, cập nhật mã, phát `notice` kind `context_reset`, lượt vẫn `ok`; ngắt kết nối SSE giữa chừng → gọi `POST /v1/chat-messages/{task_id}/stop`; lỗi giữa stream (`runner_error_midstream.sse`) → giữ phần đã stream, `done(status="error")`
 
 ### Implementation for User Story 1
@@ -113,7 +113,7 @@ phải fail trước khi làm phần tương ứng.
 - [ ] T037 [P] [US2] Tạo `infra/dify/preset-responses.json` với khóa `input_blocked`, `output_blocked`, `self_harm_support` (có Tổng đài 111) bằng tiếng Việt thân thiện
 - [ ] T038 [US2] Tạo `backend/app/guard/dify_rules.py`: đọc `moderation-keywords.txt` và `preset-responses.json` (đường dẫn từ gốc repo, cache khi khởi động); hàm `contains_blocked_keyword(text)` và `is_preset_input_block(text)` dùng cho T041 và US4
 - [ ] T039 [US2] Hoàn thiện nhánh an toàn trong `infra/dify/eduagent-triage.yml`: Question Classifier với nhãn `safe`, `self_harm_risk`, `self_harm_method`, `jailbreak`, `dangerous`, `age_inappropriate` (mô tả nhãn có ví dụ tiếng Việt có dấu và không dấu); Code gộp ánh xạ `safe`→`allow`, `self_harm_risk`→`support`, còn lại→`block`, kèm `reason` tiếng Việt ngắn
-- [ ] T040 [US2] Bật kiểm duyệt nội dung đầu vào và đầu ra trong `infra/dify/eduagent-runner.yml`: loại keywords nhúng nguyên nội dung `moderation-keywords.txt`, OpenAI Moderation khi có khóa, câu trả lời cài sẵn lấy từ `preset-responses.json`; ghi trong `infra/dify/README.md` lệnh/thủ tục đồng bộ lại DSL khi sửa file từ khóa
+- [ ] T040 [US2] Bật kiểm duyệt nội dung đầu vào và đầu ra trong `infra/dify/eduagent-runner.yml`: loại keywords nhúng nguyên nội dung `moderation-keywords.txt`, OpenAI Moderation khi có khóa, câu trả lời cài sẵn lấy từ `preset-responses.json`; viết `infra/dify/sync_keywords.py` chép nội dung `moderation-keywords.txt` vào phần kiểm duyệt của `eduagent-runner.yml` (chế độ `--check` báo lỗi nếu lệch), và test offline `backend/tests/test_dify_dsl.py` khẳng định DSL khớp file từ khóa; ghi lệnh vào `infra/dify/README.md`
 - [ ] T041 [US2] Xử lý guard trong `backend/app/runtime/dify_turn.py`: `verdict=block` → `notice(guard_blocked)` + `done(status="blocked")`, không gọi runner; `support` → `safety_note="true"`; `self_harm_method` → trả `self_harm_support`; `message_replace` → `text_reset` + generation 1; câu trả lời trùng `input_blocked` → `status="blocked"`, `blocked_stage="input"`; `redact()` có thay đổi → `notice(redacted)`. Ghi `guard_events` với detector `dify_classifier` / `dify_moderation` / `privacy` và category theo data-model.md
 - [ ] T042 [US2] Thêm chỉ dẫn `safety_note` vào `backend/app/runtime/prompts.py` (khi `true`: trả lời ấm áp, khuyến khích nói với người lớn tin cậy, có Tổng đài 111) và truyền qua input runner
 - [ ] T043 [US2] Bỏ `blocked_topics` khỏi `backend/app/classes/schemas.py` và `backend/app/classes/models.py` (policy mặc định), bỏ khỏi `build_system_prompt()` trong `backend/app/runtime/prompts.py`; engine cũ (`backend/app/runtime/graph.py`, `backend/app/guard/rules.py`) đọc `policy.get("blocked_topics", [])` để không gãy khi dữ liệu không còn khóa này (FR-013)
@@ -139,7 +139,7 @@ phải fail trước khi làm phần tương ứng.
 
 - [ ] T048 [P] [US3] Tạo `infra/dify/eduagent-runner-raw.yml`: bản sao `eduagent-runner.yml`, tắt kiểm duyệt nội dung; ghi trong `infra/dify/README.md` rằng hai file phải giữ giống nhau ngoài phần kiểm duyệt
 - [ ] T049 [US3] Trong `backend/app/certify/pipeline.py`, `run_case()` gọi qua `backend/app/runtime/engine.py`: nhánh `dify` dùng `dify_client.stream_runner(raw=True)` với hội thoại mới, handle cho agent đang kiểm định trong lớp mô phỏng, gom câu trả lời rồi đưa giám khảo LLM ở backend như hiện nay; nhánh `langgraph` giữ `guard_mode="prompt_only"`
-- [ ] T050 [US3] Kiểm tra `backend/app/agents/sandbox.py` + `backend/app/agents/router.py`: phiên bản agent mới tạo dùng được ngay trên Dify qua `system_prompt` input và `allowed_tools` trong handle (FR-017); học sinh/phụ huynh chỉ thấy phiên bản đã đạt trong `roster` (FR-018)
+- [ ] T050 [US3] Kiểm tra `backend/app/agents/sandbox.py` + `backend/app/agents/router.py`: phiên bản agent mới tạo dùng được ngay trên Dify qua `system_prompt` input và `allowed_tools` trong handle (FR-017); học sinh/phụ huynh chỉ thấy phiên bản đã đạt trong `roster` (FR-018); thêm test `@pytest.mark.dify` trong `backend/tests/test_runtime_dify.py` chạy một câu hỏi qua từng agent trong 7 agent nền tảng sau `seed_demo` (US3 kịch bản 4)
 
 **Checkpoint**: Kịch bản 10 đạt; test T046–T047 pass.
 
@@ -159,7 +159,7 @@ phải fail trước khi làm phần tương ứng.
 ### Implementation for User Story 4
 
 - [ ] T053 [US4] Handler `class_doc_search` trong `backend/app/tools/registry.py` thêm mỗi kết quả vào `handle.citations` dưới dạng `{document_id, title, location, excerpt}` (`excerpt` cắt 300 ký tự, bỏ trùng theo `document_id` + `location`)
-- [ ] T054 [US4] Trong `backend/app/runtime/dify_turn.py`: khi lượt `ok`, phát `citations` (nếu có) rồi `suggestions` (lọc bằng `contains_blocked_keyword()` của T038, tối đa 3; lỗi API suggested thì bỏ qua) trước `done`; lưu vào `meta.citations` / `meta.suggestions`
+- [ ] T054 [US4] Trong `backend/app/runtime/dify_turn.py`: khi lượt `ok`, phát `citations` (nếu có) rồi `suggestions` (lọc bằng `contains_blocked_keyword()` của T038, và qua OpenAI Moderation khi có khóa như kiểm duyệt đầu ra của runner (FR-022); tối đa 3; lỗi API suggested thì bỏ qua) trước `done`; lưu vào `meta.citations` / `meta.suggestions`
 - [ ] T055 [US4] `GET /api/chat/conversations/{id}/messages` trong `backend/app/chat/router.py` trả `meta.citations` và `meta.suggestions` để hiển thị lại
 - [ ] T056 [P] [US4] Thêm kiểu sự kiện `citations` và `suggestions` (contracts/chat-sse.md) và trường `citations?`, `suggestions?` cho tin nhắn trong `web/src/api-client/types.ts`
 - [ ] T057 [US4] Xử lý sự kiện `citations`/`suggestions` trong `web/src/components/ChatPanel.tsx` (gắn vào tin nhắn theo `message_id`, xóa khi có `text_reset`, nhận lại từ lịch sử)
@@ -178,7 +178,7 @@ phải fail trước khi làm phần tương ứng.
 ### Tests for User Story 5 ⚠️
 
 - [ ] T059 [P] [US5] Test `backend/tests/test_dify_datasets.py` bằng `MockTransport`: tạo kho tên `class-<class_id>` khi lớp có tài liệu đầu tiên và lưu `classes.dify_dataset_id`; tải lên lưu `dify_document_id` + `dify_batch`, `status="processing"`; `indexing_status_completed.json` → `ready` và `chunk_count` = số segment; `indexing_status_error.json` → `failed`, `error` cắt 500 ký tự; xử lý lại = xóa tài liệu Dify cũ rồi tạo lại; xóa tài liệu: Dify lỗi → bản ghi giữ nguyên và API báo lỗi
-- [ ] T060 [P] [US5] Cập nhật `backend/tests/test_documents_tools.py`: với `runtime_engine="dify"`, `class_doc_search` gọi `POST /v1/datasets/{id}/retrieve` với `id` lấy từ `handle.dataset_id`, không bao giờ từ tham số mô hình; handle lớp B không thể tra kho lớp A; chat cá nhân (không `class_id`) bị từ chối; kết quả giữ dạng `{"results": [{document_id, title, location, score, content}], "note"}`
+- [ ] T060 [P] [US5] Cập nhật `backend/tests/test_documents_tools.py`: với `runtime_engine="dify"`, `class_doc_search` gọi `POST /v1/datasets/{id}/retrieve` với `id` lấy từ `handle.dataset_id`, không bao giờ từ tham số mô hình; handle lớp B không thể tra kho lớp A; chat cá nhân (không `class_id`) bị từ chối; kết quả giữ dạng `{"results": [{document_id, title, location, score, content}], "note"}`; thêm test `@pytest.mark.dify` cách ly thật: tài liệu ở kho lớp A, handle lớp B hỏi đúng nội dung đó → 0 kết quả (SC-007)
 
 ### Implementation for User Story 5
 
@@ -211,7 +211,7 @@ phải fail trước khi làm phần tương ứng.
 - [ ] T071 [US6] Đảm bảo trang chi phí (`backend/app/audit/` và `web/src/features/audit/AuditPages.tsx`) hiển thị được purpose `triage` (nhãn "Định tuyến & kiểm duyệt")
 - [ ] T072 [US6] Tracing trong `backend/app/runtime/dify_turn.py` qua `backend/app/tracing.py`: span `triage` và `run_agent` bọc lời gọi Dify, gắn `dify_message_id` và `dify_conversation_id` vào metadata; ghi trong `infra/dify/README.md` cách bật Langfuse trong Dify
 - [ ] T073 [US6] Thêm `--engine` vào `eval/harness.py`, `eval/run_redteam.py`, `eval/run_routing.py`, `eval/run_certify.py` (đặt `runtime_engine` tương ứng) và cột `engine` + độ trễ chữ đầu tiên trong file kết quả `eval/results/`
-- [ ] T074 [US6] Chạy cả ba script với `langgraph` và `dify` (cần Dify thật), điền bảng so sánh (tỉ lệ chặn, chặn nhầm, định tuyến, độ trễ p95, chi phí mỗi lượt) vào `docs/BAO-CAO.md`; nếu vượt ngưỡng SC-002/SC-003/SC-004 thì ghi rõ và báo người dùng trước khi sang Phase 9
+- [ ] T074 [US6] Chạy cả ba script với `langgraph` và `dify` (cần Dify thật), điền bảng so sánh (tỉ lệ chặn, chặn nhầm, định tuyến, độ trễ p95, chi phí mỗi lượt) vào `docs/BAO-CAO.md`; `eval/run_redteam.py` đối chiếu mỗi lần chặn với một bản ghi `guard_events` và báo tỉ lệ có bản ghi (SC-006 yêu cầu 100%); nếu vượt ngưỡng SC-002/SC-003/SC-004 thì ghi rõ và báo người dùng trước khi sang Phase 9
 
 **Checkpoint**: Kịch bản 12 đạt; có bảng so sánh (SC-009).
 
@@ -227,9 +227,9 @@ phải fail trước khi làm phần tương ứng.
 - [ ] T076 Xóa engine cũ: `backend/app/runtime/graph.py`, `backend/app/runtime/router.py`, `backend/app/guard/classifier.py`, phần chặn trong `backend/app/guard/rules.py` (giữ `redact()`), nhánh `langgraph` trong `backend/app/runtime/engine.py`, `backend/tests/test_routing.py` và phần test guard cũ trong `backend/tests/test_guard.py` (giữ test `redact()`)
 - [ ] T077 Migration `backend/migrations/versions/0007_drop_document_chunks.py` xóa bảng `document_chunks`; xóa model và code embedding pgvector trong `backend/app/knowledge/`
 - [ ] T078 Bỏ `langgraph` khỏi `backend/pyproject.toml`, chạy `uv lock`; `grep -ri langgraph backend/app eval web/src` phải rỗng
-- [ ] T079 [P] Cập nhật `README.md` (dựng Dify, biến môi trường, sơ đồ kiến trúc mới) và `docs/DEMO.md` nếu kịch bản đổi
+- [ ] T079 [P] Cập nhật `README.md` (dựng Dify, biến môi trường, sơ đồ kiến trúc mới) ; `docs/DEMO.md` chỉ được thêm ghi chú, không sửa các bước (SC-001)
 - [ ] T080 [P] Thay `docs/PLAN-DIFY.md` (đang bị xóa trong working tree) bằng ghi chú ngắn trỏ tới `specs/001-dify-core-migration/`, hoặc xác nhận với người dùng việc xóa hẳn
-- [ ] T081 Chạy toàn bộ quickstart.md (mục 1–3 và E2E `cd web && npm run test:e2e`) trên máy sạch, đo thời gian dựng (SC-008 ≤ 1 giờ), ghi lệch vào `infra/dify/README.md`
+- [ ] T081 Chạy toàn bộ quickstart.md (mục 1–3 và E2E `cd web && npm run test:e2e`) và đi hết các bước của `docs/DEMO.md` không sửa kịch bản (SC-001) trên máy sạch, đo thời gian dựng (SC-008 ≤ 1 giờ), ghi lệch vào `infra/dify/README.md`
 - [ ] T082 Chạy lệnh kiểm tra backend + web ở đầu file; tất cả phải pass
 
 ---

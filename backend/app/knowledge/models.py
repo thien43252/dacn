@@ -43,6 +43,9 @@ class Document(TimestampMixin, Base):
     error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
+    # The document in the class's Dify knowledge base and the indexing batch to poll for its status.
+    dify_document_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    dify_batch: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class DocumentChunk(Base):

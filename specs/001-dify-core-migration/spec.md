@@ -212,8 +212,8 @@ Admin xem được số lượt, token, chi phí và các lần chặn theo th�
 
 **Guardrail và an toàn**
 
-- **FR-007**: Mọi tin nhắn đầu vào và mọi câu trả lời MUST qua kiểm duyệt của Dify trước khi tới mô hình
-  hoặc tới người dùng.
+- **FR-007**: Mọi tin nhắn đầu vào MUST qua kiểm duyệt của Dify trước khi tới mô hình của agent. Mọi câu trả
+  lời MUST qua kiểm duyệt đầu ra của Dify; vì câu trả lời hiện dần, phần vi phạm đã hiện được thu hồi theo FR-009.
 - **FR-008**: Tin nhắn bị chặn ở đầu vào MUST không được gửi tới mô hình của agent.
 - **FR-009**: Khi kiểm duyệt đầu ra phát hiện vi phạm, phần nội dung vi phạm đã hiện MUST được thay bằng
   thông báo.
@@ -306,8 +306,8 @@ Admin xem được số lượt, token, chi phí và các lần chặn theo th�
 - Tài khoản, vai trò, lớp, thành viên, đồng ý phụ huynh, Hub, cài đặt agent và báo cáo phụ huynh vẫn thuộc
   nền tảng và không chuyển sang Dify.
 - Giao diện người dùng vẫn là giao diện của nền tảng. Người dùng cuối không vào giao diện của Dify.
-- Định tuyến dùng khả năng phân loại câu hỏi có sẵn của Dify, với danh sách agent do nền tảng cung cấp theo
-  từng lượt.
+- Định tuyến chạy trong workflow của Dify (một bước gọi LLM đọc danh sách agent), với danh sách agent do nền
+  tảng cung cấp theo từng lượt. Bộ phân loại câu hỏi có sẵn của Dify dùng cho phân loại an toàn (research R2, R3).
 - Guardrail dùng khả năng kiểm duyệt nội dung có sẵn của Dify (bộ từ khóa và/hoặc dịch vụ kiểm duyệt).
   Những yêu cầu an toàn Dify không có sẵn (ẩn thông tin cá nhân, trả lời tự làm hại, ghi nhật ký) vẫn MUST
   được đáp ứng; cách đáp ứng sẽ chốt ở bước plan.
@@ -316,5 +316,6 @@ Admin xem được số lượt, token, chi phí và các lần chặn theo th�
   khởi tạo dữ liệu.
 - Khóa API của mô hình được cấu hình trong Dify cho phần agent. Các phần còn lại của nền tảng (báo cáo phụ
   huynh, giám khảo kiểm định) dùng khóa riêng như hiện nay.
-- Feature này thay thế phương án lai trong `docs/PLAN-DIFY.md`. Tài liệu đó sẽ được cập nhật ở bước plan.
+- Feature này thay thế phương án lai trong `docs/PLAN-DIFY.md`. Tài liệu đó được thay bằng thư mục
+  `specs/001-dify-core-migration/`; việc xóa hay giữ file cũ do chủ dự án quyết (task T080).
 - Giấy phép Dify Open Source cho phép dùng trong đồ án một workspace.

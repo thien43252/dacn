@@ -19,6 +19,8 @@ class Conversation(TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(200), default="")
     # "chat" for real conversations; "sandbox" for an author trying a draft agent in the builder.
     kind: Mapped[str] = mapped_column(String(16), default="chat", server_default="chat")
+    # Conversation id of the Dify runner app; Dify keeps the agent's memory (runtime_engine "dify").
+    dify_conversation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ChatMessage(Base):

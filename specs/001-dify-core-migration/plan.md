@@ -114,7 +114,7 @@ backend/
 │   ├── classes/{router,schemas}.py  # bỏ blocked_topics
 │   ├── chat/router.py            # gọi engine.run_turn(); lưu dify_conversation_id, citations, suggestions
 │   ├── certify/pipeline.py       # gọi engine; runner-raw, hội thoại mới mỗi tình huống
-│   └── agents/router.py          # sandbox gọi engine.run_turn()
+│   └── agents/sandbox.py         # phòng thử gọi engine.run_turn()
 ├── migrations/versions/0006_dify_runtime.py   # MỚI
 ├── scripts/seed_demo.py          # đẩy tài liệu demo sang Dify khi engine = dify
 └── tests/

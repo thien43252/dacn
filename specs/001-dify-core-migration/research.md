@@ -62,7 +62,8 @@ một môn có nhiều agent (`gia-su-toan` và `tao-de`) và phân loại theo 
   `infra/dify/moderation-keywords.txt`, được nhúng vào DSL và được backend dùng lại để lọc câu hỏi gợi ý (R8).
 - `self_harm_method` → chặn và trả lời hỗ trợ có Tổng đài 111. `self_harm_risk` → không chặn; backend truyền
   `safety_note=true` cho runner để agent trả lời ấm áp kèm 111 (FR-010), giống hành vi hiện nay.
-- Mọi kết quả khác `safe` được backend ghi vào `guard_events` với `detector="dify"`.
+- Mọi kết quả khác `safe` được backend ghi vào `guard_events` với `detector="dify_classifier"` (triage) hoặc
+  `detector="dify_moderation"` (kiểm duyệt cấp ứng dụng), theo data-model.md.
 
 **Lý do**: Đúng lựa chọn của người dùng (guard của Dify, luật chung). Question Classifier cho nhãn rõ ràng, đủ để
 ghi nhật ký và để phân biệt self-harm với các loại chặn khác. Kiểm duyệt cấp ứng dụng là cơ chế duy nhất của Dify

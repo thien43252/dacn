@@ -52,6 +52,23 @@ class Settings(BaseSettings):
     # Class documents are stored here (relative to backend/).
     upload_dir: str = "data/uploads"
 
+    # Agent runtime. "langgraph" is the in-process graph (app/runtime/graph.py); "dify" sends each turn to the
+    # self-hosted Dify apps described in specs/001-dify-core-migration/contracts/dify-apps.md. The old engine stays
+    # selectable until the comparison run is done (FR-025).
+    runtime_engine: Literal["langgraph", "dify"] = "langgraph"
+    dify_base_url: str = "http://127.0.0.1:8080"
+    dify_triage_key: str = ""
+    dify_runner_key: str = ""
+    # Same DSL as the runner with content moderation off; certification only, never user chat.
+    dify_runner_raw_key: str = ""
+    dify_dataset_key: str = ""
+    dify_timeout_s: float = 30.0
+
+    # MCP over streamable HTTP at /mcp, called by Dify with this bearer token. The public URL is what Dify's
+    # containers use to reach the backend (host.docker.internal on Docker Desktop).
+    mcp_token: str = ""
+    mcp_public_url: str = "http://host.docker.internal:8001/mcp"
+
 
 @lru_cache
 def get_settings() -> Settings:
