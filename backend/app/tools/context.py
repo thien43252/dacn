@@ -26,7 +26,17 @@ def now() -> float:
     return time.monotonic()
 
 
+def sweep() -> int:
+    """Drops expired handles nobody looked up again, e.g. of a turn that was cut off. Returns how many."""
+    current = now()
+    expired = [handle for handle, (_, expires_at) in _live.items() if current >= expires_at]
+    for handle in expired:
+        _live.pop(handle, None)
+    return len(expired)
+
+
 def register(context: "ToolContext", ttl_s: float = TTL_S) -> str:
+    sweep()
     handle = secrets.token_urlsafe(16)  # 128 bits
     _live[handle] = (context, now() + ttl_s)
     return handle

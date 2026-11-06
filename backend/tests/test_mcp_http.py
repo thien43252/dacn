@@ -16,6 +16,8 @@ from app.tools import registry
 from tests.helpers import class_with_student
 
 TOKEN = "test-mcp-token"
+# How Dify reaches the backend; the Host header must pass the DNS-rebinding check.
+MCP_BASE = "http://host.docker.internal:8001"
 INVALID = "Ngữ cảnh gọi công cụ không hợp lệ hoặc đã hết hạn."
 
 
@@ -34,7 +36,7 @@ async def mcp_client(app):
 
     A context manager rather than a fixture: the manager's task group must be entered and left in one task."""
     async with app.state.mcp_manager.run():
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=MCP_BASE) as client:
             yield client
 
 
@@ -106,7 +108,7 @@ async def test_endpoint_refuses_everything_without_a_configured_token(app, monke
     monkeypatch.setenv("MCP_TOKEN", "")
     get_settings.cache_clear()
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=MCP_BASE) as client:
             response = await call(client, "math_check", {}, token="")
     finally:
         monkeypatch.undo()
@@ -185,3 +187,54 @@ async def test_invalid_arguments_are_an_error_without_guard_event(app, mcp_token
         assert logged.is_error and logged.denied_reason is None
         assert await rows(sessionmaker, GuardEvent) == []
         handles.release(handle)
+
+
+@pytest.mark.parametrize(
+    ("base", "origin", "status"),
+    [("http://evil.example", None, 421), (MCP_BASE, "http://evil.example", 403)],
+)
+async def test_foreign_host_or_browser_origin_is_refused(app, mcp_token, as_user, sessionmaker, base, origin, status):
+    """DNS-rebinding protection: only local hosts and the MCP_PUBLIC_URL host, never a browser origin."""
+    context, handle = await turn_context(as_user, sessionmaker)
+    headers = {"Accept": "application/json, text/event-stream", "Authorization": f"Bearer {TOKEN}"}
+    if origin:
+        headers["Origin"] = origin
+    body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "math_check", "arguments": {}}}
+    async with app.state.mcp_manager.run():
+        async with AsyncClient(transport=ASGITransport(app=app), base_url=base) as client:
+            response = await client.post("/mcp", headers=headers, json=body)
+    assert response.status_code == status
+    assert drained(context) == []
+    handles.release(handle)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "problem"),
+    [
+        ({"operation": "fly", "expression": "x=1"}, "operation"),
+        ({"operation": "solve", "expression": ["x=1"]}, "expression"),
+    ],
+)
+async def test_wrong_types_reach_the_handler_and_are_logged(
+    app, mcp_token, as_user, sessionmaker, arguments, problem
+) -> None:
+    """The SDK passes argument values through unchecked, so wrong types are refused (and logged) by run_tool."""
+    async with mcp_client(app) as mcp:
+        context, handle = await turn_context(as_user, sessionmaker)
+        text, is_error = result_of(await call(mcp, "math_check", {"ctx": handle, **arguments}))
+        assert is_error and "Tham số không hợp lệ" in text and problem in text
+        assert drained(context) == ["start", "error"]
+        [logged] = await rows(sessionmaker, ToolCallLog)
+        assert logged.is_error and "ctx" not in logged.arguments
+        handles.release(handle)
+
+
+def test_registering_a_handle_sweeps_expired_ones(monkeypatch) -> None:
+    """A handle of an interrupted turn is never looked up again; it must not stay in memory past its TTL."""
+    context = registry.ToolContext("u", "student", None, None, None, "tro-ly-lop", frozenset())
+    stale = handles.register(context)
+    later = handles.now() + handles.TTL_S + 1
+    monkeypatch.setattr(handles, "now", lambda: later)
+    fresh = handles.register(context)
+    assert stale not in handles._live and fresh in handles._live
+    handles.release(fresh)

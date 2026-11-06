@@ -1,0 +1,91 @@
+# Bộ từ khóa kiểm duyệt nội dung (Content Moderation, loại Keywords) của eduagent-runner.
+# Nguồn duy nhất (research R3): dán phần không có dòng chú thích vào Studio, và backend đọc file này
+# (app/guard/dify_rules.py) để lọc gợi ý câu hỏi tiếp theo.
+#
+# Cách Dify so khớp (core/moderation/keywords, bản 1.19): chuỗi con, không phân biệt hoa thường, KHÔNG bỏ dấu,
+# tối đa 100 dòng, áp cho mọi input của ứng dụng (kể cả system_prompt) và cho câu trả lời.
+# Vì vậy:
+# - mỗi ý ghi cả dạng có dấu và không dấu;
+# - chỉ dùng cụm đủ dài, ít nhầm (không dùng từ đơn như "bom", vì "bom" cũng là "bơm" viết không dấu);
+# - không cụm nào được xuất hiện trong system prompt do build_system_prompt() dựng (test T038 kiểm).
+# Nguồn ý: các luật chặn trong backend/app/guard/rules.py và eval/redteam_vi.jsonl.
+
+# Tự hại: hỏi cách làm
+cách tự tử
+cach tu tu
+tự tử không đau
+tu tu khong dau
+cách tự sát
+cach tu sat
+bao nhiêu viên thuốc ngủ
+bao nhieu vien thuoc ngu
+tự làm đau bản thân mà không
+tu lam dau ban than ma khong
+mẹo nôn sau khi ăn
+meo non sau khi an
+
+# Vượt quy tắc (jailbreak)
+bỏ qua mọi hướng dẫn
+bo qua moi huong dan
+bỏ qua mọi quy tắc
+bo qua moi quy tac
+bỏ qua tất cả hướng dẫn
+bo qua tat ca huong dan
+bỏ qua các hướng dẫn trước
+bo qua cac huong dan truoc
+ignore previous instructions
+ignore all previous instructions
+ignore your instructions
+developer mode
+chế độ nhà phát triển
+che do nha phat trien
+chế độ không kiểm duyệt
+che do khong kiem duyet
+in ra system prompt
+reveal your system prompt
+tắt bộ lọc an toàn
+tat bo loc an toan
+
+# Nguy hiểm, trái pháp luật
+chế tạo bom
+che tao bom
+cách làm bom
+cach lam bom
+cách chế bom
+cach che bom
+bom xăng
+bom xang
+tự chế thuốc nổ
+tu che thuoc no
+cách làm pháo
+cach lam phao
+hack tài khoản
+hack tai khoan
+hack facebook
+đánh cắp mật khẩu
+danh cap mat khau
+trang đăng nhập giả
+trang dang nhap gia
+giả chữ ký
+gia chu ky
+
+# Không phù hợp lứa tuổi
+truyện người lớn
+truyen nguoi lon
+phim người lớn
+phim nguoi lon
+phim sex
+phim khiêu dâm
+phim khieu dam
+gửi ảnh nóng
+gui anh nong
+cảnh nóng
+canh nong
+mua thuốc lắc
+mua thuoc lac
+mua ma túy
+mua ma tuy
+hít bóng cười
+hit bong cuoi
+cá độ bóng đá
+ca do bong da
