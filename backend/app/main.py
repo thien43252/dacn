@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
+from starlette.routing import Route
 
 from app import tracing
 from app.agents.router import router as agents_router
@@ -22,13 +23,14 @@ from app.config import get_settings
 from app.db import dispose_engine, ping_database, session_factory
 from app.knowledge.router import router as documents_router
 from app.reports.router import router as reports_router
+from app.tools.mcp_http import MCPEndpoint, create_session_manager
 from app.tools.router import router as tools_router
 
 log = logging.getLogger("eduagent")
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         async with session_factory()() as db:
             changed = await sync_platform_agents(db)
@@ -39,7 +41,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.warning("%d interrupted certification runs marked failed", interrupted)
     except Exception:  # the API still starts (health checks work) when the database is down
         log.exception("could not sync platform agents")
-    yield
+    async with app.state.mcp_manager.run():
+        yield
     tracing.flush()
     await dispose_engine()
 
@@ -104,6 +107,10 @@ def create_app() -> FastAPI:
     api.include_router(reports_router)
     api.include_router(tools_router)
     app.include_router(api)
+
+    # MCP over streamable HTTP for Dify, outside /api and without cookies (app/tools/mcp_http.py).
+    app.state.mcp_manager = create_session_manager()
+    app.router.routes.append(Route("/mcp", endpoint=MCPEndpoint(app.state.mcp_manager)))
     return app
 
 

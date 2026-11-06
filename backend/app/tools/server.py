@@ -1,18 +1,17 @@
-"""The platform's MCP server. Agents reach every tool through it, in-process via `mcp.Client(server)`.
+"""The platform's MCP server. Agents reach every tool through it: the LangGraph engine in-process via
+`mcp.Client(server)`, Dify over streamable HTTP at /mcp (app/tools/http.py).
 
-Each tool takes a `ctx` handle that the platform's tool guard registers just before the call; it carries the
-caller's identity and class, so the model never supplies (or sees) who it is acting for. Run standalone with
+Each tool takes a `ctx` handle registered by the platform (app/tools/context.py); it carries the caller's identity,
+class and the agent's granted tools, so the model never supplies (or sees) who it is acting for. Every call goes
+through `registry.run_tool`, which checks the handle and the tool guard before running the tool. Run standalone with
 `uv run python -m app.tools.server` to inspect the tools with any MCP client over stdio.
 """
 
-import json
 from typing import Literal
 
 from mcp.server.mcpserver import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
 
-from app.tools import impl
-from app.tools.context import resolve
+from app.tools import registry
 
 server = MCPServer(
     name="eduagent-tools",
@@ -20,18 +19,9 @@ server = MCPServer(
 )
 
 
-async def _run(ctx: str, fn, args) -> str:
-    context = resolve(ctx)
-    try:
-        return json.dumps(await fn(context, args), ensure_ascii=False)
-    except impl.ToolFailure as failure:
-        # ToolError (unlike other exceptions) keeps its message in the error result the model reads.
-        raise ToolError(str(failure)) from failure
-
-
 @server.tool(description="Tìm các đoạn liên quan trong tài liệu giáo viên đã tải lên lớp.")
 async def class_doc_search(ctx: str, query: str, top_k: int = 4) -> str:
-    return await _run(ctx, impl.class_doc_search, impl.DocSearchArgs(query=query, top_k=top_k))
+    return await registry.run_tool(ctx, "class_doc_search", {"query": query, "top_k": top_k})
 
 
 @server.tool(description="Soạn câu hỏi trắc nghiệm hoặc tự luận theo chủ đề, bám tài liệu lớp.")
@@ -43,15 +33,19 @@ async def quiz_generator(
     level: Literal["nhan_biet", "thong_hieu", "van_dung", "van_dung_cao", "hon_hop"] = "hon_hop",
     with_answers: bool = False,
 ) -> str:
-    args = impl.QuizArgs(
-        topic=topic, num_questions=num_questions, question_type=question_type, level=level, with_answers=with_answers
-    )
-    return await _run(ctx, impl.quiz_generator, args)
+    arguments = {
+        "topic": topic,
+        "num_questions": num_questions,
+        "question_type": question_type,
+        "level": level,
+        "with_answers": with_answers,
+    }
+    return await registry.run_tool(ctx, "quiz_generator", arguments)
 
 
 @server.tool(description="Chấm hoặc nhận xét bài văn theo rubric.")
 async def rubric_grader(ctx: str, essay: str, rubric: str = "", assignment: str = "") -> str:
-    return await _run(ctx, impl.rubric_grader, impl.RubricArgs(essay=essay, rubric=rubric, assignment=assignment))
+    return await registry.run_tool(ctx, "rubric_grader", {"essay": essay, "rubric": rubric, "assignment": assignment})
 
 
 @server.tool(description="Giải, rút gọn hoặc kiểm tra kết quả toán bằng tính toán ký hiệu (sympy).")
@@ -62,13 +56,13 @@ async def math_check(
     answer: str = "",
     variable: str = "x",
 ) -> str:
-    args = impl.MathArgs(operation=operation, expression=expression, answer=answer, variable=variable)
-    return await _run(ctx, impl.math_check, args)
+    arguments = {"operation": operation, "expression": expression, "answer": answer, "variable": variable}
+    return await registry.run_tool(ctx, "math_check", arguments)
 
 
 @server.tool(description="Tổng hợp tình hình học tập của con hoặc học sinh trong lớp, không trích nguyên văn tin nhắn.")
 async def progress_summary(ctx: str, student_name: str = "", days: int = 7) -> str:
-    return await _run(ctx, impl.progress_summary, impl.ProgressArgs(student_name=student_name, days=days))
+    return await registry.run_tool(ctx, "progress_summary", {"student_name": student_name, "days": days})
 
 
 if __name__ == "__main__":

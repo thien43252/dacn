@@ -30,4 +30,6 @@ Sync Impact Report
   cho đúng lần đó.
 - Thay đổi MUST được để lại trong working tree để người dùng tự xem và tự commit. Agent MAY đề xuất
   commit message.
+- Commit message do agent đề xuất MUST viết bằng tiếng Anh (ngoại lệ của nguyên tắc I), theo dạng
+  `type(scope): mô tả` của Conventional Commits.
 - Hook hoặc extension tự commit (ví dụ `speckit.git.commit`) MUST bị tắt hoặc chỉ ở dạng tùy chọn.
