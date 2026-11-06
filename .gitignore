@@ -2,6 +2,18 @@
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials*.json
+service-account*.json
+
+# Claude Code: personal settings (permissions, env, tokens); skills stay shared
+.claude/settings.local.json
+.claude/*.local.*
+CLAUDE.local.md
 
 # Python
 .venv/
@@ -9,11 +21,33 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
 
 # Node
 node_modules/
 dist/
 .vercel/
+*.tsbuildinfo
+*.local
+npm-debug.log*
+
+# Playwright outputs
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Dify self-hosted data (keep DSL and README in infra/dify/)
+infra/dify/**/volumes/
+
+# Logs and scratch
+*.log
+logs/
+tmp/
 
 # Uploaded class documents and eval outputs
 backend/data/
