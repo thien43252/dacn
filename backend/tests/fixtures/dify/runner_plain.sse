@@ -1,0 +1,504 @@
+data: {"event":"workflow_started","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"848b60cf-0979-4bde-910c-f58c9d45cec7","workflow_id":"dc7e778e-3698-48a2-aad8-9f336b8b93d2","inputs":{"system_prompt":"Bạn là gia sư Toán lớp 8 trên EduAgent Hub. Trả lời ngắn gọn bằng tiếng Việt. Khi cần kiểm tra kết quả, dùng công cụ math_check.","ctx":"spike-ctx-0001","safety_note":"false","sys.query":"Phân số 3/4 lớn hơn hay nhỏ hơn 2/3? Giải thích ngắn.","sys.files":[],"sys.user_id":"spike-user","sys.dialogue_count":1,"sys.app_id":"e95387e2-b6cf-491e-bfb7-18243f814c7f","sys.workflow_id":"dc7e778e-3698-48a2-aad8-9f336b8b93d2","sys.workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7"},"created_at":1793995702,"reason":"initial"}}
+
+data: {"event":"node_started","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"a6b8ac7e-5c51-45c4-8623-ae8d54481d74","node_id":"start","node_type":"start","title":"Start","index":1,"predecessor_node_id":null,"inputs":null,"inputs_truncated":false,"created_at":1793995702,"extras":{},"iteration_id":null,"loop_id":null,"agent_strategy":null}}
+
+data: {"event":"node_finished","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"a6b8ac7e-5c51-45c4-8623-ae8d54481d74","node_id":"start","node_type":"start","title":"Start","index":1,"predecessor_node_id":null,"inputs":{"system_prompt":"Bạn là gia sư Toán lớp 8 trên EduAgent Hub. Trả lời ngắn gọn bằng tiếng Việt. Khi cần kiểm tra kết quả, dùng công cụ math_check.","ctx":"spike-ctx-0001","safety_note":"false","query__":"Phân số 3/4 lớn hơn hay nhỏ hơn 2/3? Giải thích ngắn."},"inputs_truncated":false,"process_data":{},"process_data_truncated":false,"outputs":{"system_prompt":"Bạn là gia sư Toán lớp 8 trên EduAgent Hub. Trả lời ngắn gọn bằng tiếng Việt. Khi cần kiểm tra kết quả, dùng công cụ math_check.","ctx":"spike-ctx-0001","safety_note":"false","query__":"Phân số 3/4 lớn hơn hay nhỏ hơn 2/3? Giải thích ngắn."},"outputs_truncated":false,"status":"succeeded","error":null,"elapsed_time":0.003074,"execution_metadata":null,"created_at":1793995702,"finished_at":1793995702,"files":[],"iteration_id":null,"loop_id":null}}
+
+data: {"event":"node_started","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"c3fea1f5-83db-46c2-a17c-2c4b47b51df1","node_id":"agent","node_type":"agent","title":"Agent","index":2,"predecessor_node_id":null,"inputs":null,"inputs_truncated":false,"created_at":1793995702,"extras":{},"iteration_id":null,"loop_id":null,"agent_strategy":{"name":"function_calling","icon":"e74e644589f5d78cd6019be7b92050c2b54b2645139af705fe610649a73282cf.svg"}}}
+
+data: {"event":"agent_log","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","data":{"node_execution_id":"agent","id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","label":"ROUND 1","parent_id":null,"error":null,"status":"start","data":{},"metadata":{"started_at":4681.418439046},"node_id":"agent"}}
+
+data: {"event":"agent_log","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","data":{"node_execution_id":"agent","id":"28c06aca-e260-4400-8887-b5fb69b8a56b","label":"gpt-4o-mini Thought","parent_id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","error":null,"status":"start","data":{},"metadata":{"provider":"langgenius/openai/openai","started_at":4686.427532594,"icon":"79f1c99b0f3c80c9eb96c6def35c24a551d7c5e824dadfd175267916f0f71752.svg","icon_dark":null},"node_id":"agent"}}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"Đ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"ể","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" so","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" s","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"ánh","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" hai","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" phân","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" số","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":")","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" và","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"2","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"),","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ta","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" có","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" thể","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" quy","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" đồng","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" mẫu","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" số","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":".\n\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"M","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"ẫu","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" số","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" chung","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" nhỏ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" nhất","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" của","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" và","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" là","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":".","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \n\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"-","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" Quy","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" đổi","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":")","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" thành","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" mẫu","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" số","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":":","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"[\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" =","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"times","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"times","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" =","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"9","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"]\n\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"-","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" Quy","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" đổi","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"2","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":")","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" thành","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" mẫu","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" số","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":":","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"[\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"2","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" =","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"2","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"times","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"times","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" =","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"8","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"]\n\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"So","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" s","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"ánh","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"9","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":")","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" và","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"8","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"),","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" ta","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" thấy","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"9","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" >","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"8","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"12","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":").\n\n","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"V","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"ậy","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"4","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":")","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" lớn","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" hơn","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\(","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"frac","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"2","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}{","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"3","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"}","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":" \\","from_variable_selector":["agent","text"]}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":").","from_variable_selector":["agent","text"]}
+
+data: {"event":"agent_log","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","data":{"node_execution_id":"agent","id":"28c06aca-e260-4400-8887-b5fb69b8a56b","label":"gpt-4o-mini Thought","parent_id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","error":null,"status":"success","data":{"output":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","tool_input":[],"tool_name":""},"metadata":{"currency":"USD","elapsed_time":3.695906355000261,"finished_at":4690.123438377,"provider":"langgenius/openai/openai","started_at":4686.427532594,"total_price":"0.0002315","total_tokens":823,"icon":"79f1c99b0f3c80c9eb96c6def35c24a551d7c5e824dadfd175267916f0f71752.svg","icon_dark":null},"node_id":"agent"}}
+
+data: {"event":"agent_log","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","data":{"node_execution_id":"agent","id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","label":"ROUND 1","parent_id":null,"error":null,"status":"success","data":{"output":{"llm_response":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","tool_responses":[]}},"metadata":{"currency":"USD","elapsed_time":8.705216390000714,"finished_at":4690.12365522,"started_at":4681.418439046,"total_price":"0.0002315","total_tokens":823},"node_id":"agent"}}
+
+data: {"event":"message","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","answer":"","from_variable_selector":["agent","text"]}
+
+data: {"event":"node_finished","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"c3fea1f5-83db-46c2-a17c-2c4b47b51df1","node_id":"agent","node_type":"agent","title":"Agent","index":2,"predecessor_node_id":null,"inputs":{"model":{"provider":"langgenius/openai/openai","model":"gpt-4o-mini","model_type":"llm","mode":"chat","type":"model-selector","completion_params":{"temperature":0.3}},"tools":[{"enabled":true,"type":"mcp","provider_name":"eduagent-tools","provider_show_name":"eduagent-tools","tool_name":"class_doc_search","tool_label":"class_doc_search","tool_description":"Tìm các đoạn liên quan trong tài liệu giáo viên đã tải lên lớp.","parameters":{"ctx":"spike-ctx-0001","query":null,"top_k":null},"settings":{},"extra":{"description":"Tìm các đoạn liên quan trong tài liệu giáo viên đã tải lên lớp."}},{"enabled":true,"type":"mcp","provider_name":"eduagent-tools","provider_show_name":"eduagent-tools","tool_name":"quiz_generator","tool_label":"quiz_generator","tool_description":"Soạn câu hỏi trắc nghiệm hoặc tự luận theo chủ đề, bám tài liệu lớp.","parameters":{"ctx":"spike-ctx-0001","topic":null,"num_questions":null,"question_type":null,"level":null,"with_answers":null},"settings":{},"extra":{"description":"Soạn câu hỏi trắc nghiệm hoặc tự luận theo chủ đề, bám tài liệu lớp."}},{"enabled":true,"type":"mcp","provider_name":"eduagent-tools","provider_show_name":"eduagent-tools","tool_name":"rubric_grader","tool_label":"rubric_grader","tool_description":"Chấm hoặc nhận xét bài văn theo rubric.","parameters":{"ctx":"spike-ctx-0001","essay":null,"rubric":null,"assignment":null},"settings":{},"extra":{"description":"Chấm hoặc nhận xét bài văn theo rubric."}},{"enabled":true,"type":"mcp","provider_name":"eduagent-tools","provider_show_name":"eduagent-tools","tool_name":"math_check","tool_label":"math_check","tool_description":"Giải, rút gọn hoặc kiểm tra kết quả toán bằng tính toán ký hiệu (sympy).","parameters":{"ctx":"spike-ctx-0001","operation":null,"expression":null,"answer":null,"variable":null},"settings":{},"extra":{"description":"Giải, rút gọn hoặc kiểm tra kết quả toán bằng tính toán ký hiệu (sympy)."}},{"enabled":true,"type":"mcp","provider_name":"eduagent-tools","provider_show_name":"eduagent-tools","tool_name":"progress_summary","tool_label":"progress_summary","tool_description":"Tổng hợp tình hình học tập của con hoặc học sinh trong lớp, không trích nguyên văn tin nhắn.","parameters":{"ctx":"spike-ctx-0001","student_name":null,"days":null},"settings":{},"extra":{"description":"Tổng hợp tình hình học tập của con hoặc học sinh trong lớp, không trích nguyên văn tin nhắn."}}],"instruction":"Bạn là gia sư Toán lớp 8 trên EduAgent Hub. Trả lời ngắn gọn bằng tiếng Việt. Khi cần kiểm tra kết quả, dùng công cụ math_check.\n\nGhi chú an toàn của lượt này: false. Nếu là true, người dùng có dấu hiệu buồn bã hoặc nguy cơ tự hại: trả lời ân cần, không phán xét, khuyến khích nói ngay với bố mẹ, thầy cô hoặc người lớn tin cậy và nhắc Tổng đài quốc gia bảo vệ trẻ em 111 (miễn phí, 24/7); không đi tiếp nội dung bài học nếu chưa hỏi thăm.\nTham số ctx của mọi công cụ do nền tảng điền sẵn; không nhắc tới nó.","query":"Phân số 3/4 lớn hơn hay nhỏ hơn 2/3? Giải thích ngắn.","maximum_iterations":5},"inputs_truncated":false,"process_data":{},"process_data_truncated":false,"outputs":{"text":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","usage":{"prompt_tokens":583,"prompt_unit_price":"0.15","prompt_price_unit":"0.000001","prompt_price":"0.0000875","completion_tokens":240,"completion_unit_price":"0.6","completion_price_unit":"0.000001","completion_price":"0.000144","total_tokens":823,"total_price":"0.0002315","currency":"USD","latency":3.6543464209999,"time_to_first_token":null,"time_to_generate":null},"files":[],"json":[{"id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","parent_id":null,"error":null,"status":"success","data":{"output":{"llm_response":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","tool_responses":[]}},"label":"ROUND 1","metadata":{"currency":"USD","elapsed_time":8.705216390000714,"finished_at":4690.12365522,"started_at":4681.418439046,"total_price":"0.0002315","total_tokens":823},"node_id":"agent"},{"id":"28c06aca-e260-4400-8887-b5fb69b8a56b","parent_id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","error":null,"status":"success","data":{"output":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","tool_input":[],"tool_name":""},"label":"gpt-4o-mini Thought","metadata":{"currency":"USD","elapsed_time":3.695906355000261,"finished_at":4690.123438377,"provider":"langgenius/openai/openai","started_at":4686.427532594,"total_price":"0.0002315","total_tokens":823,"icon":"79f1c99b0f3c80c9eb96c6def35c24a551d7c5e824dadfd175267916f0f71752.svg","icon_dark":null},"node_id":"agent"},{"data":[]}]},"outputs_truncated":false,"status":"succeeded","error":null,"elapsed_time":9.637497,"execution_metadata":{"currency":"USD","total_price":0.0002315,"total_tokens":823,"tool_info":{"icon":"e74e644589f5d78cd6019be7b92050c2b54b2645139af705fe610649a73282cf.svg","agent_strategy":"function_calling"},"agent_log":[{"message_id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","label":"ROUND 1","node_execution_id":"agent","parent_id":null,"error":null,"status":"success","data":{"output":{"llm_response":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","tool_responses":[]}},"metadata":{"currency":"USD","elapsed_time":8.705216390000714,"finished_at":4690.12365522,"started_at":4681.418439046,"total_price":"0.0002315","total_tokens":823},"node_id":"agent"},{"message_id":"28c06aca-e260-4400-8887-b5fb69b8a56b","label":"gpt-4o-mini Thought","node_execution_id":"agent","parent_id":"5f59d6a4-be2b-496e-a835-cd4422f2d579","error":null,"status":"success","data":{"output":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","tool_input":[],"tool_name":""},"metadata":{"currency":"USD","elapsed_time":3.695906355000261,"finished_at":4690.123438377,"provider":"langgenius/openai/openai","started_at":4686.427532594,"total_price":"0.0002315","total_tokens":823,"icon":"79f1c99b0f3c80c9eb96c6def35c24a551d7c5e824dadfd175267916f0f71752.svg","icon_dark":null},"node_id":"agent"}]},"created_at":1793995702,"finished_at":1793995712,"files":[],"iteration_id":null,"loop_id":null}}
+
+data: {"event":"node_started","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"d52d76d4-e120-426e-902b-ad6df1713cd7","node_id":"answer","node_type":"answer","title":"Answer","index":3,"predecessor_node_id":null,"inputs":null,"inputs_truncated":false,"created_at":1793995712,"extras":{},"iteration_id":null,"loop_id":null,"agent_strategy":null}}
+
+data: {"event":"node_finished","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"d52d76d4-e120-426e-902b-ad6df1713cd7","node_id":"answer","node_type":"answer","title":"Answer","index":3,"predecessor_node_id":null,"inputs":{},"inputs_truncated":false,"process_data":{},"process_data_truncated":false,"outputs":{"answer":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","files":[]},"outputs_truncated":false,"status":"succeeded","error":null,"elapsed_time":0.000117,"execution_metadata":null,"created_at":1793995712,"finished_at":1793995712,"files":[],"iteration_id":null,"loop_id":null}}
+
+data: {"event":"message_end","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","id":"adf3d3ae-3866-4bb5-965f-5c471b507934","metadata":{"annotation_reply":null,"retriever_resources":[],"usage":{"prompt_tokens":583,"prompt_unit_price":"0.15","prompt_price_unit":"0.000001","prompt_price":"0.0000875","completion_tokens":240,"completion_unit_price":"0.6","completion_price_unit":"0.000001","completion_price":"0.000144","total_tokens":823,"total_price":"0.0002315","currency":"USD","latency":3.6543464209999,"time_to_first_token":8.146,"time_to_generate":2.414},"reasoning":{}},"files":[]}
+
+data: {"event":"workflow_finished","conversation_id":"e12cb1db-28b6-4f77-9e9c-cc8e18a0fbe3","message_id":"adf3d3ae-3866-4bb5-965f-5c471b507934","created_at":1793995701,"task_id":"d1f577d8-1cc3-450c-985e-5e345ff76e89","workflow_run_id":"848b60cf-0979-4bde-910c-f58c9d45cec7","data":{"id":"848b60cf-0979-4bde-910c-f58c9d45cec7","workflow_id":"dc7e778e-3698-48a2-aad8-9f336b8b93d2","status":"succeeded","outputs":{"answer":"Để so sánh hai phân số \\( \\frac{3}{4} \\) và \\( \\frac{2}{3} \\), ta có thể quy đồng mẫu số.\n\nMẫu số chung nhỏ nhất của 4 và 3 là 12. \n\n- Quy đổi \\( \\frac{3}{4} \\) thành mẫu số 12: \n  \\[\n  \\frac{3}{4} = \\frac{3 \\times 3}{4 \\times 3} = \\frac{9}{12}\n  \\]\n\n- Quy đổi \\( \\frac{2}{3} \\) thành mẫu số 12: \n  \\[\n  \\frac{2}{3} = \\frac{2 \\times 4}{3 \\times 4} = \\frac{8}{12}\n  \\]\n\nSo sánh \\( \\frac{9}{12} \\) và \\( \\frac{8}{12} \\), ta thấy \\( \\frac{9}{12} > \\frac{8}{12} \\).\n\nVậy \\( \\frac{3}{4} \\) lớn hơn \\( \\frac{2}{3} \\).","files":[]},"error":null,"elapsed_time":9.827020949999678,"total_tokens":823,"total_steps":3,"created_by":{"id":"5c2646ec-49df-4e56-b7ef-55a12892b7f4","user":"spike-user"},"created_at":1793995702,"finished_at":1793995712,"exceptions_count":0,"files":[]}}
+

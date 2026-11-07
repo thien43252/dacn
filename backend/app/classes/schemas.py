@@ -59,7 +59,6 @@ class ClassOut(BaseModel):
 class PolicyModel(BaseModel):
     no_direct_answers: bool = True
     allowed_subjects: list[str] = Field(default_factory=list, max_length=20)
-    blocked_topics: list[str] = Field(default_factory=list, max_length=50)
     allow_personal_agents: bool = True
     notes_for_agents: str = Field(default="", max_length=1000)
 

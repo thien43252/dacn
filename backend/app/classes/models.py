@@ -10,7 +10,6 @@ from app.db import Base, TimestampMixin
 DEFAULT_POLICY: dict = {
     "no_direct_answers": True,
     "allowed_subjects": [],
-    "blocked_topics": [],
     "allow_personal_agents": True,
     "notes_for_agents": "",
 }

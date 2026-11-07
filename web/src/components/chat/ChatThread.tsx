@@ -42,6 +42,8 @@ export interface ThreadMessage {
   agent?: { slug: string; name: string; avatar: string; reason?: string };
   tools: { name: string; status: string }[];
   status: "ok" | "blocked" | "error" | "streaming";
+  // For notices: guard_blocked, redacted, consent_required or context_reset (Dify lost the conversation's memory).
+  kind?: string;
 }
 
 export function fromStored(messages: StoredMessage[], agents: ChatAgent[]): ThreadMessage[] {
@@ -180,7 +182,7 @@ export function ChatThread({
           });
           break;
         case "notice":
-          setMessages((current) => [...current, { id: `${event.message_id}-notice`, role: "notice", content: event.text ?? "", tools: [], status: "ok" }]);
+          setMessages((current) => [...current, { id: `${event.message_id}-${event.kind ?? "notice"}`, role: "notice", content: event.text ?? "", tools: [], status: "ok", kind: event.kind }]);
           break;
         case "error":
           if (replyId) update(replyId, (message) => ({ ...message, status: "error", content: message.content || (event.message ?? "") }));
@@ -261,7 +263,7 @@ export function ChatThread({
           </div>
         )}
         {messages.map((message) => (
-          <div key={message.id} className={`message message--${message.role === "notice" ? "assistant" : message.role}${message.role === "notice" ? " ea-notice-message" : ""}${message.status === "error" ? " message--failed" : ""}${message.status === "blocked" ? " ea-blocked-message" : ""}`}>
+          <div key={message.id} className={`message message--${message.role === "notice" ? "assistant" : message.role}${message.role === "notice" ? ` ea-notice-message${message.kind === "context_reset" ? " ea-notice-message--soft" : ""}` : ""}${message.status === "error" ? " message--failed" : ""}${message.status === "blocked" ? " ea-blocked-message" : ""}`}>
             {message.role === "assistant" && message.agent && (
               <div className="message__meta">
                 <Mascot character={mascotOf(message.agent.avatar)} mood={message.status === "streaming" ? "thinking" : "still"} />
@@ -284,7 +286,7 @@ export function ChatThread({
             {message.role === "assistant" ? (
               message.content ? <MessageBody text={message.content} /> : <span className="ea-typing" aria-label="Đang trả lời"><i /><i /><i /></span>
             ) : message.role === "notice" ? (
-              <p className="message__para"><Icon name={message.status === "error" ? "alert" : "lock"} /> {message.content}</p>
+              <p className="message__para"><Icon name={message.status === "error" ? "alert" : message.kind === "context_reset" ? "history" : "lock"} /> {message.content}</p>
             ) : (
               <ChatMessageText text={message.content} />
             )}

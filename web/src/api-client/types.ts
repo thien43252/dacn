@@ -65,7 +65,6 @@ export interface Member {
 export interface ClassPolicy {
   no_direct_answers: boolean;
   allowed_subjects: string[];
-  blocked_topics: string[];
   allow_personal_agents: boolean;
   notes_for_agents: string;
 }

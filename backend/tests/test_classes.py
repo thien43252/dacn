@@ -1,3 +1,5 @@
+from app.classes.models import ClassRoom
+
 CLASS = {"name": "Toán 8A1", "subject": "toan", "grade": 8, "description": "Lớp học thêm buổi tối"}
 
 
@@ -173,6 +175,21 @@ async def test_policy_roundtrip_with_defaults(as_user) -> None:
     room = await create_class(teacher)
     policy = (await teacher.get(f"/api/classes/{room['id']}/policy")).json()
     assert policy["no_direct_answers"] is True
-    updated = {**policy, "blocked_topics": ["game"], "notes_for_agents": "Xưng cô, gọi các em."}
+    assert "blocked_topics" not in policy  # moderation uses one rule set for every class (FR-013)
+    updated = {**policy, "notes_for_agents": "Xưng cô, gọi các em."}
     assert (await teacher.put(f"/api/classes/{room['id']}/policy", json=updated)).json() == updated
     assert (await teacher.get(f"/api/classes/{room['id']}/policy")).json() == updated
+
+
+async def test_policy_ignores_blocked_topics(as_user, sessionmaker) -> None:
+    """Old clients may still send the removed field, and old rows may still hold it."""
+    teacher = await as_user("teacher")
+    room = await create_class(teacher)
+    policy = (await teacher.get(f"/api/classes/{room['id']}/policy")).json()
+    saved = (await teacher.put(f"/api/classes/{room['id']}/policy", json={**policy, "blocked_topics": ["game"]})).json()
+    assert saved == policy
+    async with sessionmaker() as db:
+        stored = await db.get(ClassRoom, room["id"])
+        stored.policy = {**stored.policy, "blocked_topics": ["game"]}
+        await db.commit()
+    assert (await teacher.get(f"/api/classes/{room['id']}/policy")).json() == policy

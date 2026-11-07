@@ -91,7 +91,15 @@ Studio → Import DSL file, lần lượt:
    **Fixed Value** = biến `ctx` của Start node. Nếu sửa trong Studio, phải chọn biến (`type: variable`), không gõ
    `{{#start.ctx#}}` vào ô chữ: với kiểu `mixed`/`constant`, Dify gửi nguyên chuỗi template cho tool.
 4. Bộ từ khóa và câu trả lời cài sẵn trong DSL runner lấy từ `moderation-keywords.txt` và
-   `preset-responses.json`. Sửa hai file đó thì cập nhật lại cả `eduagent-runner.yml` và Studio.
+   `preset-responses.json`. Sửa hai file đó rồi chạy, từ gốc repo:
+
+   ```bash
+   uv run --project backend python infra/dify/sync_keywords.py          # ghi vào eduagent-runner.yml
+   uv run --project backend python infra/dify/sync_keywords.py --check  # báo lỗi nếu DSL lệch (test_dify_dsl.py cũng kiểm)
+   ```
+
+   rồi import lại `eduagent-runner.yml` trong Studio. Dify chỉ cho một loại kiểm duyệt mỗi ứng dụng (keywords,
+   OpenAI Moderation hoặc API extension), nên runner dùng keywords; OpenAI Moderation không bật cùng lúc được.
 
 ## API key
 
@@ -108,7 +116,7 @@ Studio → Import DSL file, lần lượt:
 | 1 | Fixed Value của tham số tool MCP nhận biến `ctx` của Start node? | **Đạt.** `tool_call_input` có `"ctx": "spike-ctx-0001"` đúng giá trị input; `tool_input` model sinh ra không có `ctx`. Backend nhận lời gọi, từ chối handle giả bằng thông báo hết hạn, model đọc được lỗi | Dùng Fixed Value kiểu `variable`; không cần phương án dự phòng R6 |
 | 2 | Tên/nội dung sự kiện stream; có `message_replace`; `message_end` có token vào/ra? | Chatflow + Agent node phát `workflow_started` (có `task_id`, `conversation_id`, `message_id`), `node_started/finished`, `agent_log` (từng vòng: Thought, CALL tool với `tool_call_input`/`tool_response`), `message` (delta trong `answer`; KHÔNG có `agent_message`), `message_end` (`metadata.usage`: `prompt_tokens`, `completion_tokens`, `total_tokens`, `latency`, `time_to_first_token`), `workflow_finished`. Kiểm duyệt đầu ra: các `message` vẫn stream ra trước, sau đó mới tới một `message_replace` mang câu cài sẵn. Chặn đầu vào: chỉ có một `message` (câu cài sẵn) + `message_end`, không chạy node nào | Bảng R9: đọc `message`, bỏ qua `agent_message`; `tool` lấy từ hàng đợi handle của backend, không lấy từ `agent_log` |
 | 3 | Giới hạn độ dài input paragraph (cần ≥ 12000) | `max_length: 12000` của Start: 12000 ký tự chạy được; 12001 bị từ chối ngay (`workflow_finished`, lỗi "system_prompt in input form must be less than 12000 characters") | Giữ cắt ≤ 12000 ở `build_system_prompt()` |
-| 4 | Độ trễ chữ đầu tiên p95 (triage + runner), mục tiêu ≤ 3 s | **Chưa đạt.** 12 lượt liên tiếp, gpt-4o-mini: triage trung vị 2,03 s / p95 2,37 s; runner (tới `message` đầu) trung vị 1,26 s / p95 1,92 s (lẻ một lượt 5,18 s); tổng trung vị 3,51 s / p95 4,00 s / max 7,01 s. Lượt đầu sau khi khởi động: 6–9 s | **Chờ chủ dự án quyết định** (xem bên dưới) |
+| 4 | Độ trễ chữ đầu tiên p95 (triage + runner), mục tiêu ≤ 3 s | **Chưa đạt.** 12 lượt liên tiếp, gpt-4o-mini: triage trung vị 2,03 s / p95 2,37 s; runner (tới `message` đầu) trung vị 1,26 s / p95 1,92 s (lẻ một lượt 5,18 s); tổng trung vị 3,51 s / p95 4,00 s / max 7,01 s. Lượt đầu sau khi khởi động: 6–9 s | Chủ dự án (2026-11-07): chưa tối ưu tốc độ, làm tiếp; xem lại các hướng bên dưới sau US1 |
 | 5 | Agent node với chế độ reasoning của model đang dùng | Strategy FunctionCalling (`langgenius/agent` 0.0.51) chạy được với gpt-4o-mini (không phải model reasoning), gọi tool, đọc lỗi tool, tối đa 5 vòng. Chưa thử model reasoning: `LLM_MAIN_MODEL=gpt-5.6-luna` chưa được bật trong Model Provider của Dify | Dùng gpt-4o-mini; thử lại khi bật model reasoning |
 | 6 | Question Classifier với tiếng Việt không dấu | Đạt 11/11 câu thử (có dấu và không dấu: an toàn, `self_harm_risk`, `self_harm_method`, `jailbreak`, `dangerous`); định tuyến `ui`, `mention`, `router` đúng | Giữ Question Classifier |
 
@@ -123,7 +131,7 @@ Kiểm chứng thêm (2026-11-07):
 - Định tuyến: vài câu rõ môn học vẫn về `tro-ly-lop` ("giai thich thi hien tai hoan thanh", "định lý pytago là
   gì"). Cần xem lại khi làm kịch bản định tuyến (US1).
 
-Câu 4, các hướng xử lý (chọn trước khi làm tiếp T026–T030):
+Câu 4, các hướng xử lý (để sau, theo quyết định ngày 2026-11-07):
 
 1. Nới mục tiêu cho bản Dify (vd. p95 ≤ 4 s), sửa tiêu chí thành công tương ứng trong spec.
 2. Rút ngắn triage: prompt classifier/router gọn hơn (roster hiện ~2200 token mỗi lượt), bỏ gọi LLM router khi

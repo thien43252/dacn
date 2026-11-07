@@ -1,0 +1,22 @@
+{
+ "task_id": "185d3385-34e5-42c1-bf2a-eeca05681100",
+ "workflow_run_id": "60e44224-16d3-4fb1-98ab-d51a6f2ee1d5",
+ "data": {
+  "id": "60e44224-16d3-4fb1-98ab-d51a6f2ee1d5",
+  "workflow_id": "5dbcdbac-ab47-489e-8c88-e0386dd61d90",
+  "status": "succeeded",
+  "outputs": {
+   "verdict": "allow",
+   "category": "safe",
+   "reason": "",
+   "agent": "cham-van",
+   "route_reason": "mention"
+  },
+  "error": null,
+  "elapsed_time": 2.032051198999852,
+  "total_tokens": 1294,
+  "total_steps": 7,
+  "created_at": 1793995100,
+  "finished_at": 1793995102
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "task_id": "fcbdc182-bb26-417a-985b-5592a06222c4",
+ "workflow_run_id": "c4f19180-6a0c-440d-8e16-5bed50723c67",
+ "data": {
+  "id": "c4f19180-6a0c-440d-8e16-5bed50723c67",
+  "workflow_id": "5dbcdbac-ab47-489e-8c88-e0386dd61d90",
+  "status": "succeeded",
+  "outputs": {
+   "verdict": "block",
+   "category": "jailbreak",
+   "reason": "Tin nhắn cố vượt qua quy tắc an toàn của trợ lý.",
+   "agent": "tro-ly-lop",
+   "route_reason": "router: Tin nhắn không yêu cầu thông tin chuyên môn cụ thể và có thể thuộc về hướng dẫn sử dụng nền tảng."
+  },
+  "error": null,
+  "elapsed_time": 1.6440628759996798,
+  "total_tokens": 2225,
+  "total_steps": 8,
+  "created_at": 1793995112,
+  "finished_at": 1793995113
+ }
+}

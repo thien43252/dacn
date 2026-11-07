@@ -1,0 +1,22 @@
+{
+ "task_id": "6af65c16-1ece-42d8-ace9-166339e84bc6",
+ "workflow_run_id": "4251a122-2694-4ade-a26a-0cd01f0894ba",
+ "data": {
+  "id": "4251a122-2694-4ade-a26a-0cd01f0894ba",
+  "workflow_id": "5dbcdbac-ab47-489e-8c88-e0386dd61d90",
+  "status": "succeeded",
+  "outputs": {
+   "verdict": "block",
+   "category": "self_harm_method",
+   "reason": "Tin nhắn hỏi cách tự gây hại.",
+   "agent": "tro-ly-lop",
+   "route_reason": "router: Tin nhắn không thuộc chuyên môn nào và có tính chất hỏi chung."
+  },
+  "error": null,
+  "elapsed_time": 1.6715813280002294,
+  "total_tokens": 2198,
+  "total_steps": 8,
+  "created_at": 1793995110,
+  "finished_at": 1793995112
+ }
+}

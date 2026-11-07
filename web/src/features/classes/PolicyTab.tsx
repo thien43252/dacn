@@ -4,23 +4,15 @@ import { errorMessage, useResource } from "../../app/useResource";
 import { classesApi } from "../../api-client/classes";
 import type { ClassPolicy, ClassRoom } from "../../api-client/types";
 
-function toList(text: string): string[] {
-  return text.split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
-}
-
-/** Class rules applied to every agent in the class; the runtime and output guard enforce them (week 7–8). */
+/** Class rules applied to every agent in the class. Content moderation is one rule set for every class (FR-013). */
 export function PolicyTab({ room }: { room: ClassRoom }) {
   const policy = useResource(() => classesApi.policy(room.id), [room.id]);
   const [form, setForm] = useState<ClassPolicy | null>(null);
-  const [topics, setTopics] = useState("");
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (policy.data) {
-      setForm(policy.data);
-      setTopics(policy.data.blocked_topics.join(", "));
-    }
+    if (policy.data) setForm(policy.data);
   }, [policy.data]);
 
   if (policy.error) return <div className="ea-error">{policy.error}</div>;
@@ -32,7 +24,7 @@ export function PolicyTab({ room }: { room: ClassRoom }) {
     setBusy(true);
     setStatus(null);
     try {
-      const saved = await classesApi.savePolicy(room.id, { ...form, blocked_topics: toList(topics) });
+      const saved = await classesApi.savePolicy(room.id, form);
       policy.setData(saved);
       setStatus({ kind: "ok", text: "Đã lưu. Chính sách áp dụng cho mọi agent trong lớp từ tin nhắn tiếp theo." });
     } catch (reason) {
@@ -58,11 +50,7 @@ export function PolicyTab({ room }: { room: ClassRoom }) {
           <small className="ea-muted">Agent học sinh tự kéo từ Hub (đã kiểm định) vẫn chịu chính sách này.</small>
         </span>
       </label>
-      <label className="field">
-        <span>Chủ đề không thảo luận trong lớp</span>
-        <textarea rows={2} value={topics} onChange={(event) => setTopics(event.target.value)} placeholder="Ví dụ: game, thần tượng, chính trị" />
-        <small className="field__hint">Ngăn cách bằng dấu phẩy.</small>
-      </label>
+      <p className="ea-muted">Kiểm duyệt dùng bộ luật chung cho mọi lớp.</p>
       <label className="field">
         <span>Ghi chú cho agent</span>
         <textarea rows={3} maxLength={1000} value={form.notes_for_agents} onChange={(event) => setForm({ ...form, notes_for_agents: event.target.value })}

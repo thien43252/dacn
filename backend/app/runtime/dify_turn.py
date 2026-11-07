@@ -1,24 +1,455 @@
-"""The Dify engine: one chat turn through the eduagent-triage and eduagent-runner apps.
+"""The Dify engine: one chat turn through `eduagent-triage` then `eduagent-runner` (contracts/dify-apps.md).
 
-Contract: specs/001-dify-core-migration/contracts/dify-apps.md. Not built yet: it waits for the Dify spike (task
-T006), whose recorded responses the offline tests replay.
+    consent gate ─▶ redact() ─▶ triage (safety + routing) ──block──▶ notice(guard_blocked), done(blocked)
+                                     │ allow / support
+                                     ▼
+                     handle (app/tools/context.py) ─▶ runner stream ─▶ text_delta / text_reset / tool ─▶ done
+
+The platform keeps what is authorization or privacy rather than content guardrails (FR-015): the guardian consent
+gate, personal data redaction before anything leaves the platform, and the tool guard behind the MCP handle. Triage
+fails closed: if it errors, the runner is never called. Tool events reach the SSE stream through the handle's queue,
+which the MCP handler fills while Dify's agent runs.
 """
 
+import asyncio
+import json
+import logging
+import time
+import uuid
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
+import httpx
+from sqlalchemy import select
+
+from app.agents.manifest import FALLBACK_SLUG
+from app.agents.service import ResolvedAgent, available_agents
+from app.audit.models import GuardEvent
+from app.auth.models import User
+from app.chat.models import ChatMessage, Conversation
+from app.chat.router import record_usage, sse
+from app.classes import service as classes
+from app.classes.models import ClassRoom
+from app.db import session_factory
+from app.guard import dify_rules, rules
+from app.llm.base import Usage
+from app.runtime.dify_client import DifyClient, DifyConversationNotFound, DifyError, RunnerEvent
+from app.runtime.prompts import build_system_prompt
+from app.tools import context as handles
+from app.tools import registry
 
 if TYPE_CHECKING:
-    from app.agents.service import ResolvedAgent
     from app.chat.router import ChatIn
 
+log = logging.getLogger("eduagent.dify")
 
-def run_dify_turn(
+MAX_SYSTEM_PROMPT = 12000
+CONSENT_REQUIRED = (
+    "Lớp này cần phụ huynh đồng ý trước khi em dùng agent. Hãy đưa mã liên kết trong mục “Lớp của tôi” cho bố mẹ "
+    "và nhờ bố mẹ bật đồng ý nhé."
+)
+REDACTED = (
+    "Mình đã ẩn thông tin cá nhân (số điện thoại, mật khẩu, địa chỉ…) trong tin nhắn trước khi gửi cho agent và "
+    "không lưu lại."
+)
+CONTEXT_RESET = "Agent không còn nhớ ngữ cảnh cũ của cuộc trò chuyện này."
+# Dify unreachable, timed out or failed before any text (quickstart scenario 13).
+TURN_FAILED = "Hệ thống trợ lý đang bận, em thử lại sau ít phút nhé."
+SEVERITY = {"self_harm_method": "high", "self_harm_risk": "high", "dangerous": "high"}
+
+
+def utf16_len(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
+def make_client() -> DifyClient:
+    """A client for one turn; tests replace this with one over httpx.MockTransport."""
+    return DifyClient(httpx.AsyncClient())
+
+
+def roster_of(agents: list[ResolvedAgent]) -> str:
+    return json.dumps(
+        [
+            {
+                "slug": agent.slug,
+                "name": agent.manifest.name,
+                "description": agent.manifest.description,
+                "capabilities": list(agent.manifest.capabilities),
+                "subjects": list(agent.manifest.subjects),
+            }
+            for agent in agents
+        ],
+        ensure_ascii=False,
+    )
+
+
+def pick_agent(agents: list[ResolvedAgent], slug: str) -> ResolvedAgent:
+    """Triage's choice if it is one of the agents available here, else the class assistant."""
+    by_slug = {agent.slug: agent for agent in agents}
+    return by_slug.get(slug) or by_slug.get(FALLBACK_SLUG) or agents[0]
+
+
+class Turn:
+    """What one turn accumulates for the stored message, guard events and usage."""
+
+    def __init__(self, db, user: User, role: str, room: ClassRoom | None, conversation: Conversation, kind: str):
+        self.db = db
+        self.user = user
+        self.role = role
+        self.room = room
+        self.conversation = conversation
+        self.kind = kind
+        self.message_id = str(uuid.uuid4())
+        self.usage: list[tuple[str, Usage, int]] = []
+        self.guard: list[dict[str, str]] = []
+
+    def log(
+        self,
+        stage: str,
+        verdict: str,
+        category: str,
+        detector: str,
+        reason: str,
+        text: str,
+        agent_slug: str | None = None,
+    ) -> None:
+        excerpt, _ = rules.redact(text)
+        self.db.add(
+            GuardEvent(
+                source=self.kind,
+                class_id=self.room.id if self.room else None,
+                user_id=self.user.id,
+                role=self.role,
+                conversation_id=self.conversation.id,
+                message_id=self.message_id,
+                agent_slug=agent_slug,
+                stage=stage,
+                verdict=verdict,
+                category=category,
+                detector=detector,
+                severity=SEVERITY.get(category, "medium" if verdict == "block" else "low"),
+                reason=reason[:300],
+                excerpt=excerpt[:300],
+            )
+        )
+        self.guard.append({"stage": stage, "verdict": verdict, "category": category})
+
+
+async def run_dify_turn(
     user_id: str,
     class_id: str | None,
     role: str,
     payload: "ChatIn",
     *,
-    agents_override: "list[ResolvedAgent] | None" = None,
+    agents_override: list[ResolvedAgent] | None = None,
     kind: str = "chat",
 ) -> AsyncIterator[str]:
-    raise NotImplementedError("runtime_engine 'dify' is not available yet; use RUNTIME_ENGINE=langgraph")
+    """One chat turn on Dify (runtime_engine "dify"). Same SSE protocol as the LangGraph engine (contracts/chat-sse.md)."""
+    operation_id = str(uuid.uuid4())
+    yield sse({"type": "operation", "operation_id": operation_id, "resume_supported": False})
+    async with session_factory()() as db:
+        user = await db.get(User, user_id)
+        room = await db.get(ClassRoom, class_id) if class_id else None
+        assert user is not None
+
+        # Consent gate (FR-015): without a guardian's consent nothing is sent to Dify and nothing is stored.
+        if role == "student" and room is not None and not await classes.student_can_use_agents(db, room, user.id):
+            yield sse(
+                {"type": "notice", "message_id": operation_id, "kind": "consent_required", "text": CONSENT_REQUIRED}
+            )
+            yield sse({"type": "done", "message_id": operation_id, "status": "consent_required"})
+            return
+
+        if payload.conversation_id:
+            conversation = await db.get(Conversation, payload.conversation_id)
+        else:
+            conversation = Conversation(
+                user_id=user.id, class_id=class_id, title=payload.message.strip()[:80], kind=kind
+            )
+            db.add(conversation)
+            await db.flush()
+        assert conversation is not None
+        turn = Turn(db, user, role, room, conversation, kind)
+        turn.message_id = operation_id
+        yield sse({"type": "conversation", "conversation_id": conversation.id})
+
+        # Personal data never leaves the platform (FR-016): Dify, the stored message and guard excerpts get the
+        # redacted text.
+        text, found = rules.redact(payload.message)
+        if found:
+            turn.log("input", "redact", "pii", "privacy", "Đã ẩn: " + ", ".join(found), text)
+            yield sse({"type": "notice", "message_id": turn.message_id, "kind": "redacted", "text": REDACTED})
+
+        previous_agent = await db.scalar(
+            select(ChatMessage.agent_slug)
+            .where(
+                ChatMessage.conversation_id == conversation.id,
+                ChatMessage.role == "assistant",
+                ChatMessage.agent_slug.is_not(None),
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
+        )
+        user_message = ChatMessage(conversation_id=conversation.id, role="user", content=text)
+        db.add(user_message)
+        # Committed before Dify runs: MCP tools use their own sessions, and the question survives a crashed turn.
+        await db.commit()
+
+        agents = agents_override or await available_agents(db, user, room, role)
+        client = make_client()
+        answer = _answer(turn, client, agents, text, payload, previous_agent, user_message)
+        try:
+            async for event in answer:
+                yield event
+        finally:
+            # Close the inner generator first: when the client went away it still has to call Dify's stop API.
+            await answer.aclose()
+            await client.http.aclose()
+
+
+async def _answer(
+    turn: Turn,
+    client: DifyClient,
+    agents: list[ResolvedAgent],
+    text: str,
+    payload: "ChatIn",
+    previous_agent: str | None,
+    user_message: ChatMessage,
+) -> AsyncIterator[str]:
+    message_id = turn.message_id
+    started = time.perf_counter()
+    agent: ResolvedAgent | None = None
+    route_reason = ""
+    reply = ""
+    status = "error"
+    blocked_stage = None
+    dify_message_id = None
+    tool_events: list[dict[str, Any]] = []
+
+    if not agents:
+        yield sse({"type": "error", "message_id": message_id, "message": "Chưa có agent nào khả dụng."})
+        yield sse({"type": "done", "message_id": message_id, "status": "error"})
+        return
+
+    # The sandbox tests one draft agent: the roster holds only it, and it is the requested agent.
+    requested = payload.agent or (agents[0].slug if len(agents) == 1 else "")
+    try:
+        triage_started = time.perf_counter()
+        triage = await client.run_triage(
+            {
+                "query": text,
+                "role": turn.role,
+                "roster": roster_of(agents),
+                "requested_agent": requested if requested in {a.slug for a in agents} else "",
+                "previous_agent": previous_agent or "",
+            },
+            user=turn.user.id,
+        )
+        if triage.usage:
+            turn.usage.append(("triage", triage.usage, int((time.perf_counter() - triage_started) * 1000)))
+    except DifyError as error:
+        # Fail closed: a message nobody screened never reaches the agent.
+        log.warning("triage failed: %s", error)
+        reply = TURN_FAILED
+        yield sse({"type": "error", "message_id": message_id, "message": reply})
+        await _store(turn, None, reply, "error", {"error": str(error)[:300]}, started, [])
+        yield sse({"type": "done", "message_id": message_id, "status": "error", "agent": None})
+        return
+
+    route_reason = triage.route_reason
+    if triage.verdict == "block":
+        turn.log("input", "block", triage.category, "dify_classifier", triage.reason, text)
+        presets = dify_rules.presets()
+        reply = presets["self_harm_support" if triage.category == "self_harm_method" else "input_blocked"]
+        yield sse({"type": "notice", "message_id": message_id, "kind": "guard_blocked", "text": reply})
+        user_message.status = "blocked"
+        await _store(turn, None, reply, "blocked", {"blocked_stage": "input"}, started, [])
+        yield sse({"type": "done", "message_id": message_id, "status": "blocked", "agent": None})
+        return
+    support = triage.verdict == "support"
+    if support:
+        turn.log("input", "support", triage.category, "dify_classifier", triage.reason, text)
+
+    agent = pick_agent(agents, triage.agent)
+    if agent.slug != triage.agent:
+        route_reason = "fallback"
+    yield sse(
+        {
+            "type": "agent",
+            "message_id": message_id,
+            "agent": agent.slug,
+            "name": agent.manifest.name,
+            "avatar": agent.manifest.avatar,
+            "reason": route_reason,
+        }
+    )
+
+    out: asyncio.Queue[Any] = asyncio.Queue()
+    context = registry.ToolContext(
+        user_id=turn.user.id,
+        role=turn.role,
+        class_id=turn.room.id if turn.room else None,
+        grade=turn.room.grade if turn.room else None,
+        conversation_id=turn.conversation.id,
+        agent_slug=agent.slug,
+        allowed_tools=frozenset(agent.manifest.tools),
+        log_calls=True,
+        message_id=message_id,
+        source=turn.kind,
+        dataset_id=turn.room.dify_dataset_id if turn.room else None,
+        excerpt=text,
+        # The MCP handler puts `tool` events here; the runner pump below puts RunnerEvents in the same queue, so
+        # both come out in the order they happened.
+        events=out,
+    )
+    handle = handles.register(context)
+    system_prompt = build_system_prompt(agent, turn.room, turn.role, agents, safety_note=support)[:MAX_SYSTEM_PROMPT]
+    inputs = {"system_prompt": system_prompt, "ctx": handle, "safety_note": "true" if support else "false"}
+    task_id = ""
+    finished = False
+
+    async def pump() -> None:
+        conversation_id = turn.conversation.dify_conversation_id or ""
+        try:
+            try:
+                async for event in client.stream_runner(text, inputs, conversation_id, turn.user.id):
+                    await out.put(event)
+            except DifyConversationNotFound:
+                # Dify lost the conversation (rebuilt or data deleted): start a new one and say so (research R5).
+                await out.put("context_reset")
+                async for event in client.stream_runner(text, inputs, "", turn.user.id):
+                    await out.put(event)
+        except DifyError as error:
+            await out.put(RunnerEvent("error", text=str(error)))
+        finally:
+            await out.put(None)
+
+    runner_started = time.perf_counter()
+    task = asyncio.create_task(pump())
+    shown = ""
+    generation = 0
+    error_text = ""
+    try:
+        while True:
+            item = await out.get()
+            if item is None:
+                break
+            if isinstance(item, dict):  # a tool event from the MCP handler
+                tool_events.append({"name": item["name"], "status": item["status"]})
+                yield sse(item)
+                continue
+            if item == "context_reset":
+                yield sse({"type": "notice", "message_id": message_id, "kind": "context_reset", "text": CONTEXT_RESET})
+                continue
+            event: RunnerEvent = item
+            if event.kind == "start":
+                task_id = event.task_id
+                if event.conversation_id and event.conversation_id != turn.conversation.dify_conversation_id:
+                    turn.conversation.dify_conversation_id = event.conversation_id
+            elif event.kind == "delta":
+                yield sse(
+                    {
+                        "type": "text_delta",
+                        "message_id": message_id,
+                        "generation": generation,
+                        "text_offset": utf16_len(shown),
+                        "delta": event.text,
+                    }
+                )
+                shown += event.text
+            elif event.kind == "replace":
+                # The runner's output moderation replaced the streamed answer.
+                turn.log(
+                    "output", "block", "moderation", "dify_moderation", "Kiểm duyệt đầu ra của Dify", shown, agent.slug
+                )
+                generation = 1
+                shown = event.text
+                blocked_stage = "output"
+                yield sse({"type": "text_reset", "message_id": message_id, "generation": generation})
+                yield sse(
+                    {
+                        "type": "text_delta",
+                        "message_id": message_id,
+                        "generation": generation,
+                        "text_offset": 0,
+                        "delta": shown,
+                    }
+                )
+            elif event.kind == "end":
+                dify_message_id = event.message_id or None
+                if event.conversation_id:
+                    turn.conversation.dify_conversation_id = event.conversation_id
+                if event.usage:
+                    turn.usage.append(("agent", event.usage, int((time.perf_counter() - runner_started) * 1000)))
+            elif event.kind == "error":
+                error_text = event.text
+        finished = True
+    finally:
+        if not finished:
+            # The client went away (or the turn was cancelled): stop Dify's run too (FR-006).
+            task.cancel()
+            if task_id:
+                try:
+                    await asyncio.wait_for(client.stop(task_id, turn.user.id), timeout=5)
+                except Exception as error:  # best effort
+                    log.warning("could not stop Dify task %s: %s", task_id, error)
+        handles.release(handle)
+
+    reply = shown
+    if error_text:
+        log.warning("runner failed: %s", error_text)
+        status = "error"
+        if not shown:
+            reply = TURN_FAILED
+            yield sse({"type": "error", "message_id": message_id, "message": reply})
+    elif blocked_stage == "output":
+        status = "blocked"
+    elif dify_rules.is_preset_input_block(shown):
+        # The runner's own input moderation answered with its preset refusal.
+        turn.log("input", "block", "moderation", "dify_moderation", "Kiểm duyệt đầu vào của Dify", text)
+        status, blocked_stage = "blocked", "input"
+        user_message.status = "blocked"
+    else:
+        status = "ok"
+    meta = {
+        "dify_message_id": dify_message_id,
+        "route_reason": route_reason,
+        "tools": tool_events,
+        **({"blocked_stage": blocked_stage} if blocked_stage else {}),
+        **({"error": error_text[:300]} if error_text else {}),
+    }
+    await _store(turn, agent, reply, status, meta, started, context.usage)
+    yield sse({"type": "done", "message_id": message_id, "status": status, "agent": agent.slug})
+
+
+async def _store(
+    turn: Turn,
+    agent: ResolvedAgent | None,
+    reply: str,
+    status: str,
+    meta: dict[str, Any],
+    started: float,
+    tool_usage: list[tuple[str, Usage]],
+) -> None:
+    turn.db.add(
+        ChatMessage(
+            id=turn.message_id,
+            conversation_id=turn.conversation.id,
+            role="assistant",
+            content=reply,
+            agent_slug=agent.slug if agent else None,
+            agent_version_id=agent.version_id if agent else None,
+            status=status,
+            meta={
+                "engine": "dify",
+                **meta,
+                "guard": turn.guard,
+                "latency_ms": int((time.perf_counter() - started) * 1000),
+            },
+        )
+    )
+    turn.conversation.updated_at = datetime.now(UTC)
+    usage = turn.usage + [(purpose, item, 0) for purpose, item in tool_usage]
+    record_usage(turn.db, turn.user.id, turn.room.id if turn.room else None, turn.conversation.id, usage)
+    await turn.db.commit()

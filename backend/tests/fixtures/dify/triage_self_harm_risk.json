@@ -1,0 +1,22 @@
+{
+ "task_id": "8c04ee0b-8d15-4831-a81c-d15e5a3b62f6",
+ "workflow_run_id": "064aa51a-9be6-4e4f-8c52-fa995d2d9049",
+ "data": {
+  "id": "064aa51a-9be6-4e4f-8c52-fa995d2d9049",
+  "workflow_id": "5dbcdbac-ab47-489e-8c88-e0386dd61d90",
+  "status": "succeeded",
+  "outputs": {
+   "verdict": "support",
+   "category": "self_harm_risk",
+   "reason": "Tin nhắn cho thấy dấu hiệu buồn bã hoặc nguy cơ tự hại.",
+   "agent": "tro-ly-lop",
+   "route_reason": "router: Tin nhắn thể hiện cảm xúc và cần sự hỗ trợ, không thuộc chuyên môn cụ thể nào."
+  },
+  "error": null,
+  "elapsed_time": 2.007171610000114,
+  "total_tokens": 2210,
+  "total_steps": 8,
+  "created_at": 1793995108,
+  "finished_at": 1793995110
+ }
+}

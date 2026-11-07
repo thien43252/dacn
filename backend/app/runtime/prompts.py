@@ -31,11 +31,6 @@ def policy_block(room: ClassRoom | None, role: str) -> str:
             "- KHÔNG đưa đáp án hay lời giải hoàn chỉnh cho bài tập của học sinh. Chỉ gợi ý từng bước, đặt câu hỏi dẫn "
             "dắt và nhận xét bài học sinh tự làm. Không viết bài văn, bài báo cáo hay code để học sinh nộp."
         )
-    if policy.get("blocked_topics"):
-        lines.append(
-            "- Không thảo luận các chủ đề sau trong lớp; nhẹ nhàng đưa cuộc trò chuyện về việc học: "
-            + ", ".join(policy["blocked_topics"])
-        )
     if policy.get("allowed_subjects"):
         lines.append("- Lớp chỉ dùng agent cho các môn: " + ", ".join(policy["allowed_subjects"]))
     notes = (policy.get("notes_for_agents") or "").strip()

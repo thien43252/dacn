@@ -107,18 +107,6 @@ async def test_personal_data_is_redacted_before_the_model_and_storage(as_user, f
         assert event.verdict == "redact" and "abc123" not in event.excerpt
 
 
-async def test_class_blocked_topic_is_enforced(as_user, fake_llm) -> None:
-    teacher, student, _, room = await class_with_student(as_user)
-    policy = (await teacher.get(f"/api/classes/{room['id']}/policy")).json()
-    await teacher.put(f"/api/classes/{room['id']}/policy", json={**policy, "blocked_topics": ["trò chơi điện tử"]})
-    events = await chat(student, "Gợi ý trò chơi điện tử hay cho mình", class_id=room["id"])
-    notice = next(event for event in events if event["type"] == "notice")
-    assert "trò chơi điện tử" in notice["text"] and fake_llm.main_calls == []
-    # Without diacritics it is still the same topic.
-    events = await chat(student, "tro choi dien tu nao vui", class_id=room["id"])
-    assert events[-1]["status"] == "blocked"
-
-
 async def test_output_guard_redacts_and_retracts(as_user, fake_llm, sessionmaker) -> None:
     _, student, _, room = await class_with_student(as_user)
     fake_llm.script("Bạn có thể gọi cô theo số 0987654321 nhé.")
