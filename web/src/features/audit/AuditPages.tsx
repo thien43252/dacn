@@ -8,6 +8,7 @@ import { AuditLogView } from "./AuditLogView";
 const PURPOSE_LABELS: Record<string, string> = {
   agent: "Agent trả lời",
   router: "Định tuyến",
+  triage: "Định tuyến & kiểm duyệt",
   input_guard: "Guard đầu vào",
   output_guard: "Guard đầu ra",
   tool: "Công cụ",

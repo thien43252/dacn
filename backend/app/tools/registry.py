@@ -232,6 +232,27 @@ IMPLEMENTATIONS = {
 }
 
 
+CITATION_EXCERPT = 300
+
+
+def add_citations(context: ToolContext, data: dict[str, Any]) -> None:
+    """Keeps what class_doc_search returned so the turn can show its sources (contracts/chat-sse.md `citations`)."""
+    seen = {(item["document_id"], item["location"]) for item in context.citations}
+    for result in data.get("results", []):
+        key = (str(result.get("document_id", "")), str(result.get("location", "")))
+        if key in seen:
+            continue
+        seen.add(key)
+        context.citations.append(
+            {
+                "document_id": key[0],
+                "title": str(result.get("title", "")),
+                "location": key[1],
+                "excerpt": str(result.get("content", ""))[:CITATION_EXCERPT],
+            }
+        )
+
+
 def _emit(context: ToolContext, name: str, status: str) -> None:
     if context.events is not None:
         context.events.put_nowait({"type": "tool", "message_id": context.message_id, "name": name, "status": status})
@@ -319,7 +340,10 @@ async def run_tool(handle: str, name: str, arguments: dict[str, Any]) -> str:
         await _log_call(context, name, arguments, json.dumps({"error": message}, ensure_ascii=False), is_error=True)
         raise ToolError(message) from error
     try:
-        text = json.dumps(await IMPLEMENTATIONS[name](context, args), ensure_ascii=False)
+        data = await IMPLEMENTATIONS[name](context, args)
+        if name == "class_doc_search":
+            add_citations(context, data)
+        text = json.dumps(data, ensure_ascii=False)
     except impl.ToolFailure as failure:
         message = str(failure)
     except Exception as error:  # a broken tool must not crash the agent loop

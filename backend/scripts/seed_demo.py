@@ -127,7 +127,12 @@ async def install(db, agent_slug: str, *, installed_by: User, class_id: str | No
 async def seed_document(db, room: ClassRoom, teacher: User) -> None:
     source = SEED_DIR / "documents" / "chuong-3-phuong-trinh-bac-nhat.md"
     title = "Chương 3 - Phương trình bậc nhất một ẩn"
-    if await db.scalar(select(Document.id).where(Document.class_id == room.id, Document.title == title)):
+    existing = await db.scalar(select(Document).where(Document.class_id == room.id, Document.title == title))
+    if existing is not None:
+        # Seeded earlier on the LangGraph engine: the class's Dify knowledge base does not have it yet.
+        if knowledge.uses_dify() and not existing.dify_document_id:
+            await knowledge.process_document(existing.id)
+            await wait_for_indexing(db, room, existing.id)
         return
     document = Document(
         class_id=room.id,
@@ -146,7 +151,23 @@ async def seed_document(db, room: ClassRoom, teacher: User) -> None:
     document.storage_path = str(target)
     await db.commit()
     await knowledge.process_document(document.id)
+    if knowledge.uses_dify():
+        await wait_for_indexing(db, room, document.id)
     print(f"document {title}")
+
+
+async def wait_for_indexing(db, room: ClassRoom, document_id: str, timeout_s: int = 180) -> None:
+    """Dify indexes in the background; the demo needs the document searchable before the first question."""
+    for _ in range(timeout_s // 2):
+        await db.refresh(room)
+        document = await db.get(Document, document_id)
+        await db.refresh(document)
+        await knowledge.refresh_status(db, room, [document])
+        if document.status != "processing":
+            print(f"document {document.title}: {document.status} {document.error or ''}".rstrip())
+            return
+        await asyncio.sleep(2)
+    print(f"document {document_id}: Dify chưa index xong sau {timeout_s} s; kiểm tra Knowledge trong Dify Studio.")
 
 
 async def seed_class(db, users: dict[str, User]) -> None:

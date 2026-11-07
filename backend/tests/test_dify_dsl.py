@@ -73,3 +73,12 @@ def test_presets_are_the_ones_the_backend_recognises() -> None:
     config = dsl("eduagent-runner.yml")["workflow"]["features"]["sensitive_word_avoidance"]["config"]
     assert dify_rules.is_preset_input_block(config["inputs_config"]["preset_response"])
     assert "111" in dify_rules.presets()["self_harm_support"]
+
+
+def test_review_outputs_match_the_contract() -> None:
+    graph = dsl("eduagent-review.yml")["workflow"]["graph"]
+    [start] = [n for n in graph["nodes"] if n["data"]["type"] == "start"]
+    assert [v["variable"] for v in start["data"]["variables"]] == ["question", "reply", "role", "no_direct_answers"]
+    [end] = [n for n in graph["nodes"] if n["data"]["type"] == "end"]
+    assert [o["variable"] for o in end["data"]["outputs"]] == ["verdict", "category", "reason"]
+    assert {"answer_withheld", "output_blocked"} <= set(dify_rules.presets())

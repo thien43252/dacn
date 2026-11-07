@@ -62,7 +62,12 @@ class Settings(BaseSettings):
     # Same DSL as the runner with content moderation off; certification only, never user chat.
     dify_runner_raw_key: str = ""
     dify_dataset_key: str = ""
+    # eduagent-review: checks a finished answer against the class policy for students and parents; empty = skipped.
+    dify_review_key: str = ""
     dify_timeout_s: float = 30.0
+    # The models the Dify apps run (Dify does not report them); usage_ledger records and prices usage under these.
+    dify_triage_model: str = "gpt-4o-mini"
+    dify_runner_model: str = "gpt-4o-mini"
 
     # MCP over streamable HTTP at /mcp, called by Dify with this bearer token. The public URL is what Dify's
     # containers use to reach the backend (host.docker.internal on Docker Desktop).

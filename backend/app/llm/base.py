@@ -50,6 +50,8 @@ class Usage:
     model: str
     input_tokens: int = 0
     output_tokens: int = 0
+    # Set when the provider reports the price itself (Dify's message_end); otherwise priced from PRICES.
+    cost_usd: float | None = None
 
     def add(self, other: "Usage") -> None:
         self.input_tokens += other.input_tokens

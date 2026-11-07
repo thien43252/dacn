@@ -28,6 +28,16 @@ class DifyConversationNotFound(DifyError):
 
 
 @dataclass
+class ReviewResult:
+    # allow | block
+    verdict: str
+    # unsafe | privacy | injection | academic_integrity (block only)
+    category: str
+    reason: str
+    usage: Usage | None = None
+
+
+@dataclass
 class TriageResult:
     verdict: str
     category: str
@@ -50,14 +60,21 @@ class RunnerEvent:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
-def _usage(data: dict[str, Any] | None, purpose_model: str) -> Usage | None:
+def _usage(data: dict[str, Any] | None, model: str) -> Usage | None:
     if not data:
         return None
+    price = None
+    if data.get("total_price") is not None and str(data.get("currency", "USD")).upper() == "USD":
+        try:
+            price = float(data["total_price"])
+        except ValueError:
+            price = None
     return Usage(
         provider="dify",
-        model=purpose_model,
+        model=model,
         input_tokens=int(data.get("prompt_tokens") or 0),
         output_tokens=int(data.get("completion_tokens") or 0),
+        cost_usd=price,
     )
 
 
@@ -80,6 +97,33 @@ class DifyClient:
 
     def _runner_key(self, raw: bool) -> str:
         return self.settings.dify_runner_raw_key if raw else self.settings.dify_runner_key
+
+    async def run_review(self, inputs: dict[str, str], user: str) -> ReviewResult:
+        """Runs eduagent-review on a finished answer (contracts/dify-apps.md section 5)."""
+        try:
+            response = await self.http.post(
+                f"{self.base}/workflows/run",
+                headers=self._headers(self.settings.dify_review_key),
+                json={"inputs": inputs, "response_mode": "blocking", "user": user},
+                timeout=self.settings.dify_timeout_s,
+            )
+        except httpx.HTTPError as error:
+            raise DifyError(f"review: {type(error).__name__}") from error
+        if response.status_code != 200:
+            raise DifyError(f"review HTTP {response.status_code}: {_error_message(response)}")
+        data = response.json().get("data") or {}
+        if data.get("status") != "succeeded":
+            raise DifyError(f"review {data.get('status')}: {data.get('error') or ''}"[:300])
+        outputs = data.get("outputs") or {}
+        tokens = int(data.get("total_tokens") or 0)
+        return ReviewResult(
+            verdict="block" if outputs.get("verdict") == "block" else "allow",
+            category=str(outputs.get("category") or ""),
+            reason=str(outputs.get("reason") or ""),
+            usage=Usage(provider="dify", model=self.settings.dify_triage_model, input_tokens=tokens)
+            if tokens
+            else None,
+        )
 
     async def run_triage(self, inputs: dict[str, str], user: str) -> TriageResult:
         """Runs the triage workflow. Any failure raises DifyError: the caller then fails the turn closed."""
@@ -109,7 +153,9 @@ class DifyClient:
             agent=str(outputs["agent"]),
             route_reason=str(outputs.get("route_reason") or ""),
             # The workflow reports only a total; it is booked as input tokens.
-            usage=Usage(provider="dify", model="dify-triage", input_tokens=tokens) if tokens else None,
+            usage=Usage(provider="dify", model=self.settings.dify_triage_model, input_tokens=tokens)
+            if tokens
+            else None,
         )
 
     async def stream_runner(
@@ -177,7 +223,7 @@ class DifyClient:
                             "end",
                             conversation_id=event.get("conversation_id") or "",
                             message_id=event.get("message_id") or event.get("id") or "",
-                            usage=_usage((event.get("metadata") or {}).get("usage"), "dify-runner"),
+                            usage=_usage((event.get("metadata") or {}).get("usage"), self.settings.dify_runner_model),
                         )
                     elif name == "error":
                         yield RunnerEvent("error", text=str(event.get("message") or event.get("code") or "error"))

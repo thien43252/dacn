@@ -116,6 +116,14 @@ export interface ConversationSummary {
   updated_at: string;
 }
 
+/** A class document passage the agent used (class_doc_search), shown under its reply. */
+export interface Citation {
+  document_id: string;
+  title: string;
+  location: string;
+  excerpt: string;
+}
+
 export interface StoredMessage {
   id: string;
   role: "user" | "assistant";
@@ -123,7 +131,13 @@ export interface StoredMessage {
   agent_slug: string | null;
   status: "ok" | "blocked" | "error";
   created_at: string;
-  meta: { tools?: { name: string; status: string }[]; route_reason?: string; guard?: { stage: string; verdict: string; category: string }[] };
+  meta: {
+    tools?: { name: string; status: string }[];
+    route_reason?: string;
+    guard?: { stage: string; verdict: string; category: string }[];
+    citations?: Citation[];
+    suggestions?: string[];
+  };
 }
 
 export interface AgentManifest {

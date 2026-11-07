@@ -1,5 +1,7 @@
 import { memo } from "react";
 
+import type { Citation } from "../../api-client/types";
+
 /** Agent mentions are slugs such as @gia-su-toan. */
 const MENTION = String.raw`(?<![\w@])@[a-z0-9]+(?:-[a-z0-9]+)*\b`;
 const RICH_SPLIT = new RegExp(`(${MENTION}|\\*\\*[^\\n]+?\\*\\*)`, "gi");
@@ -74,5 +76,48 @@ export function MessageBody({ text, rich = true }: { text: string; rich?: boolea
     <div className="message__body">
       <MessageBlocks blocks={messageBlocks(text)} rich={rich} />
     </div>
+  );
+}
+
+const EXCERPT_SHOWN = 160;
+
+/** Sources and follow-ups belong to an answer that stands; follow-ups only under the latest one. */
+export function replyExtras(
+  message: { status: string; citations?: Citation[]; suggestions?: string[] },
+  isLast: boolean,
+): { citations: Citation[]; suggestions: string[] } {
+  if (message.status !== "ok") return { citations: [], suggestions: [] };
+  return { citations: message.citations ?? [], suggestions: isLast ? message.suggestions ?? [] : [] };
+}
+
+/** The class documents an answer drew on (class_doc_search), each with its place and a short excerpt. */
+export function MessageCitations({ items }: { items: Citation[] }) {
+  if (items.length === 0) return null;
+  return (
+    <details className="ea-citations">
+      <summary>Nguồn từ tài liệu lớp ({items.length})</summary>
+      <ul>
+        {items.map((item) => (
+          <li key={`${item.document_id}-${item.location}`}>
+            <strong>{item.title}</strong>{item.location && <span className="ea-muted"> · {item.location}</span>}
+            <blockquote>{item.excerpt.length > EXCERPT_SHOWN ? `${item.excerpt.slice(0, EXCERPT_SHOWN)}…` : item.excerpt}</blockquote>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** Follow-up questions under the latest answer; picking one sends it as the next message. */
+export function MessageSuggestions({ items, onPick, disabled = false }: { items: string[]; onPick: (question: string) => void; disabled?: boolean }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className="chat-suggestions ea-followups" aria-label="Câu hỏi gợi ý">
+      {items.map((question) => (
+        <li key={question}>
+          <button type="button" disabled={disabled} onClick={() => onPick(question)}>{question}</button>
+        </li>
+      ))}
+    </ul>
   );
 }

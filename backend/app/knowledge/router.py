@@ -50,7 +50,11 @@ def _out(document: Document) -> DocumentOut:
 async def list_documents(class_id: str, user: CurrentUser, db: DbSession) -> list[DocumentOut]:
     # Students see the list so they know what the agents can read; only teachers upload or delete.
     room, _ = await classes.load_class(db, class_id, user, {"teacher", "student"})
-    rows = await db.scalars(select(Document).where(Document.class_id == room.id).order_by(Document.created_at.desc()))
+    rows = list(
+        await db.scalars(select(Document).where(Document.class_id == room.id).order_by(Document.created_at.desc()))
+    )
+    if service.uses_dify():
+        await service.refresh_status(db, room, rows)
     return [_out(document) for document in rows]
 
 
@@ -131,6 +135,14 @@ async def reprocess(
 async def delete_document(class_id: str, document_id: str, user: CurrentUser, db: DbSession) -> None:
     room, _ = await classes.load_class(db, class_id, user, {"teacher"})
     document = await _document(db, room.id, document_id)
+    if service.uses_dify():
+        # Dify first: a document the agents can still find must not disappear from the teacher's list.
+        try:
+            await service.delete_from_dify(room, document)
+        except service.DifyDatasetError as error:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, "Chưa xóa được tài liệu khỏi kho tri thức Dify, thử lại sau."
+            ) from error
     path = Path(document.storage_path)
     await db.delete(document)
     await db.commit()

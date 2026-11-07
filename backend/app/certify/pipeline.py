@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import tracing
@@ -115,19 +115,19 @@ def test_classroom(manifest: AgentManifest) -> ClassRoom:
     )
 
 
-async def run_case(
+async def _run_graph(
     db: AsyncSession,
     user: User,
     agent: ResolvedAgent,
     conversation: Conversation,
     room: ClassRoom,
-    case: dict[str, Any],
+    role: str,
+    text: str,
     model: ChatModel,
-    guard_mode: str = "prompt_only",
+    guard_mode: str,
+    trace: Any,
 ) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
-    """Runs one case through the graph and judges the reply. Certification uses guard_mode "prompt_only";
-    eval/run_redteam.py compares all three modes."""
-    role = case["role"] if case["role"] in agent.manifest.target_roles else agent.manifest.target_roles[0]
+    """The LangGraph engine; certification uses guard_mode "prompt_only", eval/run_redteam.py compares all modes."""
     ctx = RunContext(
         db=db,
         user=user,
@@ -140,30 +140,172 @@ async def run_case(
         source="certify",
         guard_mode=guard_mode,
     )
+    ctx.trace = trace
     final: dict[str, Any] = {}
+    try:
+        async for chunk in GRAPH.astream(
+            {"ctx": ctx, "text": text, "requested_agent": agent.slug, "history": []}, stream_mode="values"
+        ):
+            final = chunk
+    except Exception as error:  # one broken case must not sink the whole run
+        final = {"reply": "", "status": "error", "error": type(error).__name__}
+    final["tools"] = [event["name"] for event in final.get("tool_events", [])]
+    return final, ctx.usage
+
+
+async def _run_dify(
+    user: User, agent: ResolvedAgent, conversation: Conversation, room: ClassRoom, role: str, text: str
+) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
+    """The Dify engine (research R11): `eduagent-runner-raw` (moderation off) so the agent's own behaviour under the
+    platform rules is judged, a new conversation per case (FR-019), no triage: the agent under test always answers."""
+    from app.runtime import dify_turn
+    from app.runtime.dify_client import DifyError
+    from app.runtime.prompts import build_system_prompt
+    from app.tools import context as handles
+    from app.tools import registry
+
+    events: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    context = registry.ToolContext(
+        user_id=user.id,
+        role=role,
+        class_id=room.id,
+        grade=room.grade,
+        conversation_id=conversation.id,
+        agent_slug=agent.slug,
+        allowed_tools=frozenset(agent.manifest.tools),
+        log_calls=True,
+        message_id=str(uuid.uuid4()),
+        source="certify",
+        excerpt=text,
+        events=events,
+    )
+    handle = handles.register(context)
+    system_prompt = build_system_prompt(agent, room, role, [agent])[: dify_turn.MAX_SYSTEM_PROMPT]
+    inputs = {"system_prompt": system_prompt, "ctx": handle, "safety_note": "false"}
+    client = dify_turn.make_client()
+    reply, usage, error = "", [], ""
+    started = time.perf_counter()
+    first_token_ms = None
+    try:
+        async for event in client.stream_runner(text, inputs, "", user.id, raw=True):
+            if event.kind == "delta":
+                if first_token_ms is None:
+                    first_token_ms = int((time.perf_counter() - started) * 1000)
+                reply += event.text
+            elif event.kind == "replace":
+                reply = event.text
+            elif event.kind == "end" and event.usage:
+                usage.append(("agent", event.usage, int((time.perf_counter() - started) * 1000)))
+            elif event.kind == "error":
+                error = event.text
+    except DifyError as failure:
+        error = str(failure)
+    finally:
+        handles.release(handle)
+        await client.http.aclose()
+    tools = []
+    while not events.empty():
+        item = events.get_nowait()
+        if item["status"] != "start":
+            tools.append(item["name"])
+    usage.extend((purpose, item, 0) for purpose, item in context.usage)
+    final = {
+        "reply": reply,
+        "status": "error" if error else "ok",
+        "error": error[:200],
+        "tools": tools,
+        "first_token_ms": first_token_ms,
+    }
+    return final, usage
+
+
+async def _run_dify_chat(
+    db: AsyncSession, user: User, agent: ResolvedAgent, room: ClassRoom, role: str, text: str
+) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
+    """The whole Dify chat pipeline (triage, then the moderated runner) as a user would meet it: eval/run_redteam.py
+    "full" mode. Also counts the guard events of the turn, so every block can be matched with its record (SC-006)."""
+    from app.audit.models import GuardEvent
+    from app.chat.models import UsageRecord
+    from app.chat.router import ChatIn
+    from app.runtime.dify_turn import run_dify_turn
+
+    started = time.perf_counter()
+    first_token_ms = None
+    events: list[dict[str, Any]] = []
+    stream = run_dify_turn(
+        user.id, None, role, ChatIn(message=text[:4000]), agents_override=[agent], kind="certify", simulated_room=room
+    )
+    async for line in stream:
+        event = json.loads(line.removeprefix("data: "))
+        if event["type"] == "text_delta" and first_token_ms is None:
+            first_token_ms = int((time.perf_counter() - started) * 1000)
+        events.append(event)
+    done = events[-1]
+    status = done.get("status", "error")
+    generation = max((e["generation"] for e in events if e["type"] == "text_delta"), default=0)
+    reply = "".join(e["delta"] for e in events if e["type"] == "text_delta" and e["generation"] == generation)
+    notices = [e["text"] for e in events if e["type"] == "notice" and e.get("kind") == "guard_blocked"]
+    blocked_stage = ""
+    if status == "blocked":
+        blocked_stage = "output" if any(e["type"] == "text_reset" for e in events) else "input"
+        reply = reply or (notices[0] if notices else "")
+    conversation_id = next(e["conversation_id"] for e in events if e["type"] == "conversation")
+    guard_events = await db.scalar(
+        select(func.count()).select_from(GuardEvent).where(GuardEvent.message_id == done["message_id"])
+    )
+    rows = await db.scalars(select(UsageRecord).where(UsageRecord.conversation_id == conversation_id))
+    usage = [
+        (row.purpose, Usage("dify", row.model, row.input_tokens, row.output_tokens, row.cost_usd), row.latency_ms)
+        for row in rows
+    ]
+    final = {
+        "reply": reply,
+        "status": status,
+        "blocked_stage": blocked_stage,
+        "error": next((e["message"] for e in events if e["type"] == "error"), ""),
+        "tools": [e["name"] for e in events if e["type"] == "tool" and e["status"] != "start"],
+        "first_token_ms": first_token_ms,
+        "guard_events": guard_events or 0,
+    }
+    return final, usage
+
+
+async def run_case(
+    db: AsyncSession,
+    user: User,
+    agent: ResolvedAgent,
+    conversation: Conversation,
+    room: ClassRoom,
+    case: dict[str, Any],
+    model: ChatModel,
+    guard_mode: str = "prompt_only",
+) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
+    """Runs one case on the configured engine (`runtime_engine`) and judges the reply with the backend's LLM judge."""
+    role = case["role"] if case["role"] in agent.manifest.target_roles else agent.manifest.target_roles[0]
+    engine = get_settings().runtime_engine
+    text = case_message(case)
     started = time.perf_counter()
     with tracing.start_trace(
         "certify",
         user_id=user.id,
         session_id=conversation.id,
-        tags=["certify", agent.slug, guard_mode],
+        tags=["certify", agent.slug, guard_mode, engine],
         metadata={"case": case["id"], "kind": case["kind"], "category": case["category"]},
-        input=case_message(case),
+        input=text,
     ) as trace:
-        ctx.trace = trace
-        try:
-            async for chunk in GRAPH.astream(
-                {"ctx": ctx, "text": case_message(case), "requested_agent": agent.slug, "history": []},
-                stream_mode="values",
-            ):
-                final = chunk
-        except Exception as error:  # one broken case must not sink the whole run
-            final = {"reply": "", "status": "error", "error": type(error).__name__}
+        if engine == "dify" and guard_mode == "full":
+            final, usage_rows = await _run_dify_chat(db, user, agent, room, role, text)
+        elif engine == "dify":
+            final, usage_rows = await _run_dify(user, agent, conversation, room, role, text)
+        else:
+            final, usage_rows = await _run_graph(
+                db, user, agent, conversation, room, role, text, model, guard_mode, trace
+            )
         latency_ms = int((time.perf_counter() - started) * 1000)
         reply = final.get("reply") or ""
         status = final.get("status", "error")
         if status == "error":
-            outcome, reason, usage = "unjudged", f"Agent gặp lỗi: {final.get('error', 'không rõ')}", None
+            outcome, reason, usage = "unjudged", f"Agent gặp lỗi: {final.get('error') or 'không rõ'}", None
         elif status == "blocked" and case["expected"] in ("block", "safe_response"):
             outcome, reason, usage = "pass", f"Bị chặn ở bước {final.get('blocked_stage', 'model')}.", None
         else:
@@ -171,7 +313,7 @@ async def run_case(
             with tracing.node(trace, "judge", as_type="evaluator"):
                 outcome, reason, usage = await judge(model, {**case, "role": role}, reply)
             if usage:
-                ctx.usage.append(("judge", usage, int((time.perf_counter() - started) * 1000)))
+                usage_rows.append(("judge", usage, int((time.perf_counter() - started) * 1000)))
         if trace is not None:
             trace.update(output=reply, metadata={"status": status, "expected": case["expected"]})
             trace.score("certify_outcome", outcome, comment=reason)
@@ -184,14 +326,17 @@ async def run_case(
         "role": role,
         "prompt": case["prompt"][:600],
         "reply": reply[:1500],
-        "tools": [event["name"] for event in final.get("tool_events", [])],
+        "tools": final.get("tools", []),
         "outcome": outcome,
         "reason": reason,
         "status": status,
         "blocked_stage": final.get("blocked_stage", ""),
         "agent_latency_ms": latency_ms,
+        "engine": engine,
+        "first_token_ms": final.get("first_token_ms"),
+        "guard_events": final.get("guard_events"),
     }
-    return result, ctx.usage
+    return result, usage_rows
 
 
 def decide(findings: list[dict], review: dict | None, cases: list[dict]) -> tuple[str, float | None, list[str]]:
@@ -323,6 +468,7 @@ async def _run(db: AsyncSession, factory, certification: Certification, model: C
         "manifest_review": review,
         "settings": {
             "guard_mode": "prompt_only",
+            "engine": settings.runtime_engine,
             "provider": model.provider,
             "agent_model": model.model_for("main"),
             "judge_model": model.model_for("small"),

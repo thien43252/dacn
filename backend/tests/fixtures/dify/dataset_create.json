@@ -1,0 +1,69 @@
+{
+ "id": "d335de72-61a7-4403-9122-b4cc27d88627",
+ "name": "class-spike-0001",
+ "description": "",
+ "provider": "vendor",
+ "permission": "only_me",
+ "data_source_type": null,
+ "indexing_technique": "high_quality",
+ "app_count": 0,
+ "document_count": 0,
+ "word_count": 0,
+ "created_by": "00000000-0000-4000-8000-000000000001",
+ "author_name": "fixture-user",
+ "created_at": 1794051807,
+ "updated_by": "00000000-0000-4000-8000-000000000001",
+ "updated_at": 1794051807,
+ "embedding_model": "text-embedding-3-small",
+ "embedding_model_provider": "langgenius/openai/openai",
+ "embedding_available": null,
+ "retrieval_model_dict": {
+  "search_method": "semantic_search",
+  "reranking_enable": false,
+  "reranking_mode": null,
+  "reranking_model": {
+   "reranking_provider_name": "",
+   "reranking_model_name": ""
+  },
+  "weights": null,
+  "top_k": 2,
+  "score_threshold_enabled": false,
+  "score_threshold": null
+ },
+ "summary_index_setting": {
+  "enable": null,
+  "model_name": null,
+  "model_provider_name": null,
+  "summary_prompt": null
+ },
+ "tags": [],
+ "doc_form": null,
+ "external_knowledge_info": {
+  "external_knowledge_id": null,
+  "external_knowledge_api_id": null,
+  "external_knowledge_api_name": null,
+  "external_knowledge_api_endpoint": null
+ },
+ "external_retrieval_model": {
+  "top_k": 2,
+  "score_threshold": 0.0,
+  "score_threshold_enabled": null
+ },
+ "doc_metadata": [],
+ "built_in_field_enabled": false,
+ "pipeline_id": null,
+ "runtime_mode": "general",
+ "chunk_structure": null,
+ "icon_info": {
+  "icon_type": null,
+  "icon": null,
+  "icon_background": null,
+  "icon_url": null
+ },
+ "is_published": false,
+ "total_documents": 0,
+ "total_available_documents": 0,
+ "enable_api": true,
+ "is_multimodal": false,
+ "maintainer": "00000000-0000-4000-8000-000000000001"
+}

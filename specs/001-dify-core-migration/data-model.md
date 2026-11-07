@@ -65,7 +65,7 @@ Không đổi schema. Giá trị mới:
 
 | Cột | Giá trị mới |
 |---|---|
-| `detector` | `dify_classifier` (triage), `dify_moderation` (kiểm duyệt cấp ứng dụng), `privacy` (ẩn thông tin cá nhân ở backend) |
+| `detector` | `dify_classifier` (triage), `dify_moderation` (kiểm duyệt cấp ứng dụng), `dify_review` (app `eduagent-review` kiểm tra câu trả lời theo chính sách lớp), `privacy` (ẩn thông tin cá nhân ở backend) |
 | `category` | nhãn của triage: `self_harm_risk`, `self_harm_method`, `jailbreak`, `dangerous`, `age_inappropriate`; `moderation` cho kiểm duyệt cấp ứng dụng; `pii`; `tool_denied` (giữ nguyên) |
 | `stage` | `input`, `tool`, `output` (giữ nguyên) |
 

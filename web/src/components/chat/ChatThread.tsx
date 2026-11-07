@@ -1,10 +1,10 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { type ChatStreamEvent, consumeChatStream } from "../../api-client/chatStream";
-import type { ChatAgent, StoredMessage } from "../../api-client/types";
+import type { ChatAgent, Citation, StoredMessage } from "../../api-client/types";
 import { Icon } from "../Icon";
 import { Mascot, type MascotName } from "../Mascot";
-import { ChatMessageText, MessageBody } from "./MessageBody";
+import { ChatMessageText, MessageBody, MessageCitations, MessageSuggestions, replyExtras } from "./MessageBody";
 
 const TOOL_LABELS: Record<string, string> = {
   class_doc_search: "Đang tìm trong tài liệu lớp",
@@ -30,6 +30,8 @@ interface StreamEvent extends ChatStreamEvent {
   text?: string;
   kind?: string;
   message?: string;
+  /** `citations`: document passages; `suggestions`: follow-up questions. */
+  items?: Citation[] | string[];
 }
 
 /** Stable empty history; a fresh `[]` on every render would wipe the thread through the sync effect below. */
@@ -44,6 +46,8 @@ export interface ThreadMessage {
   status: "ok" | "blocked" | "error" | "streaming";
   // For notices: guard_blocked, redacted, consent_required or context_reset (Dify lost the conversation's memory).
   kind?: string;
+  citations?: Citation[];
+  suggestions?: string[];
 }
 
 export function fromStored(messages: StoredMessage[], agents: ChatAgent[]): ThreadMessage[] {
@@ -59,6 +63,8 @@ export function fromStored(messages: StoredMessage[], agents: ChatAgent[]): Thre
       agent: message.agent_slug ? { slug: message.agent_slug, name: agent?.name ?? message.agent_slug, avatar: agent?.avatar ?? "owl", reason: message.meta?.route_reason } : undefined,
       tools: message.meta?.tools ?? [],
       status: message.status,
+      citations: message.meta?.citations,
+      suggestions: message.meta?.suggestions,
     };
   });
 }
@@ -172,7 +178,14 @@ export function ChatThread({
           update(event.message_id!, (message) => ({ ...message, content: message.content + (event.delta ?? "") }));
           break;
         case "text_reset":
-          update(event.message_id!, (message) => ({ ...message, content: "" }));
+          // The answer was replaced: its sources and follow-ups no longer apply.
+          update(event.message_id!, (message) => ({ ...message, content: "", citations: undefined, suggestions: undefined }));
+          break;
+        case "citations":
+          update(event.message_id!, (message) => ({ ...message, citations: event.items as Citation[] }));
+          break;
+        case "suggestions":
+          update(event.message_id!, (message) => ({ ...message, suggestions: event.items as string[] }));
           break;
         case "tool":
           ensureReply(event.message_id!);
@@ -262,7 +275,7 @@ export function ChatThread({
             )}
           </div>
         )}
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div key={message.id} className={`message message--${message.role === "notice" ? "assistant" : message.role}${message.role === "notice" ? ` ea-notice-message${message.kind === "context_reset" ? " ea-notice-message--soft" : ""}` : ""}${message.status === "error" ? " message--failed" : ""}${message.status === "blocked" ? " ea-blocked-message" : ""}`}>
             {message.role === "assistant" && message.agent && (
               <div className="message__meta">
@@ -284,7 +297,17 @@ export function ChatThread({
               </ul>
             )}
             {message.role === "assistant" ? (
-              message.content ? <MessageBody text={message.content} /> : <span className="ea-typing" aria-label="Đang trả lời"><i /><i /><i /></span>
+              message.content ? (
+                <>
+                  <MessageBody text={message.content} />
+                  <MessageCitations items={replyExtras(message, index === messages.length - 1).citations} />
+                  <MessageSuggestions
+                    items={replyExtras(message, index === messages.length - 1).suggestions}
+                    disabled={sending || disabled}
+                    onPick={(question) => void send(question)}
+                  />
+                </>
+              ) : <span className="ea-typing" aria-label="Đang trả lời"><i /><i /><i /></span>
             ) : message.role === "notice" ? (
               <p className="message__para"><Icon name={message.status === "error" ? "alert" : message.kind === "context_reset" ? "history" : "lock"} /> {message.content}</p>
             ) : (

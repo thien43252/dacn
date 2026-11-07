@@ -1,0 +1,21 @@
+{
+ "data": [
+  {
+   "id": "f8e89841-6baf-4737-8470-63eb64b668f1",
+   "indexing_status": "error",
+   "processing_started_at": 1794051820,
+   "parsing_completed_at": null,
+   "cleaning_completed_at": null,
+   "splitting_completed_at": null,
+   "completed_at": null,
+   "paused_at": null,
+   "error": "Failed to load document (PDFium: Data format error).",
+   "error_code": null,
+   "estimated_vector_space_mb": null,
+   "vector_space_limit_mb": null,
+   "stopped_at": 1794051820,
+   "completed_segments": 0,
+   "total_segments": 0
+  }
+ ]
+}

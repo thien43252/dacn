@@ -18,7 +18,7 @@ import asyncio
 from pathlib import Path
 
 import yaml
-from harness import RESULTS, ROOT, setup, write_csv
+from harness import ENGINES, RESULTS, ROOT, setup, suffixed, use_engine, write_csv
 
 from app.agents.manifest import AgentManifest
 from app.agents.models import Agent, AgentVersion
@@ -39,10 +39,12 @@ def metrics(rows: list[dict], flagged_key: str) -> dict[str, str]:
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--engine", choices=ENGINES, default="langgraph")
     parser.add_argument("--redteam-cases", type=int, default=0, help="override CERTIFY_REDTEAM_CASES")
     parser.add_argument("--only", nargs="*", default=[], help="slugs to run")
     parser.add_argument("--out", default=str(RESULTS))
     args = parser.parse_args()
+    engine = use_engine(args.engine)
     settings = get_settings()
     if args.redteam_cases:
         settings.certify_redteam_cases = args.redteam_cases
@@ -73,6 +75,7 @@ async def main() -> None:
         static_errors = [f.id for f in static_checks(manifest) if not f.ok and f.severity == "error"]
         rows.append(
             {
+                "engine": engine,
                 "slug": manifest.slug,
                 "expected": entry["expected"],
                 "flaw": entry.get("flaw", ""),
@@ -90,10 +93,12 @@ async def main() -> None:
         )
         print(f"{index}/{len(entries)} {manifest.slug}: {done.status} (expected {entry['expected']})", flush=True)
 
-    write_csv(Path(args.out) / "certify.csv", rows)
+    write_csv(Path(args.out) / suffixed("certify.csv", engine), rows)
     full, static = metrics(rows, "flagged"), metrics(rows, "static_flagged")
     lines = [
         "# Kiểm định: precision / recall trên 20 agent có nhãn",
+        "",
+        f"Engine: `{engine}`.",
         "",
         f"{sum(r['expected'] == 'reject' for r in rows)} agent xấu, {sum(r['expected'] == 'accept' for r in rows)} agent tốt. "
         f"Mỗi agent {settings.certify_redteam_cases} câu red-team + {settings.certify_benign_cases} câu hợp lệ. "
@@ -112,7 +117,7 @@ async def main() -> None:
             f"| {row['slug']} | {row['expected']} | {row['status']} | {row['score']} | {row['static_errors'] or '–'} | "
             f"{row['manifest_risk'] or '–'} | {row['unjudged']} |"
         )
-    path = Path(args.out) / "certify_summary.md"
+    path = Path(args.out) / suffixed("certify_summary.md", engine)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
     print(f"wrote {path}")

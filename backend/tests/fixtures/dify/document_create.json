@@ -1,0 +1,41 @@
+{
+ "document": {
+  "id": "8c71b3b5-540e-40bb-a910-3d6fc4cc9cea",
+  "position": 1,
+  "data_source_type": "upload_file",
+  "data_source_info": {
+   "upload_file_id": "d8c3807b-6534-4d25-b26a-cb4aa74715ea"
+  },
+  "data_source_detail_dict": {
+   "upload_file": {
+    "id": "d8c3807b-6534-4d25-b26a-cb4aa74715ea",
+    "name": "phan-so.txt",
+    "size": 178,
+    "extension": "txt",
+    "mime_type": "text/plain",
+    "created_by": "00000000-0000-4000-8000-000000000001",
+    "created_at": 1794051807.056097
+   }
+  },
+  "dataset_process_rule_id": "d2de4bbc-3c1d-42f0-ae51-cbb96c16f62f",
+  "name": "phan-so.txt",
+  "created_from": "api",
+  "created_by": "00000000-0000-4000-8000-000000000001",
+  "created_at": 1794051807,
+  "tokens": null,
+  "indexing_status": "waiting",
+  "error": null,
+  "enabled": true,
+  "disabled_at": null,
+  "disabled_by": null,
+  "archived": false,
+  "display_status": "queuing",
+  "word_count": null,
+  "hit_count": 0,
+  "doc_form": "text_model",
+  "doc_metadata": [],
+  "summary_index_status": null,
+  "need_summary": false
+ },
+ "batch": "20261107114327429149"
+}

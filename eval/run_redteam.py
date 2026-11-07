@@ -19,7 +19,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-from harness import RESULTS, rate, setup, write_csv
+from harness import ENGINES, RESULTS, percentile, rate, setup, suffixed, use_engine, write_csv
 from sqlalchemy import select
 
 from app.agents.manifest import AgentManifest
@@ -34,12 +34,20 @@ MODES = ["off", "prompt_only", "full"]
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--engine", choices=ENGINES, default="langgraph")
     parser.add_argument("--modes", nargs="+", choices=MODES, default=MODES)
     parser.add_argument("--agent", default="tro-ly-lop")
     parser.add_argument("--limit", type=int, default=0, help="sample this many red-team cases (stratified by seed)")
     parser.add_argument("--benign", type=int, default=60)
     parser.add_argument("--out", default=str(RESULTS))
     args = parser.parse_args()
+    engine = use_engine(args.engine)
+    if engine == "dify":
+        # Dify: prompt_only = eduagent-runner-raw (moderation off, no triage); full = triage + moderated runner.
+        skipped = [mode for mode in args.modes if mode == "off"]
+        args.modes = [mode for mode in args.modes if mode != "off"]
+        if skipped:
+            print("dify: mode 'off' has no Dify counterpart (the runner always gets the platform rules); skipped")
 
     redteam = [{**case, "kind": "redteam"} for case in load_cases("redteam_vi.jsonl")]
     benign = [{**case, "kind": "benign"} for case in load_cases("benign_vi.jsonl")][: args.benign]
@@ -71,15 +79,26 @@ async def main() -> None:
                 result, usage = await run_case(db, case_user, agent, conversation, room, case, model, guard_mode=mode)
             tokens_in = sum(item.input_tokens for _, item, _ in usage)
             tokens_out = sum(item.output_tokens for _, item, _ in usage)
-            cost = sum(cost_usd(item.model, item.input_tokens, item.output_tokens) or 0 for _, item, _ in usage)
+            cost = sum(
+                (
+                    item.cost_usd
+                    if item.cost_usd is not None
+                    else cost_usd(item.model, item.input_tokens, item.output_tokens)
+                )
+                or 0
+                for _, item, _ in usage
+            )
             results.append(
                 {
+                    "engine": engine,
                     **{
                         key: result[key]
                         for key in ("id", "kind", "category", "expected", "role", "outcome", "status", "blocked_stage")
                     },
                     "reason": result["reason"],
                     "latency_ms": result["agent_latency_ms"],
+                    "first_token_ms": result.get("first_token_ms"),
+                    "guard_events": result.get("guard_events"),
                     "tokens_in": tokens_in,
                     "tokens_out": tokens_out,
                     "cost_usd": round(cost, 6),
@@ -89,7 +108,7 @@ async def main() -> None:
             )
             if index % 20 == 0 or index == len(cases):
                 print(f"{mode}: {index}/{len(cases)}", flush=True)
-        write_csv(Path(args.out) / f"redteam_{mode}.csv", results)
+        write_csv(Path(args.out) / suffixed(f"redteam_{mode}.csv", engine), results)
 
         attacks = [r for r in results if r["kind"] == "redteam" and r["outcome"] != "unjudged"]
         normal = [r for r in results if r["kind"] == "benign" and r["outcome"] != "unjudged"]
@@ -98,9 +117,16 @@ async def main() -> None:
         for row in attacks:
             by_category[row["category"]].append(row["outcome"] == "fail")
         latencies = sorted(r["latency_ms"] for r in results)
+        blocked = [r for r in results if r["status"] == "blocked"]
         summary_rows.append(
             {
                 "mode": mode,
+                "engine": engine,
+                # SC-006: every block has its guard_events row (counted on the Dify chat pipeline only).
+                "blocked_logged": rate(sum((r["guard_events"] or 0) > 0 for r in blocked), len(blocked))
+                if engine == "dify" and mode == "full"
+                else "–",
+                "ttft_p95_ms": percentile([r["first_token_ms"] for r in results], 0.95),
                 "asr": rate(sum(r["outcome"] == "fail" for r in attacks), len(attacks)),
                 "blocked_by_guard": rate(
                     sum(r["blocked_stage"] in ("input", "output") for r in results if r["kind"] == "redteam"),
@@ -119,23 +145,25 @@ async def main() -> None:
     lines = [
         "# Red-team: ASR và chặn nhầm theo cấu hình guard",
         "",
-        f"Agent: `{args.agent}` · mô hình: {model.provider} ({model.model_for('main')} / {model.model_for('small')}) · "
+        f"Engine: `{engine}` · agent: `{args.agent}` · mô hình: {model.provider} ({model.model_for('main')} / {model.model_for('small')}) · "
         f"{len(redteam)} câu tấn công, {len(benign)} câu hợp lệ.",
         "",
-        "| Cấu hình | ASR (thấp hơn tốt hơn) | Guard chặn | Chặn nhầm câu hợp lệ | Chưa chấm | p50 | p95 | Token/ca | Chi phí |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Cấu hình | ASR (thấp hơn tốt hơn) | Guard chặn | Chặn nhầm câu hợp lệ | Chưa chấm | p50 | p95 | "
+        "Chữ đầu p95 | Chặn có bản ghi | Token/ca | Chi phí |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in summary_rows:
         lines.append(
             f"| {row['mode']} | {row['asr']} | {row['blocked_by_guard']} | {row['false_positive']} | {row['unjudged']} | "
-            f"{row['p50_ms']} ms | {row['p95_ms']} ms | {row['tokens_per_case']} | ${row['cost_usd']} |"
+            f"{row['p50_ms']} ms | {row['p95_ms']} ms | {row['ttft_p95_ms']} ms | {row['blocked_logged']} | "
+            f"{row['tokens_per_case']} | ${row['cost_usd']} |"
         )
     lines += ["", "## ASR theo nhóm", "", "| Nhóm | " + " | ".join(r["mode"] for r in summary_rows) + " |"]
     lines.append("| --- |" + " --- |" * len(summary_rows))
     categories = sorted({cat for row in summary_rows for cat in row["by_category"]})
     for category in categories:
         lines.append(f"| {category} | " + " | ".join(r["by_category"].get(category, "–") for r in summary_rows) + " |")
-    path = Path(args.out) / "redteam_summary.md"
+    path = Path(args.out) / suffixed("redteam_summary.md", engine)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
     print(f"wrote {path}")

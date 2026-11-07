@@ -200,3 +200,8 @@
 .ea-bars__value { margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
 .ea-bars__axis { display: flex; gap: 2px; }
 .ea-bars__axis span { flex: 1; color: var(--muted); font-size: 11px; text-align: center; }
+.ea-citations { margin-top: 8px; font-size: 0.92em; }
+.ea-citations summary { cursor: pointer; color: var(--muted); }
+.ea-citations ul { margin: 6px 0 0; padding-left: 18px; }
+.ea-citations blockquote { margin: 2px 0 6px; color: var(--muted); }
+.ea-followups { margin-top: 8px; }

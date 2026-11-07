@@ -15,6 +15,8 @@ PRICES: dict[str, tuple[float, float]] = {
     "claude-opus-5-5": (4.0, 20.0),
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-haiku-5-5": (0.10, 0.50),
+    # The model the Dify apps in infra/dify/ use; the unit prices Dify itself reports in message_end.
+    "gpt-4o-mini": (0.15, 0.60),
 }
 
 

@@ -1,4 +1,5 @@
 import json
+import uuid
 
 import pytest
 from langfuse import Langfuse
@@ -13,7 +14,10 @@ from tests.helpers import chat, class_with_student
 def spans(monkeypatch, fake_llm):
     """Turns tracing on with an in-memory exporter (nothing leaves the process) and returns the exported spans."""
     exporter = InMemorySpanExporter()
-    client = Langfuse(public_key="pk-test", secret_key="sk-test", span_exporter=exporter, mask=tracing._mask)
+    # A key per test: Langfuse keeps one resource manager per public key, and the previous test shut its own down.
+    client = Langfuse(
+        public_key=f"pk-test-{uuid.uuid4()}", secret_key="sk-test", span_exporter=exporter, mask=tracing._mask
+    )
     monkeypatch.setattr(tracing, "get_langfuse", lambda: client)
     use_chat_model(tracing.TracedChatModel(fake_llm))
 
@@ -48,3 +52,20 @@ async def test_chat_turn_is_one_trace_with_nodes_and_generations(as_user, fake_l
     payload = json.dumps([attrs(span) for span in exported], ensure_ascii=False)
     assert "0912345678" not in payload
     assert "Chào em!" in attrs(root)["langfuse.observation.output"]
+
+
+async def test_dify_turn_traces_triage_and_run_agent(as_user, dify, spans) -> None:
+    _, student, _, room = await class_with_student(as_user)
+    await chat(student, "So sánh phân số, số của em là 0912345678", class_id=room["id"])
+
+    exported = spans()
+    by_name = {span.name: span for span in exported}
+    assert {"chat", "triage", "run_agent"} <= set(by_name)
+    assert len({span.context.trace_id for span in exported}) == 1
+    root = by_name["chat"]
+    assert by_name["triage"].parent.span_id == root.context.span_id
+    assert by_name["run_agent"].parent.span_id == root.context.span_id
+    root_attrs = json.dumps(attrs(root), ensure_ascii=False)
+    # The ids to find the same turn in Dify's own logs.
+    assert "dify_message_id" in root_attrs and "dify_conversation_id" in root_attrs
+    assert "0912345678" not in json.dumps([attrs(span) for span in exported], ensure_ascii=False)

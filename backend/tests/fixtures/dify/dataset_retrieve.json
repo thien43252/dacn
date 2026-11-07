@@ -1,0 +1,45 @@
+{
+ "query": {
+  "content": "so sánh phân số"
+ },
+ "records": [
+  {
+   "segment": {
+    "id": "d6f099c5-9ec7-4240-81c3-e1f7abe88990",
+    "position": 1,
+    "document_id": "8c71b3b5-540e-40bb-a910-3d6fc4cc9cea",
+    "content": "Phân số là số có dạng a/b với b khác 0.\n\nHai phân số bằng nhau khi a*d = b*c.\n\nĐể so sánh hai phân số, ta quy đồng mẫu số rồi so sánh tử số.",
+    "sign_content": null,
+    "answer": null,
+    "word_count": 140,
+    "tokens": 70,
+    "keywords": [],
+    "index_node_id": "d352d570-9ee2-4685-8938-ab71837f7233",
+    "index_node_hash": "33efefdd2c1849734a0aec1e625dd8c034d71141ce473e01697583ef9cd8e4c2",
+    "hit_count": 0,
+    "enabled": true,
+    "disabled_at": null,
+    "disabled_by": null,
+    "status": "completed",
+    "created_by": "00000000-0000-4000-8000-000000000001",
+    "created_at": 1794051810,
+    "indexing_at": 1794051810,
+    "completed_at": 1794051817,
+    "error": null,
+    "stopped_at": null,
+    "document": {
+     "id": "8c71b3b5-540e-40bb-a910-3d6fc4cc9cea",
+     "data_source_type": "upload_file",
+     "name": "phan-so.txt",
+     "doc_type": null,
+     "doc_metadata": null
+    }
+   },
+   "child_chunks": [],
+   "score": 0.6941353678703308,
+   "tsne_position": null,
+   "files": [],
+   "summary": null
+  }
+ ]
+}

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from sqlalchemy import select
 
+from app import tracing
 from app.agents.manifest import FALLBACK_SLUG
 from app.agents.service import ResolvedAgent, available_agents
 from app.audit.models import GuardEvent
@@ -103,6 +104,9 @@ class Turn:
         self.message_id = str(uuid.uuid4())
         self.usage: list[tuple[str, Usage, int]] = []
         self.guard: list[dict[str, str]] = []
+        self.trace: tracing.Trace | None = None
+        # The class in the database (None in personal chat and in a simulated certification class).
+        self.class_id: str | None = room.id if room else None
 
     def log(
         self,
@@ -118,7 +122,7 @@ class Turn:
         self.db.add(
             GuardEvent(
                 source=self.kind,
-                class_id=self.room.id if self.room else None,
+                class_id=self.class_id,
                 user_id=self.user.id,
                 role=self.role,
                 conversation_id=self.conversation.id,
@@ -144,17 +148,19 @@ async def run_dify_turn(
     *,
     agents_override: list[ResolvedAgent] | None = None,
     kind: str = "chat",
+    simulated_room: ClassRoom | None = None,
 ) -> AsyncIterator[str]:
     """One chat turn on Dify (runtime_engine "dify"). Same SSE protocol as the LangGraph engine (contracts/chat-sse.md)."""
     operation_id = str(uuid.uuid4())
     yield sse({"type": "operation", "operation_id": operation_id, "resume_supported": False})
     async with session_factory()() as db:
         user = await db.get(User, user_id)
-        room = await db.get(ClassRoom, class_id) if class_id else None
+        # Certification and eval run in an unsaved, simulated class (its policy applies; there is no membership).
+        room = await db.get(ClassRoom, class_id) if class_id else simulated_room
         assert user is not None
 
         # Consent gate (FR-015): without a guardian's consent nothing is sent to Dify and nothing is stored.
-        if role == "student" and room is not None and not await classes.student_can_use_agents(db, room, user.id):
+        if role == "student" and class_id and not await classes.student_can_use_agents(db, room, user.id):
             yield sse(
                 {"type": "notice", "message_id": operation_id, "kind": "consent_required", "text": CONSENT_REQUIRED}
             )
@@ -171,6 +177,7 @@ async def run_dify_turn(
             await db.flush()
         assert conversation is not None
         turn = Turn(db, user, role, room, conversation, kind)
+        turn.class_id = class_id  # None for a simulated class: nothing to reference in the database
         turn.message_id = operation_id
         yield sse({"type": "conversation", "conversation_id": conversation.id})
 
@@ -198,14 +205,23 @@ async def run_dify_turn(
 
         agents = agents_override or await available_agents(db, user, room, role)
         client = make_client()
-        answer = _answer(turn, client, agents, text, payload, previous_agent, user_message)
-        try:
-            async for event in answer:
-                yield event
-        finally:
-            # Close the inner generator first: when the client went away it still has to call Dify's stop API.
-            await answer.aclose()
-            await client.http.aclose()
+        with tracing.start_trace(
+            kind,
+            user_id=user.id,
+            session_id=conversation.id,
+            tags=[kind, role, "dify"],
+            metadata={"class_id": class_id, "message_id": turn.message_id, "engine": "dify"},
+            input=text,
+        ) as trace:
+            turn.trace = trace
+            answer = _answer(turn, client, agents, text, payload, previous_agent, user_message)
+            try:
+                async for event in answer:
+                    yield event
+            finally:
+                # Close the inner generator first: when the client went away it still has to call Dify's stop API.
+                await answer.aclose()
+                await client.http.aclose()
 
 
 async def _answer(
@@ -236,16 +252,19 @@ async def _answer(
     requested = payload.agent or (agents[0].slug if len(agents) == 1 else "")
     try:
         triage_started = time.perf_counter()
-        triage = await client.run_triage(
-            {
-                "query": text,
-                "role": turn.role,
-                "roster": roster_of(agents),
-                "requested_agent": requested if requested in {a.slug for a in agents} else "",
-                "previous_agent": previous_agent or "",
-            },
-            user=turn.user.id,
-        )
+        with tracing.node(turn.trace, "triage", as_type="chain", input=text) as span:
+            triage = await client.run_triage(
+                {
+                    "query": text,
+                    "role": turn.role,
+                    "roster": roster_of(agents),
+                    "requested_agent": requested if requested in {a.slug for a in agents} else "",
+                    "previous_agent": previous_agent or "",
+                },
+                user=turn.user.id,
+            )
+            if span is not None:
+                span.update(output={"verdict": triage.verdict, "category": triage.category, "agent": triage.agent})
         if triage.usage:
             turn.usage.append(("triage", triage.usage, int((time.perf_counter() - triage_started) * 1000)))
     except DifyError as error:
@@ -310,6 +329,11 @@ async def _answer(
     finished = False
 
     async def pump() -> None:
+        # Runs in its own task without yields, so the span stays current for its whole run.
+        with tracing.node(turn.trace, "run_agent", as_type="agent", input=text):
+            await stream()
+
+    async def stream() -> None:
         conversation_id = turn.conversation.dify_conversation_id or ""
         try:
             try:
@@ -412,15 +436,93 @@ async def _answer(
         user_message.status = "blocked"
     else:
         status = "ok"
+    if status == "ok" and shown.strip():
+        verdict = await _review(client, turn, text, shown)
+        if verdict is not None:
+            # Retract the streamed answer, as the old engine's output guard did.
+            turn.log("output", "block", verdict.category, "dify_review", verdict.reason, shown, agent.slug)
+            presets = dify_rules.presets()
+            shown = presets["answer_withheld" if verdict.category == "academic_integrity" else "output_blocked"]
+            reply = shown
+            status, blocked_stage = "blocked", "output"
+            yield sse({"type": "text_reset", "message_id": message_id, "generation": 1})
+            yield sse(
+                {"type": "text_delta", "message_id": message_id, "generation": 1, "text_offset": 0, "delta": shown}
+            )
+    extras: dict[str, Any] = {}
+    if status == "ok":
+        # Sources and follow-up questions only for an answer that stands (not blocked, not replaced).
+        if context.citations:
+            extras["citations"] = context.citations
+            yield sse({"type": "citations", "message_id": message_id, "items": context.citations})
+        suggestions = await _suggestions(client, dify_message_id, turn.user.id)
+        if suggestions:
+            extras["suggestions"] = suggestions
+            yield sse({"type": "suggestions", "message_id": message_id, "items": suggestions})
     meta = {
         "dify_message_id": dify_message_id,
         "route_reason": route_reason,
         "tools": tool_events,
+        **extras,
         **({"blocked_stage": blocked_stage} if blocked_stage else {}),
         **({"error": error_text[:300]} if error_text else {}),
     }
+    if turn.trace is not None:
+        turn.trace.update(
+            output=reply,
+            level={"blocked": "WARNING", "error": "ERROR"}.get(status),
+            metadata={
+                "status": status,
+                "agent": agent.slug,
+                "dify_message_id": dify_message_id,
+                "dify_conversation_id": turn.conversation.dify_conversation_id,
+            },
+        )
     await _store(turn, agent, reply, status, meta, started, context.usage)
     yield sse({"type": "done", "message_id": message_id, "status": status, "agent": agent.slug})
+
+
+MAX_SUGGESTIONS = 3
+
+
+async def _review(client: DifyClient, turn: Turn, question: str, answer: str):
+    """eduagent-review for students and parents (teachers get answer keys by design). Returns the blocking verdict, or
+    None to keep the answer; a failed review keeps it too, as the old engine did (the runner's keyword moderation
+    already ran)."""
+    if turn.role == "teacher" or not client.settings.dify_review_key:
+        return None
+    no_answers = bool((turn.room.policy or {}).get("no_direct_answers", True)) if turn.room else False
+    started = time.perf_counter()
+    try:
+        with tracing.node(turn.trace, "review", as_type="guardrail", input=answer[:2000]):
+            result = await client.run_review(
+                {
+                    "question": question[:4000],
+                    "reply": answer[:12000],
+                    "role": turn.role,
+                    "no_direct_answers": "true" if no_answers and turn.role == "student" else "false",
+                },
+                user=turn.user.id,
+            )
+    except DifyError as error:
+        log.warning("review failed, answer kept: %s", error)
+        return None
+    if result.usage:
+        turn.usage.append(("output_guard", result.usage, int((time.perf_counter() - started) * 1000)))
+    return result if result.verdict == "block" else None
+
+
+async def _suggestions(client: DifyClient, dify_message_id: str | None, user_id: str) -> list[str]:
+    """Dify's follow-up questions, filtered with the runner's own keyword moderation (FR-022). Failures are skipped."""
+    if not dify_message_id:
+        return []
+    try:
+        questions = await client.get_suggested(dify_message_id, user_id)
+    except (DifyError, httpx.HTTPError) as error:
+        log.info("no suggested questions: %s", error)
+        return []
+    kept = [q.strip()[:200] for q in questions if q.strip() and not dify_rules.contains_blocked_keyword(q)]
+    return kept[:MAX_SUGGESTIONS]
 
 
 async def _store(
@@ -451,5 +553,5 @@ async def _store(
     )
     turn.conversation.updated_at = datetime.now(UTC)
     usage = turn.usage + [(purpose, item, 0) for purpose, item in tool_usage]
-    record_usage(turn.db, turn.user.id, turn.room.id if turn.room else None, turn.conversation.id, usage)
+    record_usage(turn.db, turn.user.id, turn.class_id, turn.conversation.id, usage)
     await turn.db.commit()

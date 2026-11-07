@@ -132,14 +132,14 @@ phải fail trước khi làm phần tương ứng.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T046 [P] [US3] Cập nhật `backend/tests/test_certify.py`: với `runtime_engine="dify"`, mỗi tình huống gọi runner bằng khóa `DIFY_RUNNER_RAW_KEY`, `conversation_id=""` (FR-019), không gọi triage, `requested_agent` cố định; kết quả vẫn là đạt / cần xem lại / không đạt
-- [ ] T047 [P] [US3] Test trong `backend/tests/test_runtime_dify.py`: chat thường KHÔNG bao giờ dùng `DIFY_RUNNER_RAW_KEY`; sandbox chỉ gửi `roster` gồm agent đang thử
+- [X] T046 [P] [US3] Cập nhật `backend/tests/test_certify.py`: với `runtime_engine="dify"`, mỗi tình huống gọi runner bằng khóa `DIFY_RUNNER_RAW_KEY`, `conversation_id=""` (FR-019), không gọi triage, `requested_agent` cố định; kết quả vẫn là đạt / cần xem lại / không đạt
+- [X] T047 [P] [US3] Test trong `backend/tests/test_runtime_dify.py`: chat thường KHÔNG bao giờ dùng `DIFY_RUNNER_RAW_KEY`; sandbox chỉ gửi `roster` gồm agent đang thử
 
 ### Implementation for User Story 3
 
 - [X] T048 [P] [US3] Tạo `infra/dify/eduagent-runner-raw.yml`: bản sao `eduagent-runner.yml`, tắt kiểm duyệt nội dung; ghi trong `infra/dify/README.md` rằng hai file phải giữ giống nhau ngoài phần kiểm duyệt
-- [ ] T049 [US3] Trong `backend/app/certify/pipeline.py`, `run_case()` gọi qua `backend/app/runtime/engine.py`: nhánh `dify` dùng `dify_client.stream_runner(raw=True)` với hội thoại mới, handle cho agent đang kiểm định trong lớp mô phỏng, gom câu trả lời rồi đưa giám khảo LLM ở backend như hiện nay; nhánh `langgraph` giữ `guard_mode="prompt_only"`
-- [ ] T050 [US3] Kiểm tra `backend/app/agents/sandbox.py` + `backend/app/agents/router.py`: phiên bản agent mới tạo dùng được ngay trên Dify qua `system_prompt` input và `allowed_tools` trong handle (FR-017); học sinh/phụ huynh chỉ thấy phiên bản đã đạt trong `roster` (FR-018); thêm test `@pytest.mark.dify` trong `backend/tests/test_runtime_dify.py` chạy một câu hỏi qua từng agent trong 7 agent nền tảng sau `seed_demo` (US3 kịch bản 4)
+- [X] T049 [US3] Trong `backend/app/certify/pipeline.py`, `run_case()` gọi qua `backend/app/runtime/engine.py`: nhánh `dify` dùng `dify_client.stream_runner(raw=True)` với hội thoại mới, handle cho agent đang kiểm định trong lớp mô phỏng, gom câu trả lời rồi đưa giám khảo LLM ở backend như hiện nay; nhánh `langgraph` giữ `guard_mode="prompt_only"`
+- [X] T050 [US3] Kiểm tra `backend/app/agents/sandbox.py` + `backend/app/agents/router.py`: phiên bản agent mới tạo dùng được ngay trên Dify qua `system_prompt` input và `allowed_tools` trong handle (FR-017); học sinh/phụ huynh chỉ thấy phiên bản đã đạt trong `roster` (FR-018); thêm test `@pytest.mark.dify` trong `backend/tests/test_runtime_dify.py` chạy một câu hỏi qua từng agent trong 7 agent nền tảng sau `seed_demo` (US3 kịch bản 4)
 
 **Checkpoint**: Kịch bản 10 đạt; test T046–T047 pass.
 
@@ -153,17 +153,17 @@ phải fail trước khi làm phần tương ứng.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T051 [P] [US4] Test trong `backend/tests/test_runtime_dify.py`: sau `message_end`, gọi `GET /v1/messages/{message_id}/suggested`, bỏ câu chứa từ khóa của `moderation-keywords.txt`, giữ tối đa 3, phát `suggestions` trước `done`; lượt có `class_doc_search` phát `citations` với `items: [{document_id, title, location, excerpt}]`, `excerpt` ≤ 300 ký tự; lượt bị chặn hoặc có `message_replace` không phát cả hai; `meta.citations` và `meta.suggestions` được lưu
-- [ ] T052 [P] [US4] Test web trong `web/src/components/chat/chat.test.tsx`: tin nhắn có `citations` hiện tên tài liệu + đoạn trích; có `suggestions` hiện nút, nhấn nút gọi hàm gửi với đúng nội dung; tin nhắn bị chặn không hiện cả hai
+- [X] T051 [P] [US4] Test trong `backend/tests/test_runtime_dify.py`: sau `message_end`, gọi `GET /v1/messages/{message_id}/suggested`, bỏ câu chứa từ khóa của `moderation-keywords.txt`, giữ tối đa 3, phát `suggestions` trước `done`; lượt có `class_doc_search` phát `citations` với `items: [{document_id, title, location, excerpt}]`, `excerpt` ≤ 300 ký tự; lượt bị chặn hoặc có `message_replace` không phát cả hai; `meta.citations` và `meta.suggestions` được lưu
+- [X] T052 [P] [US4] Test web trong `web/src/components/chat/chat.test.tsx`: tin nhắn có `citations` hiện tên tài liệu + đoạn trích; có `suggestions` hiện nút, nhấn nút gọi hàm gửi với đúng nội dung; tin nhắn bị chặn không hiện cả hai
 
 ### Implementation for User Story 4
 
-- [ ] T053 [US4] Handler `class_doc_search` trong `backend/app/tools/registry.py` thêm mỗi kết quả vào `handle.citations` dưới dạng `{document_id, title, location, excerpt}` (`excerpt` cắt 300 ký tự, bỏ trùng theo `document_id` + `location`)
-- [ ] T054 [US4] Trong `backend/app/runtime/dify_turn.py`: khi lượt `ok`, phát `citations` (nếu có) rồi `suggestions` (lọc bằng `contains_blocked_keyword()` của T038, và qua OpenAI Moderation khi có khóa như kiểm duyệt đầu ra của runner (FR-022); tối đa 3; lỗi API suggested thì bỏ qua) trước `done`; lưu vào `meta.citations` / `meta.suggestions`
-- [ ] T055 [US4] `GET /api/chat/conversations/{id}/messages` trong `backend/app/chat/router.py` trả `meta.citations` và `meta.suggestions` để hiển thị lại
-- [ ] T056 [P] [US4] Thêm kiểu sự kiện `citations` và `suggestions` (contracts/chat-sse.md) và trường `citations?`, `suggestions?` cho tin nhắn trong `web/src/api-client/types.ts`
-- [ ] T057 [US4] Xử lý sự kiện `citations`/`suggestions` trong `web/src/components/ChatPanel.tsx` (gắn vào tin nhắn theo `message_id`, xóa khi có `text_reset`, nhận lại từ lịch sử)
-- [ ] T058 [US4] Hiển thị khối trích dẫn (tên tài liệu, vị trí, đoạn trích thu gọn) và hàng nút câu hỏi gợi ý trong `web/src/components/chat/MessageBody.tsx`; chỉ hiện nút gợi ý ở tin nhắn cuối cùng
+- [X] T053 [US4] Handler `class_doc_search` trong `backend/app/tools/registry.py` thêm mỗi kết quả vào `handle.citations` dưới dạng `{document_id, title, location, excerpt}` (`excerpt` cắt 300 ký tự, bỏ trùng theo `document_id` + `location`)
+- [X] T054 [US4] Trong `backend/app/runtime/dify_turn.py`: khi lượt `ok`, phát `citations` (nếu có) rồi `suggestions` (lọc bằng `contains_blocked_keyword()` của T038, và qua OpenAI Moderation khi có khóa như kiểm duyệt đầu ra của runner (FR-022); tối đa 3; lỗi API suggested thì bỏ qua) trước `done`; lưu vào `meta.citations` / `meta.suggestions`
+- [X] T055 [US4] `GET /api/chat/conversations/{id}/messages` trong `backend/app/chat/router.py` trả `meta.citations` và `meta.suggestions` để hiển thị lại
+- [X] T056 [P] [US4] Thêm kiểu sự kiện `citations` và `suggestions` (contracts/chat-sse.md) và trường `citations?`, `suggestions?` cho tin nhắn trong `web/src/api-client/types.ts`
+- [X] T057 [US4] Xử lý sự kiện `citations`/`suggestions` trong `web/src/components/ChatPanel.tsx` (gắn vào tin nhắn theo `message_id`, xóa khi có `text_reset`, nhận lại từ lịch sử)
+- [X] T058 [US4] Hiển thị khối trích dẫn (tên tài liệu, vị trí, đoạn trích thu gọn) và hàng nút câu hỏi gợi ý trong `web/src/components/chat/MessageBody.tsx`; chỉ hiện nút gợi ý ở tin nhắn cuối cùng
 
 **Checkpoint**: Kịch bản 7 đạt; test T051–T052 pass.
 
@@ -177,18 +177,18 @@ phải fail trước khi làm phần tương ứng.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T059 [P] [US5] Test `backend/tests/test_dify_datasets.py` bằng `MockTransport`: tạo kho tên `class-<class_id>` khi lớp có tài liệu đầu tiên và lưu `classes.dify_dataset_id`; tải lên lưu `dify_document_id` + `dify_batch`, `status="processing"`; `indexing_status_completed.json` → `ready` và `chunk_count` = số segment; `indexing_status_error.json` → `failed`, `error` cắt 500 ký tự; xử lý lại = xóa tài liệu Dify cũ rồi tạo lại; xóa tài liệu: Dify lỗi → bản ghi giữ nguyên và API báo lỗi
-- [ ] T060 [P] [US5] Cập nhật `backend/tests/test_documents_tools.py`: với `runtime_engine="dify"`, `class_doc_search` gọi `POST /v1/datasets/{id}/retrieve` với `id` lấy từ `handle.dataset_id`, không bao giờ từ tham số mô hình; handle lớp B không thể tra kho lớp A; chat cá nhân (không `class_id`) bị từ chối; kết quả giữ dạng `{"results": [{document_id, title, location, score, content}], "note"}`; thêm test `@pytest.mark.dify` cách ly thật: tài liệu ở kho lớp A, handle lớp B hỏi đúng nội dung đó → 0 kết quả (SC-007)
+- [X] T059 [P] [US5] Test `backend/tests/test_dify_datasets.py` bằng `MockTransport`: tạo kho tên `class-<class_id>` khi lớp có tài liệu đầu tiên và lưu `classes.dify_dataset_id`; tải lên lưu `dify_document_id` + `dify_batch`, `status="processing"`; `indexing_status_completed.json` → `ready` và `chunk_count` = số segment; `indexing_status_error.json` → `failed`, `error` cắt 500 ký tự; xử lý lại = xóa tài liệu Dify cũ rồi tạo lại; xóa tài liệu: Dify lỗi → bản ghi giữ nguyên và API báo lỗi
+- [X] T060 [P] [US5] Cập nhật `backend/tests/test_documents_tools.py`: với `runtime_engine="dify"`, `class_doc_search` gọi `POST /v1/datasets/{id}/retrieve` với `id` lấy từ `handle.dataset_id`, không bao giờ từ tham số mô hình; handle lớp B không thể tra kho lớp A; chat cá nhân (không `class_id`) bị từ chối; kết quả giữ dạng `{"results": [{document_id, title, location, score, content}], "note"}`; thêm test `@pytest.mark.dify` cách ly thật: tài liệu ở kho lớp A, handle lớp B hỏi đúng nội dung đó → 0 kết quả (SC-007)
 
 ### Implementation for User Story 5
 
-- [ ] T061 [US5] Tạo `backend/app/knowledge/dify_datasets.py` (nhận `httpx.AsyncClient`, khóa `DIFY_DATASET_KEY`): `create_dataset(class_id)`, `upload_document(dataset_id, filename, bytes)` → `(document_id, batch)`, `indexing_status(dataset_id, batch)`, `delete_document(dataset_id, document_id)`, `delete_dataset(dataset_id)`, `retrieve(dataset_id, query, top_k)` theo bảng mục 4 của contracts/dify-apps.md
-- [ ] T062 [US5] Trong `backend/app/knowledge/service.py` (khi `runtime_engine="dify"`): tải lên → tạo kho nếu `classes.dify_dataset_id` null, đẩy file, lưu `dify_document_id`/`dify_batch`; xử lý lại → xóa rồi tạo lại từ file đã lưu, `failed → processing`; xóa → xóa trong Dify trước rồi mới xóa bản ghi; cập nhật trạng thái theo sơ đồ chuyển trạng thái của data-model.md
-- [ ] T063 [US5] `GET /api/classes/{id}/documents` trong `backend/app/knowledge/router.py`: tài liệu đang `processing` thì hỏi `indexing_status` và cập nhật `status` trước khi trả về (FR-021)
-- [ ] T064 [US5] Xóa lớp trong `backend/app/classes/service.py`: gọi `delete_dataset()` best effort (lỗi chỉ ghi log, không chặn việc xóa lớp)
-- [ ] T065 [US5] `class_doc_search` và phần tra tài liệu của `quiz_generator` trong `backend/app/tools/impl.py`: nhánh `dify` gọi `retrieve()` trên `handle.dataset_id`, map kết quả sang dạng hiện tại và thêm `document_id`; `dataset_id` null → `{"results": [], "note": ...}` như khi lớp chưa có tài liệu
-- [ ] T066 [US5] Điền `dataset_id` vào handle từ `classes.dify_dataset_id` khi tạo handle trong `backend/app/runtime/dify_turn.py`
-- [ ] T067 [US5] `backend/scripts/seed_demo.py`: khi `runtime_engine="dify"`, đẩy tài liệu demo của lớp sang kho Dify của lớp và chờ indexing xong (timeout có thông báo)
+- [X] T061 [US5] Tạo `backend/app/knowledge/dify_datasets.py` (nhận `httpx.AsyncClient`, khóa `DIFY_DATASET_KEY`): `create_dataset(class_id)`, `upload_document(dataset_id, filename, bytes)` → `(document_id, batch)`, `indexing_status(dataset_id, batch)`, `delete_document(dataset_id, document_id)`, `delete_dataset(dataset_id)`, `retrieve(dataset_id, query, top_k)` theo bảng mục 4 của contracts/dify-apps.md
+- [X] T062 [US5] Trong `backend/app/knowledge/service.py` (khi `runtime_engine="dify"`): tải lên → tạo kho nếu `classes.dify_dataset_id` null, đẩy file, lưu `dify_document_id`/`dify_batch`; xử lý lại → xóa rồi tạo lại từ file đã lưu, `failed → processing`; xóa → xóa trong Dify trước rồi mới xóa bản ghi; cập nhật trạng thái theo sơ đồ chuyển trạng thái của data-model.md
+- [X] T063 [US5] `GET /api/classes/{id}/documents` trong `backend/app/knowledge/router.py`: tài liệu đang `processing` thì hỏi `indexing_status` và cập nhật `status` trước khi trả về (FR-021)
+- [X] T064 [US5] Xóa lớp trong `backend/app/classes/service.py`: gọi `delete_dataset()` best effort (lỗi chỉ ghi log, không chặn việc xóa lớp). **Không áp dụng (2026-11-07)**: nền tảng không có chức năng xóa lớp (chỉ lưu trữ `archived`), nên chưa có chỗ gọi; `DifyDatasets.delete_dataset()` đã có sẵn khi thêm chức năng này
+- [X] T065 [US5] `class_doc_search` và phần tra tài liệu của `quiz_generator` trong `backend/app/tools/impl.py`: nhánh `dify` gọi `retrieve()` trên `handle.dataset_id`, map kết quả sang dạng hiện tại và thêm `document_id`; `dataset_id` null → `{"results": [], "note": ...}` như khi lớp chưa có tài liệu
+- [X] T066 [US5] Điền `dataset_id` vào handle từ `classes.dify_dataset_id` khi tạo handle trong `backend/app/runtime/dify_turn.py`
+- [X] T067 [US5] `backend/scripts/seed_demo.py`: khi `runtime_engine="dify"`, đẩy tài liệu demo của lớp sang kho Dify của lớp và chờ indexing xong (timeout có thông báo)
 
 **Checkpoint**: Kịch bản 8 đạt; test T059–T060 pass.
 
@@ -202,16 +202,16 @@ phải fail trước khi làm phần tương ứng.
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T068 [P] [US6] Test trong `backend/tests/test_runtime_dify.py`: một lượt `ok` ghi 2 dòng `usage_ledger` (`purpose="triage"` từ `data.total_tokens`, `purpose="agent"` từ `metadata.usage` của `message_end`), `provider="dify"`; lượt bị chặn ở triage chỉ có dòng `triage`
-- [ ] T069 [P] [US6] Cập nhật `backend/tests/test_eval_scripts.py`: `run_redteam.py`, `run_routing.py`, `run_certify.py` nhận `--engine langgraph|dify` và kết quả có cột `engine`
+- [X] T068 [P] [US6] Test trong `backend/tests/test_runtime_dify.py`: một lượt `ok` ghi 2 dòng `usage_ledger` (`purpose="triage"` từ `data.total_tokens`, `purpose="agent"` từ `metadata.usage` của `message_end`), `provider="dify"`; lượt bị chặn ở triage chỉ có dòng `triage`
+- [X] T069 [P] [US6] Cập nhật `backend/tests/test_eval_scripts.py`: `run_redteam.py`, `run_routing.py`, `run_certify.py` nhận `--engine langgraph|dify` và kết quả có cột `engine`
 
 ### Implementation for User Story 6
 
-- [ ] T070 [US6] Ghi usage trong `backend/app/runtime/dify_turn.py` qua `record_usage()` của `backend/app/chat/router.py`: purpose `triage` và `agent`, `model` từ metadata Dify, `cost_usd` dùng giá Dify báo nếu có, nếu không tính theo bảng giá hiện có
-- [ ] T071 [US6] Đảm bảo trang chi phí (`backend/app/audit/` và `web/src/features/audit/AuditPages.tsx`) hiển thị được purpose `triage` (nhãn "Định tuyến & kiểm duyệt")
-- [ ] T072 [US6] Tracing trong `backend/app/runtime/dify_turn.py` qua `backend/app/tracing.py`: span `triage` và `run_agent` bọc lời gọi Dify, gắn `dify_message_id` và `dify_conversation_id` vào metadata; ghi trong `infra/dify/README.md` cách bật Langfuse trong Dify
-- [ ] T073 [US6] Thêm `--engine` vào `eval/harness.py`, `eval/run_redteam.py`, `eval/run_routing.py`, `eval/run_certify.py` (đặt `runtime_engine` tương ứng) và cột `engine` + độ trễ chữ đầu tiên trong file kết quả `eval/results/`
-- [ ] T074 [US6] Chạy cả ba script với `langgraph` và `dify` (cần Dify thật), điền bảng so sánh (tỉ lệ chặn, chặn nhầm, định tuyến, độ trễ p95, chi phí mỗi lượt) vào `docs/BAO-CAO.md`; `eval/run_redteam.py` đối chiếu mỗi lần chặn với một bản ghi `guard_events` và báo tỉ lệ có bản ghi (SC-006 yêu cầu 100%); nếu vượt ngưỡng SC-002/SC-003/SC-004 thì ghi rõ và báo người dùng trước khi sang Phase 9
+- [X] T070 [US6] Ghi usage trong `backend/app/runtime/dify_turn.py` qua `record_usage()` của `backend/app/chat/router.py`: purpose `triage` và `agent`, `model` từ metadata Dify, `cost_usd` dùng giá Dify báo nếu có, nếu không tính theo bảng giá hiện có
+- [X] T071 [US6] Đảm bảo trang chi phí (`backend/app/audit/` và `web/src/features/audit/AuditPages.tsx`) hiển thị được purpose `triage` (nhãn "Định tuyến & kiểm duyệt")
+- [X] T072 [US6] Tracing trong `backend/app/runtime/dify_turn.py` qua `backend/app/tracing.py`: span `triage` và `run_agent` bọc lời gọi Dify, gắn `dify_message_id` và `dify_conversation_id` vào metadata; ghi trong `infra/dify/README.md` cách bật Langfuse trong Dify
+- [X] T073 [US6] Thêm `--engine` vào `eval/harness.py`, `eval/run_redteam.py`, `eval/run_routing.py`, `eval/run_certify.py` (đặt `runtime_engine` tương ứng) và cột `engine` + độ trễ chữ đầu tiên trong file kết quả `eval/results/`
+- [X] T074 [US6] Chạy cả ba script với `langgraph` và `dify` (cần Dify thật), điền bảng so sánh (tỉ lệ chặn, chặn nhầm, định tuyến, độ trễ p95, chi phí mỗi lượt) vào `docs/BAO-CAO.md`; `eval/run_redteam.py` đối chiếu mỗi lần chặn với một bản ghi `guard_events` và báo tỉ lệ có bản ghi (SC-006 yêu cầu 100%); nếu vượt ngưỡng SC-002/SC-003/SC-004 thì ghi rõ và báo người dùng trước khi sang Phase 9
 
 **Checkpoint**: Kịch bản 12 đạt; có bảng so sánh (SC-009).
 
@@ -228,7 +228,7 @@ phải fail trước khi làm phần tương ứng.
 - [ ] T077 Migration `backend/migrations/versions/0007_drop_document_chunks.py` xóa bảng `document_chunks`; xóa model và code embedding pgvector trong `backend/app/knowledge/`
 - [ ] T078 Bỏ `langgraph` khỏi `backend/pyproject.toml`, chạy `uv lock`; `grep -ri langgraph backend/app eval web/src` phải rỗng
 - [ ] T079 [P] Cập nhật `README.md` (dựng Dify, biến môi trường, sơ đồ kiến trúc mới) ; `docs/DEMO.md` chỉ được thêm ghi chú, không sửa các bước (SC-001)
-- [ ] T080 [P] Thay `docs/PLAN-DIFY.md` (đang bị xóa trong working tree) bằng ghi chú ngắn trỏ tới `specs/001-dify-core-migration/`, hoặc xác nhận với người dùng việc xóa hẳn
+- [X] T080 [P] Thay `docs/PLAN-DIFY.md` (đang bị xóa trong working tree) bằng ghi chú ngắn trỏ tới `specs/001-dify-core-migration/`, hoặc xác nhận với người dùng việc xóa hẳn. **Xong (2026-11-07)**: người dùng đã xóa hẳn file trong commit `afc3ab2`; các chỗ còn nhắc tới nó trong spec chỉ để ghi lịch sử quyết định
 - [ ] T081 Chạy toàn bộ quickstart.md (mục 1–3 và E2E `cd web && npm run test:e2e`) và đi hết các bước của `docs/DEMO.md` không sửa kịch bản (SC-001) trên máy sạch, đo thời gian dựng (SC-008 ≤ 1 giờ), ghi lệch vào `infra/dify/README.md`
 - [ ] T082 Chạy lệnh kiểm tra backend + web ở đầu file; tất cả phải pass
 

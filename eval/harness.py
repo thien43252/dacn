@@ -1,8 +1,12 @@
 """Shared setup for the experiment scripts: an in-memory database with the platform agents and an eval user, so
 experiments never write into the demo database. The model provider comes from backend/.env (LLM_PROVIDER...).
+
+Every script takes `--engine langgraph|dify` (FR-024): `use_engine()` sets RUNTIME_ENGINE before anything reads the
+settings; the Dify engine needs DIFY_BASE_URL and the app keys in .env.
 """
 
 import csv
+import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -16,9 +20,30 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 import app.models  # noqa: E402,F401
 from app.agents.service import sync_platform_agents  # noqa: E402
 from app.auth.models import Role, User  # noqa: E402
+from app.config import get_settings  # noqa: E402
 from app.db import Base, use_sessionmaker  # noqa: E402
 
 RESULTS = ROOT / "results"
+ENGINES = ["langgraph", "dify"]
+
+
+def use_engine(engine: str) -> str:
+    os.environ["RUNTIME_ENGINE"] = engine
+    get_settings.cache_clear()
+    return engine
+
+
+def suffixed(name: str, engine: str) -> str:
+    """Result file names: unchanged for langgraph (earlier results stay comparable), `<stem>_dify<ext>` for Dify."""
+    if engine == "langgraph":
+        return name
+    stem, dot, ext = name.rpartition(".")
+    return f"{stem}_{engine}{dot}{ext}"
+
+
+def percentile(values: list[int], q: float) -> int:
+    values = sorted(v for v in values if v is not None)
+    return values[min(len(values) - 1, int(len(values) * q))] if values else 0
 
 
 async def setup() -> tuple[async_sessionmaker[AsyncSession], User]:

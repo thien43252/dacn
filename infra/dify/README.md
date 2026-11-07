@@ -79,6 +79,7 @@ Studio → Import DSL file, lần lượt:
 | `eduagent-triage.yml` | Workflow | `DIFY_TRIAGE_KEY` |
 | `eduagent-runner.yml` | Chatflow | `DIFY_RUNNER_KEY` |
 | `eduagent-runner-raw.yml` | Chatflow (tắt kiểm duyệt) | `DIFY_RUNNER_RAW_KEY` |
+| `eduagent-review.yml` | Workflow | `DIFY_REVIEW_KEY` |
 
 `eduagent-runner.yml` và `eduagent-runner-raw.yml` phải giống nhau ngoài phần kiểm duyệt nội dung.
 
@@ -101,9 +102,18 @@ Studio → Import DSL file, lần lượt:
    rồi import lại `eduagent-runner.yml` trong Studio. Dify chỉ cho một loại kiểm duyệt mỗi ứng dụng (keywords,
    OpenAI Moderation hoặc API extension), nên runner dùng keywords; OpenAI Moderation không bật cùng lúc được.
 
+## Tracing
+
+- Backend tự ghi trace của mỗi lượt Dify vào Langfuse (khi có `LANGFUSE_*` trong `.env`): span `triage` và
+  `run_agent`, metadata có `dify_message_id` và `dify_conversation_id` để tìm đúng lượt đó trong log của Dify.
+- Muốn xem cả từng node bên trong Dify: mở từng app trong Studio → **Monitoring** → **Tracing app performance** →
+  **Langfuse**, điền Public Key, Secret Key và Host giống `.env`. Dify gửi trace riêng của nó (không nối vào trace
+  của backend); tìm theo `dify_conversation_id`.
+
 ## API key
 
-- Mỗi ứng dụng: API Access → tạo key → chép vào `.env` (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`).
+- Mỗi ứng dụng: API Access → tạo key → chép vào `.env` (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`,
+  `DIFY_REVIEW_KEY`).
 - Knowledge → API → tạo key → `DIFY_DATASET_KEY`.
 - Đặt `RUNTIME_ENGINE=dify`, khởi động lại backend, chạy `uv run python -m scripts.seed_demo`.
 

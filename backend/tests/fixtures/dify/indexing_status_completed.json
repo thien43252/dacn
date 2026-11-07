@@ -1,0 +1,21 @@
+{
+ "data": [
+  {
+   "id": "8c71b3b5-540e-40bb-a910-3d6fc4cc9cea",
+   "indexing_status": "completed",
+   "processing_started_at": 1794051807,
+   "parsing_completed_at": 1794051807,
+   "cleaning_completed_at": 1794051810,
+   "splitting_completed_at": 1794051810,
+   "completed_at": 1794051817,
+   "paused_at": null,
+   "error": null,
+   "error_code": null,
+   "estimated_vector_space_mb": null,
+   "vector_space_limit_mb": null,
+   "stopped_at": null,
+   "completed_segments": 1,
+   "total_segments": 1
+  }
+ ]
+}

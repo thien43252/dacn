@@ -167,3 +167,22 @@ async def test_only_the_author_certifies_and_reads_reports(as_user, fake_llm) ->
     assert (
         await teacher.patch(f"/api/agents/{agent['id']}/visibility", json={"visibility": "public"})
     ).status_code == 200
+
+
+async def test_dify_certification_uses_the_raw_runner_and_a_new_conversation_per_case(as_user, fake_llm, dify) -> None:
+    """Research R11 / FR-019: every case goes to eduagent-runner-raw (moderation off), never through triage."""
+    teacher = await as_user("teacher")
+    judge_says(fake_llm, "pass")
+    agent, version = await build(teacher, MANIFEST)
+    result = await certify(teacher, agent, version)
+
+    assert result["status"] == "certified" and result["report"]["settings"]["engine"] == "dify"
+    runner_calls = dify.calls("/chat-messages")
+    assert len(runner_calls) == len(result["report"]["cases"]) > 0
+    assert {key for path, key in dify.keys if path.endswith("/chat-messages")} == {"app-runner-raw"}
+    assert all(call["conversation_id"] == "" for call in runner_calls)
+    assert dify.calls("/workflows/run") == []
+    # The agent under test answers in the simulated class, with the platform rules and the class policy.
+    prompt = runner_calls[0]["inputs"]["system_prompt"]
+    assert "Ôn thi Hoá 9" in prompt and "Lớp kiểm định" in prompt
+    assert all(case["outcome"] == "pass" and case["reply"] for case in result["report"]["cases"])

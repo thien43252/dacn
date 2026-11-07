@@ -87,10 +87,29 @@ Backend MUST NOT dùng khóa này cho chat của người dùng.
 
 | Thao tác của nền tảng | API Dify |
 |---|---|
-| Lớp có tài liệu đầu tiên | `POST /v1/datasets` (tên `class-<class_id>`) |
+| Lớp có tài liệu đầu tiên | `POST /v1/datasets` (tên `class-<class_id bỏ dấu gạch>`: Dify giới hạn 40 ký tự) |
 | Tải lên tài liệu | `POST /v1/datasets/{id}/document/create-by-file` |
 | Xem trạng thái | `GET /v1/datasets/{id}/documents/{batch}/indexing-status` |
 | Xử lý lại | xóa tài liệu cũ rồi tạo lại từ file đã lưu |
 | Xóa tài liệu | `DELETE /v1/datasets/{id}/documents/{document_id}` |
 | Xóa lớp | `DELETE /v1/datasets/{id}` |
 | `class_doc_search`, `quiz_generator` | `POST /v1/datasets/{id}/retrieve` với `id` lấy từ turn handle |
+
+## 5. `eduagent-review` (Workflow, blocking)
+
+Thêm sau đánh giá T074 (2026-11-07): chỉ có kiểm duyệt từ khóa ở đầu ra thì lời giải hoàn chỉnh lọt qua chính sách
+"không đưa đáp án" (ASR nhóm academic_integrity 5/10). Backend gọi app này với khóa `DIFY_REVIEW_KEY` sau khi runner
+trả lời `ok`, cho học sinh và phụ huynh (giáo viên được xem đáp án theo thiết kế). Chạy sau khi stream xong nên không
+làm chậm chữ đầu tiên.
+
+| Input | Kiểu | Nội dung |
+|---|---|---|
+| `question` | paragraph (≤ 4000) | Tin nhắn đã ẩn thông tin cá nhân |
+| `reply` | paragraph (≤ 12000) | Câu trả lời của runner |
+| `role` | select (`student`, `parent`, `teacher`) | |
+| `no_direct_answers` | select (`true`/`false`) | `true` khi lớp bật chính sách và người hỏi là học sinh |
+
+Output: `verdict` (`allow` \| `block`), `category` (`unsafe`, `privacy`, `injection`, `academic_integrity`),
+`reason`. `block` → `text_reset` + câu cài sẵn (`answer_withheld` cho `academic_integrity`, `output_blocked` cho
+nhóm khác), `status="blocked"`, `guard_events` stage `output` detector `dify_review`; token ghi purpose
+`output_guard`. Review lỗi hoặc hết giờ: giữ câu trả lời (đã qua kiểm duyệt từ khóa), ghi log.

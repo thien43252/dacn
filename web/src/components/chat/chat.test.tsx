@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import type { ReactElement } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { MAX_MESSAGES, removeSession, sessionGroup, sessionTime, sessionTitle, type StoredSession, upsertSession } from "./chatHistory";
-import { MessageBody, messageBlocks } from "./MessageBody";
+import { MessageBody, MessageCitations, MessageSuggestions, messageBlocks, replyExtras } from "./MessageBody";
 import { THINKING_LINES, thinkingLines } from "./thinking";
 
 const LONG = [
@@ -77,4 +78,33 @@ describe("chat history in the browser", () => {
 it("dates every saved session in full, not just its time", () => {
   expect(sessionTime(new Date(2026, 9, 17, 7, 5).getTime())).toBe("07:05 17/10/2026");
   expect(sessionTime(new Date(2026, 0, 3, 23, 40).getTime())).toBe("23:40 03/01/2026");
+});
+
+describe("citations and follow-up questions", () => {
+  const citation = { document_id: "d1", title: "Phân số.pdf", location: "trang 2", excerpt: "Phân số là ".repeat(30) };
+
+  it("shows the document title, its place and a shortened excerpt", () => {
+    const html = renderToStaticMarkup(<MessageCitations items={[citation]} />);
+    expect(html).toContain("Phân số.pdf");
+    expect(html).toContain("trang 2");
+    expect(html).toContain("…");
+    expect(renderToStaticMarkup(<MessageCitations items={[]} />)).toBe("");
+  });
+
+  it("sends the picked question", () => {
+    const onPick = vi.fn();
+    const html = renderToStaticMarkup(<MessageSuggestions items={["Câu một?", "Câu hai?"]} onPick={onPick} />);
+    expect(html.match(/<button/g)).toHaveLength(2);
+    const list = MessageSuggestions({ items: ["Câu một?", "Câu hai?"], onPick }) as ReactElement<{ children: ReactElement[] }>;
+    const second = list.props.children[1] as ReactElement<{ children: ReactElement<{ onClick: () => void }> }>;
+    second.props.children.props.onClick();
+    expect(onPick).toHaveBeenCalledWith("Câu hai?");
+  });
+
+  it("hides both on a blocked reply and keeps follow-ups to the latest answer", () => {
+    const message = { status: "ok", citations: [citation], suggestions: ["Câu một?"] };
+    expect(replyExtras({ ...message, status: "blocked" }, true)).toEqual({ citations: [], suggestions: [] });
+    expect(replyExtras(message, false)).toEqual({ citations: [citation], suggestions: [] });
+    expect(replyExtras(message, true).suggestions).toEqual(["Câu một?"]);
+  });
 });

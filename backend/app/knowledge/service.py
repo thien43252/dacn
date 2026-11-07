@@ -1,4 +1,8 @@
-"""Class documents: parse, chunk, embed, and search (pgvector cosine distance on Postgres)."""
+"""Class documents: parse, chunk, embed, and search (pgvector cosine distance on Postgres).
+
+With runtime_engine "dify" the class's Dify knowledge base does the parsing, chunking and search instead
+(app/knowledge/dify_datasets.py); the platform keeps the file, the document row and its status.
+"""
 
 import asyncio
 import io
@@ -11,8 +15,11 @@ from pathlib import Path
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.classes.models import ClassRoom
 from app.config import get_settings
 from app.db import session_factory
+from app.knowledge import dify_datasets
+from app.knowledge.dify_datasets import DifyDatasetError
 from app.knowledge.models import Document, DocumentChunk
 from app.llm.base import Embedder, LLMError, Usage
 from app.llm.registry import get_embedder
@@ -142,8 +149,15 @@ async def embed_all(embedder: Embedder, texts: list[str]) -> list[list[float]]:
     return vectors
 
 
+def uses_dify() -> bool:
+    return get_settings().runtime_engine == "dify"
+
+
 async def process_document(document_id: str) -> None:
     """Background job: parse, chunk and embed one uploaded document. Uses its own session."""
+    if uses_dify():
+        await process_document_dify(document_id)
+        return
     async with session_factory()() as db:
         document = await db.get(Document, document_id)
         if document is None:
@@ -225,3 +239,96 @@ async def search(db: AsyncSession, class_id: str, query: str, top_k: int = 4) ->
         ]
         hits = sorted(scored, key=lambda hit: hit.score, reverse=True)[:top_k]
     return hits, usage
+
+
+# ---------- Dify knowledge bases (runtime_engine "dify") ----------
+
+
+async def process_document_dify(document_id: str) -> None:
+    """Sends the stored file to the class's knowledge base, creating it on the class's first document. Reprocessing
+    deletes the old Dify document first. Indexing then runs in Dify; `refresh_status` follows it."""
+    async with session_factory()() as db:
+        document = await db.get(Document, document_id)
+        room = await db.get(ClassRoom, document.class_id) if document else None
+        if document is None or room is None:
+            return
+        client = dify_datasets.make_datasets()
+        try:
+            if not room.dify_dataset_id:
+                room.dify_dataset_id = await client.create_dataset(room.id)
+                await db.commit()
+            if document.dify_document_id:
+                await client.delete_document(room.dify_dataset_id, document.dify_document_id)
+                document.dify_document_id = document.dify_batch = None
+            data = await asyncio.to_thread(Path(document.storage_path).read_bytes)
+            document.dify_document_id, document.dify_batch = await client.upload_document(
+                room.dify_dataset_id, document.filename, data, document.content_type
+            )
+            document.status, document.error, document.chunk_count = "processing", None, 0
+        except (DifyDatasetError, OSError) as error:
+            document.status = "failed"
+            document.error = str(error)[:500]
+        finally:
+            await client.http.aclose()
+        await db.commit()
+
+
+async def refresh_status(db: AsyncSession, room: ClassRoom, documents: list[Document]) -> None:
+    """Asks Dify how indexing is going for documents still processing (FR-021). Dify unreachable: unchanged."""
+    pending = [d for d in documents if d.status == "processing" and d.dify_batch and room.dify_dataset_id]
+    if not pending:
+        return
+    client = dify_datasets.make_datasets()
+    try:
+        for document in pending:
+            try:
+                status = await client.indexing_status(room.dify_dataset_id, document.dify_batch)
+            except DifyDatasetError:
+                continue
+            if status.status == "completed":
+                document.status, document.chunk_count, document.error = "ready", status.segments, None
+            elif status.status == "error":
+                document.status = "failed"
+                document.error = (status.error or "Dify không xử lý được tài liệu.")[:500]
+    finally:
+        await client.http.aclose()
+    await db.commit()
+
+
+async def delete_from_dify(room: ClassRoom, document: Document) -> None:
+    """Raises DifyDatasetError if Dify still has the document; the caller then keeps the row."""
+    if not (room.dify_dataset_id and document.dify_document_id):
+        return
+    client = dify_datasets.make_datasets()
+    try:
+        await client.delete_document(room.dify_dataset_id, document.dify_document_id)
+    finally:
+        await client.http.aclose()
+
+
+async def search_dify(db: AsyncSession, dataset_id: str | None, query: str, top_k: int = 4) -> list[SearchHit]:
+    """Searches one class's knowledge base. The dataset id comes from the tool handle, never from the model."""
+    if not dataset_id:
+        return []
+    client = dify_datasets.make_datasets()
+    try:
+        records = await client.retrieve(dataset_id, query, top_k)
+    finally:
+        await client.http.aclose()
+    ids = {record.dify_document_id for record in records}
+    documents = {
+        d.dify_document_id: d for d in await db.scalars(select(Document).where(Document.dify_document_id.in_(ids)))
+    }
+    hits = []
+    for record in records:
+        document = documents.get(record.dify_document_id)
+        hits.append(
+            SearchHit(
+                document_id=document.id if document else record.dify_document_id,
+                title=document.title if document else record.document_name,
+                location=f"đoạn {record.position}" if record.position else "",
+                content=record.content,
+                score=record.score,
+            )
+        )
+    return hits

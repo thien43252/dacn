@@ -162,7 +162,9 @@ def record_usage(db, user_id: str, class_id: str | None, conversation_id: str, u
                 model=item.model,
                 input_tokens=item.input_tokens,
                 output_tokens=item.output_tokens,
-                cost_usd=cost_usd(item.model, item.input_tokens, item.output_tokens),
+                cost_usd=item.cost_usd
+                if item.cost_usd is not None
+                else cost_usd(item.model, item.input_tokens, item.output_tokens),
                 latency_ms=latency,
             )
         )
