@@ -1,6 +1,6 @@
 # Fixture Dify
 
-Phản hồi của Dify 1.19.0 (bản ghim trong `infra/dify/README.md`) để test engine `dify` chạy offline qua
+Phản hồi của Dify 1.19.0 (bản ghim trong `infra/dify/README.md`) để test backend chạy offline qua
 `httpx.MockTransport` (FR-027, research R14). Ghi ngày 2026-11-07 trong spike T006 với các DSL trong `infra/dify/`,
 model gpt-4o-mini, `user` = `spike-user`. Id hội thoại, tin nhắn và task là UUID ngẫu nhiên của Dify local.
 
@@ -18,13 +18,15 @@ model gpt-4o-mini, `user` = `spike-user`. Id hội thoại, tin nhắn và task 
 | `runner_message_replace.sse` | ghi thật, kiểm duyệt đầu ra chặn | `message_replace` → `text_reset` |
 | `runner_input_blocked.sse` | ghi thật, kiểm duyệt đầu vào chặn | chỉ có `message` cài sẵn + `message_end` |
 | `runner_input_too_long.sse` | ghi thật, `system_prompt` 12001 ký tự | `workflow_finished` lỗi, không có `message` |
+| `runner_tool_denied.sse` | ghi thật (2026-11-07, Phase 9): `ctx` là handle không còn sống, MCP handler từ chối `math_check`; `agent_log` mang lỗi, model vẫn trả lời | tool bị từ chối trong Dify |
 | `runner_error_midstream.sse` | **dựng tay**: 5 `message` đầu của `runner_plain.sse` + sự kiện `error` theo `core/app/apps/base_app_generate_response_converter.py` | lỗi giữa stream |
-| `runner_conversation_not_found.json` | **dựng tay** theo `controllers/service_api/app/completion.py` (404 `not_found`, "Conversation Not Exists.") | `context_reset` |
-| `suggested.json` | **dựng tay** theo `SimpleResultStringListResponse` của `GET /v1/messages/{id}/suggested` | gợi ý câu hỏi |
+| `runner_conversation_not_found.json` | ghi thật (Phase 9): `conversation_id` không tồn tại → 404 `not_found` | `context_reset` |
+| `suggested.json` | ghi thật (Phase 9): `GET /v1/messages/{id}/suggested` sau một câu trả lời về phân số | gợi ý câu hỏi |
+| `dataset_create.json`, `document_create.json`, `document_delete_missing.json`, `indexing_status_*.json`, `dataset_retrieve.json` | ghi thật (US5) | kho tri thức của lớp |
+| `document_segments.json` | ghi thật (Phase 9): 3 đoạn đầu của tài liệu chương 3 | xem trước các đoạn của tài liệu |
 
-Chưa có (cần backend chạy engine `dify` với Dify thật, hoặc thuộc US4/US5): `runner_tool_denied.sse`,
-`dataset_retrieve.json`, `indexing_status_completed.json`, `indexing_status_error.json`. Ba file dựng tay ghi lại
-từ Dify thật khi có dịp.
+Còn dựng tay: `runner_error_midstream.sse`, vì Dify không có cách gây lỗi giữa stream theo ý muốn. Hình dạng sự kiện
+lấy từ mã nguồn Dify 1.19.
 
 ## Cách ghi
 

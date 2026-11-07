@@ -2,11 +2,13 @@
 
 One chat turn (or one certification case) is one trace:
 
-    chat ─┬─ screen, classify, select_agent, gate, review   graph nodes (spans; guard and router calls nested)
-          └─ run_agent ─┬─ llm.main                        model call (generation: tokens, cost, time to first token)
-                        └─ <tool> ── llm.main              tool call, with the model calls the tool makes
+    chat ─┬─ triage                 eduagent-triage (safety + routing) in Dify
+          ├─ run_agent ── <tool>    the eduagent-runner stream; MCP tool calls, with the model calls a tool makes
+          └─ review                 eduagent-review, for students and parents
 
-Model calls outside a turn (reports, eval scripts) become traces of their own. Every string sent to Langfuse goes
+The steps inside each Dify app are traced by Dify itself (infra/dify/README.md, "Tracing"); the trace keeps the Dify
+message and conversation ids to find them. Backend model calls outside a turn (reports, judges, eval scripts) become
+traces of their own. Every string sent to Langfuse goes
 through the same PII redaction as the input guard, and users are identified by id only.
 """
 

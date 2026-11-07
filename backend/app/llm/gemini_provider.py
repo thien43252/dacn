@@ -1,4 +1,4 @@
-"""Google Gemini adapter via the google-genai SDK (streaming, function declarations) and embeddings."""
+"""Google Gemini adapter via the google-genai SDK (streaming, function declarations)."""
 
 import uuid
 from collections.abc import AsyncIterator
@@ -157,21 +157,3 @@ class GeminiChatModel:
             usage=usage,
             stop_reason=stop,
         )
-
-
-class GeminiEmbedder:
-    provider = "gemini"
-
-    def __init__(self, api_key: str, model: str, dimensions: int) -> None:
-        self.client = genai.Client(api_key=api_key or None)
-        self.model = model or "gemini-embedding-001"
-        self.dimensions = dimensions
-
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        try:
-            response = await self.client.aio.models.embed_content(
-                model=self.model, contents=texts, config=types.EmbedContentConfig(output_dimensionality=self.dimensions)
-            )
-        except errors.APIError as error:
-            raise LLMError("Không tạo được embedding với Gemini.") from error
-        return [list(item.values or []) for item in response.embeddings or []]

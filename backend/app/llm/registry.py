@@ -1,14 +1,11 @@
-"""Builds the configured providers once; tests swap them with `use_chat_model` / `use_embedder`."""
+"""Builds the configured chat provider once; tests swap it with `use_chat_model`."""
 
 from app.config import get_settings
-from app.llm.base import ChatModel, Embedder, LLMError
-from app.llm.fake import FakeChatModel, FakeEmbedder
+from app.llm.base import ChatModel, LLMError
+from app.llm.fake import FakeChatModel
 from app.tracing import TracedChatModel, get_langfuse
 
-EMBEDDING_DIMENSIONS = 768
-
 _chat: ChatModel | None = None
-_embedder: Embedder | None = None
 
 # USD per 1M tokens (input, output). Only Anthropic prices are known here; other providers record tokens only.
 PRICES: dict[str, tuple[float, float]] = {
@@ -56,21 +53,6 @@ def build_chat_model() -> ChatModel:
     raise LLMError(f"LLM_PROVIDER không hợp lệ: {settings.llm_provider}")
 
 
-def build_embedder() -> Embedder:
-    settings = get_settings()
-    if settings.embedding_provider == "openai":
-        from app.llm.openai_provider import OpenAIEmbedder
-
-        return OpenAIEmbedder(
-            settings.openai_api_key, settings.embedding_model, EMBEDDING_DIMENSIONS, settings.openai_base_url
-        )
-    if settings.embedding_provider == "gemini":
-        from app.llm.gemini_provider import GeminiEmbedder
-
-        return GeminiEmbedder(settings.gemini_api_key, settings.embedding_model, EMBEDDING_DIMENSIONS)
-    return FakeEmbedder(EMBEDDING_DIMENSIONS)
-
-
 def get_chat_model() -> ChatModel:
     global _chat
     if _chat is None:
@@ -78,18 +60,6 @@ def get_chat_model() -> ChatModel:
     return _chat
 
 
-def get_embedder() -> Embedder:
-    global _embedder
-    if _embedder is None:
-        _embedder = build_embedder()
-    return _embedder
-
-
 def use_chat_model(model: ChatModel | None) -> None:
     global _chat
     _chat = model
-
-
-def use_embedder(embedder: Embedder | None) -> None:
-    global _embedder
-    _embedder = embedder

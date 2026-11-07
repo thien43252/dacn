@@ -33,28 +33,7 @@ def attrs(span) -> dict:
     return dict(span.attributes or {})
 
 
-async def test_chat_turn_is_one_trace_with_nodes_and_generations(as_user, fake_llm, spans) -> None:
-    _, student, _, room = await class_with_student(as_user)
-    fake_llm.script("Chào em!")
-    await chat(student, "Xin chào, số của em là 0912345678", class_id=room["id"])
-
-    exported = spans()
-    by_name = {span.name: span for span in exported}
-    assert {"chat", "screen", "classify", "select_agent", "gate", "run_agent", "review", "llm.main"} <= set(by_name)
-    assert len({span.context.trace_id for span in exported}) == 1
-    root = by_name["chat"]
-    # Nodes hang off the root; the agent's model call nests under run_agent.
-    assert by_name["screen"].parent.span_id == root.context.span_id
-    assert by_name["llm.main"].parent.span_id == by_name["run_agent"].context.span_id
-    assert attrs(by_name["llm.main"])["langfuse.observation.type"] == "generation"
-    # User and session reach every observation, and personal data never leaves unredacted.
-    assert all(attrs(span).get("user.id") for span in exported)
-    payload = json.dumps([attrs(span) for span in exported], ensure_ascii=False)
-    assert "0912345678" not in payload
-    assert "Chào em!" in attrs(root)["langfuse.observation.output"]
-
-
-async def test_dify_turn_traces_triage_and_run_agent(as_user, dify, spans) -> None:
+async def test_chat_turn_traces_triage_and_run_agent(as_user, dify, spans) -> None:
     _, student, _, room = await class_with_student(as_user)
     await chat(student, "So sánh phân số, số của em là 0912345678", class_id=room["id"])
 
@@ -68,4 +47,18 @@ async def test_dify_turn_traces_triage_and_run_agent(as_user, dify, spans) -> No
     root_attrs = json.dumps(attrs(root), ensure_ascii=False)
     # The ids to find the same turn in Dify's own logs.
     assert "dify_message_id" in root_attrs and "dify_conversation_id" in root_attrs
+    assert "0912345678" not in json.dumps([attrs(span) for span in exported], ensure_ascii=False)
+
+
+async def test_backend_model_calls_are_generations_without_personal_data(fake_llm, spans) -> None:
+    """Reports, judges and tools call the backend's own model; each call is a generation, redacted like turns."""
+    from app.llm.base import Message, complete
+    from app.llm.registry import get_chat_model
+
+    fake_llm.script("Đã nhận.")
+    message = Message(role="user", content="Số của em là 0912345678")
+    await complete(get_chat_model(), [message], system="Trả lời ngắn.", tier="main")
+    exported = spans()
+    [generation] = [span for span in exported if span.name == "llm.main"]
+    assert attrs(generation)["langfuse.observation.type"] == "generation"
     assert "0912345678" not in json.dumps([attrs(span) for span in exported], ensure_ascii=False)

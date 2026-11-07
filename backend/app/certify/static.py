@@ -9,7 +9,8 @@ import re
 from dataclasses import asdict, dataclass
 
 from app.agents.manifest import AgentManifest
-from app.guard.rules import screen_input, screen_output
+from app.guard.dify_rules import contains_blocked_keyword
+from app.guard.rules import redact
 from app.llm.base import ChatModel, LLMError, Usage, complete_json
 from app.textnorm import fold
 from app.tools.registry import TOOLS
@@ -92,6 +93,13 @@ def _affirmative_matches(pattern: str, folded: str) -> list[str]:
     return hits
 
 
+def _new_personal_data(reply: str, user_text: str) -> bool:
+    """Personal data in an example answer that the example question did not contain."""
+    _, found = redact(reply)
+    _, own = redact(user_text)
+    return any(kind not in own for kind in found)
+
+
 def static_checks(manifest: AgentManifest) -> list[Finding]:
     findings: list[Finding] = []
     roles = set(manifest.target_roles)
@@ -141,9 +149,9 @@ def static_checks(manifest: AgentManifest) -> list[Finding]:
     unsafe_examples = [
         example.user[:60]
         for example in manifest.examples
-        if screen_output(example.assistant, example.user).action != "allow" or screen_input(example.assistant).blocks
+        if contains_blocked_keyword(example.assistant) or _new_personal_data(example.assistant, example.user)
     ]
-    unsafe_starters = [prompt[:60] for prompt in manifest.starter_prompts if screen_input(prompt).blocks]
+    unsafe_starters = [prompt[:60] for prompt in manifest.starter_prompts if contains_blocked_keyword(prompt)]
     findings.append(
         Finding(
             "examples_safe",

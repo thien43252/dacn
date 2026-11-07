@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.auth.deps import CurrentUser, DbSession
 from app.classes import service as classes
 from app.knowledge import service
-from app.knowledge.models import Document, DocumentChunk
+from app.knowledge.models import Document
 
 router = APIRouter(tags=["documents"])
 
@@ -53,8 +53,7 @@ async def list_documents(class_id: str, user: CurrentUser, db: DbSession) -> lis
     rows = list(
         await db.scalars(select(Document).where(Document.class_id == room.id).order_by(Document.created_at.desc()))
     )
-    if service.uses_dify():
-        await service.refresh_status(db, room, rows)
+    await service.refresh_status(db, room, rows)
     return [_out(document) for document in rows]
 
 
@@ -110,13 +109,11 @@ async def _document(db, class_id: str, document_id: str) -> Document:
 async def list_chunks(class_id: str, document_id: str, user: CurrentUser, db: DbSession) -> list[ChunkOut]:
     room, _ = await classes.load_class(db, class_id, user, {"teacher"})
     document = await _document(db, room.id, document_id)
-    rows = await db.scalars(
-        select(DocumentChunk)
-        .where(DocumentChunk.document_id == document.id)
-        .order_by(DocumentChunk.position)
-        .limit(200)
-    )
-    return [ChunkOut(position=c.position, location=c.location, content=c.content) for c in rows]
+    try:
+        rows = await service.segments(room, document)
+    except service.DifyDatasetError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Chưa đọc được các đoạn từ kho tri thức Dify.") from error
+    return [ChunkOut(position=s.position, location=service.location(s.position), content=s.content) for s in rows]
 
 
 @router.post("/classes/{class_id}/documents/{document_id}/reprocess", response_model=DocumentOut)
@@ -135,14 +132,13 @@ async def reprocess(
 async def delete_document(class_id: str, document_id: str, user: CurrentUser, db: DbSession) -> None:
     room, _ = await classes.load_class(db, class_id, user, {"teacher"})
     document = await _document(db, room.id, document_id)
-    if service.uses_dify():
-        # Dify first: a document the agents can still find must not disappear from the teacher's list.
-        try:
-            await service.delete_from_dify(room, document)
-        except service.DifyDatasetError as error:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, "Chưa xóa được tài liệu khỏi kho tri thức Dify, thử lại sau."
-            ) from error
+    # Dify first: a document the agents can still find must not disappear from the teacher's list.
+    try:
+        await service.delete_from_dify(room, document)
+    except service.DifyDatasetError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Chưa xóa được tài liệu khỏi kho tri thức Dify, thử lại sau."
+        ) from error
     path = Path(document.storage_path)
     await db.delete(document)
     await db.commit()

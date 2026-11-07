@@ -1,26 +1,53 @@
 # EduAgent Hub
 
 Nền tảng mở (B2C) để giáo viên tạo lớp, thêm học sinh và phụ huynh, rồi cài agent AI từ Hub vào lớp. Trọng tâm là
-lớp tin cậy: orchestrator theo lớp có chính sách lớp, guardrails 3 lớp, và certification pipeline kiểm định agent trước
-khi lên Hub. Đồ án cá nhân, chạy local trên dữ liệu demo.
+lớp tin cậy: định tuyến theo lớp có chính sách lớp, guardrail nhiều lớp, và certification pipeline kiểm định agent trước
+khi lên Hub. Lõi agent (guardrail, định tuyến, vòng lặp agent, kho tri thức của lớp) chạy trên Dify tự dựng. Đồ án cá
+nhân, chạy local trên dữ liệu demo.
+
+## Kiến trúc
+
+```text
+web (React 19) ──SSE──▶ FastAPI (backend/)
+                         │  đăng nhập, lớp, đồng ý phụ huynh, ẩn thông tin cá nhân, nhật ký guard, sổ chi phí
+                         │
+                         ├──▶ Dify: eduagent-triage   (an toàn + chọn agent, workflow)
+                         ├──▶ Dify: eduagent-runner   (agent, kiểm duyệt từ khóa, stream câu trả lời)
+                         ├──▶ Dify: eduagent-review   (kiểm tra câu trả lời theo chính sách lớp)
+                         └──▶ Dify: Knowledge API     (mỗi lớp một kho tri thức)
+                                   │
+       Dify gọi lại ◀──MCP /mcp───┘  5 tool của nền tảng, qua tool guard và handle ngắn hạn
+```
+
+Backend chỉ giữ phần thuộc về quyền và dữ liệu cá nhân: cổng đồng ý của phụ huynh, ẩn số điện thoại, mật khẩu, địa chỉ
+trước khi gửi đi, tool guard, ghi `guard_events` và chi phí. Mọi bước kiểm duyệt nội dung và chọn agent nằm trong các
+app Dify ở [`infra/dify/`](infra/dify/); hợp đồng giữa hai bên ở
+[`specs/001-dify-core-migration/contracts/`](specs/001-dify-core-migration/contracts/). Giám khảo kiểm định, báo cáo
+phụ huynh, `quiz_generator` và `rubric_grader` vẫn gọi mô hình qua LLM adapter của backend.
 
 ## Cấu trúc
 
 | Thư mục    | Nội dung                                                                                                         |
 | ------------ | ----------------------------------------------------------------------------------------------------------------- |
 | `web/`     | React 19 + Vite + plain CSS. UI kế thừa từ Vinschool Capstone Studio (team-8), đã cắt phần nghiệp vụ cũ |
-| `backend/` | FastAPI, SQLAlchemy 2 async, Alembic, PostgreSQL + pgvector. Core AI (LangGraph, guard, certify) trong `app/`   |
-| `infra/`   | Docker Compose cho Postgres + pgvector (cổng host 5433)                                                          |
+| `backend/` | FastAPI, SQLAlchemy 2 async, Alembic, PostgreSQL. Gọi Dify (`app/runtime/`), MCP server (`app/tools/`), certify |
+| `infra/`   | Docker Compose cho Postgres (cổng host 5433); `infra/dify/`: DSL các app Dify, từ khóa kiểm duyệt, hướng dẫn dựng |
 | `eval/`    | Dataset red-team tiếng Việt, routing set, script thực nghiệm                                                  |
 | `seed/`    | Manifest agent mẫu, dữ liệu lớp demo                                                                          |
 | `docs/`    | Thiết kế và báo cáo                                                                                          |
 
 ## Chạy local
 
-Cần Node.js, Python 3.11, [uv](https://docs.astral.sh/uv/) và Docker Desktop.
+Cần Node.js, Python 3.11, [uv](https://docs.astral.sh/uv/), Docker Desktop và một khóa API của nhà cung cấp mô hình
+cho Dify (đang dùng OpenAI `gpt-4o-mini` và `text-embedding-3-small`).
+
+1. Dựng Dify (khoảng 30 phút lần đầu) theo [infra/dify/README.md](infra/dify/README.md): chạy bộ compose chính thức ở
+   `127.0.0.1:8080`, cài plugin, import 4 DSL, nối MCP `eduagent-tools`, rồi chép các khóa API vào `.env`
+   (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`, `DIFY_REVIEW_KEY`, `DIFY_DATASET_KEY`, `MCP_TOKEN`).
+2. Chạy nền tảng:
 
 ```bash
-cp .env.example .env
+cp .env.example .env   # rồi điền các khóa DIFY_* và MCP_TOKEN ở bước 1
 
 # Database
 docker compose -f infra/docker-compose.yml up -d --wait
@@ -29,7 +56,7 @@ docker compose -f infra/docker-compose.yml up -d --wait
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run python -m scripts.seed_demo   # 4 tài khoản demo, mật khẩu Demo123!
+uv run python -m scripts.seed_demo   # 4 tài khoản demo, mật khẩu Demo123!; đẩy tài liệu mẫu vào Dify
 uv run uvicorn app.main:app --reload --port 8001
 
 # Frontend (http://127.0.0.1:5173, proxy /api -> 8001)
@@ -47,11 +74,14 @@ TEST_DATABASE_URL=postgresql+asyncpg://eduagent:eduagent@127.0.0.1:5433/eduagent
 cd web && npm test && npm run build
 ```
 
-Test backend không cần database hay API key (LLM adapter `fake`).
+Test backend không cần database, Dify hay API key: Dify được giả lập bằng phản hồi ghi từ Dify thật
+(`backend/tests/fixtures/dify/`), LLM adapter là `fake`. Test có mark `dify` chỉ chạy khi đặt `DIFY_BASE_URL` trong môi
+trường (`DIFY_BASE_URL=http://127.0.0.1:8080 uv run pytest -m dify`).
 
 ## Trạng thái
 
-Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
+Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)). Tuần 4 đến tuần 11 mô tả lõi đầu tiên, chạy trong backend; sau
+đó lõi được chuyển sang Dify (mục cuối).
 
 - Tuần 1: khung repo, UI đã rebrand, 4 vai trò, backend skeleton, migration bật pgvector.
 - Tuần 2: đăng nhập bằng cookie httpOnly, phân quyền theo vai trò, seed demo; dataset `eval/` (190 red-team, 60 đối chứng,
@@ -80,22 +110,29 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
   (`eval/certify_agents.yaml`); xem [eval/README.md](eval/README.md).
 - Tuần 12: kịch bản demo [docs/DEMO.md](docs/DEMO.md), bản nháp báo cáo [docs/BAO-CAO.md](docs/BAO-CAO.md), test e2e
   Playwright cho luồng demo (`cd web && npm run test:e2e`, cần server đang chạy).
+- Chuyển lõi sang Dify ([specs/001-dify-core-migration/](specs/001-dify-core-migration/)): triage (an toàn + định
+  tuyến), runner có kiểm duyệt từ khóa, review theo chính sách lớp, kho tri thức Dify cho từng lớp (trích dẫn nguồn trong
+  câu trả lời), câu hỏi gợi ý tiếp theo, tool đi qua MCP over HTTP. Lõi cũ, bảng `document_chunks` (migration 0007) và
+  dependency `langgraph` đã bị xóa. Bảng so sánh hai lõi ở [docs/BAO-CAO.md](docs/BAO-CAO.md).
 
 Khi chạy với `LLM_PROVIDER=fake`, giám khảo không chấm được nên kiểm định luôn ra "cần xem lại" (trừ khi kiểm tra tĩnh
 đã loại); số liệu thật cần khoá API.
 
 ## Dùng mô hình thật
 
-Mặc định `LLM_PROVIDER=fake` (chạy offline, trả lời giả). Để dùng Claude, đặt trong `.env`:
+Agent, triage và review dùng mô hình đã cấu hình trong Dify (Settings > Model Provider; xem
+[infra/dify/README.md](infra/dify/README.md)). Nếu đổi model trong Dify, đặt `DIFY_TRIAGE_MODEL` và `DIFY_RUNNER_MODEL`
+cho khớp để sổ chi phí ghi đúng tên.
+
+Phần còn chạy trong backend (giám khảo kiểm định, báo cáo phụ huynh, `quiz_generator`, `rubric_grader`) dùng LLM
+adapter. Mặc định `LLM_PROVIDER=fake` (chạy offline, trả lời giả). Để dùng Claude, đặt trong `.env`:
 
 ```bash
 LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=...        # model mặc định: claude-opus-5-5 (agent), claude-haiku-5-5 (guard, router)
-EMBEDDING_PROVIDER=openai    # hoặc gemini; Anthropic không có API embedding
-OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...        # model mặc định: claude-opus-5-5 (main), claude-haiku-5-5 (giám khảo)
 ```
 
-Đổi provider embedding thì cần xử lý lại tài liệu (nút "Xử lý lại" hoặc tải lên lại), vì vector của mỗi mô hình khác nhau.
+Kiểm tra nhanh: `cd backend && uv run python -m scripts.check_llm`.
 
 ## Tracing (Langfuse)
 
@@ -107,10 +144,11 @@ LANGFUSE_SECRET_KEY=sk-lf-...
 LANGFUSE_BASE_URL=           # trống = Langfuse Cloud EU; https://us.cloud.langfuse.com hoặc http://localhost:3000
 ```
 
-Mỗi lượt chat (và mỗi case kiểm định) là một trace: span cho từng node của graph (`screen`, `classify`, `select_agent`,
-`gate`, `run_agent`, `review`), generation cho mỗi lần gọi mô hình (token, chi phí, thời gian ra token đầu), span cho
-mỗi tool. Trace gắn `user_id` và `session_id` = id cuộc hội thoại; bước bị guard chặn có level `WARNING`. Case kiểm định
-có score `certify_outcome`. Mọi chuỗi gửi đi đều qua bộ ẩn thông tin cá nhân của guard (`app/tracing.py`).
+Mỗi lượt chat (và mỗi case kiểm định) là một trace với span `triage`, `run_agent` (kèm tool) và `review`. Trace gắn
+`user_id`, `session_id` = id cuộc hội thoại, và id tin nhắn, id hội thoại phía Dify để tìm cùng lượt đó trong log của
+Dify. Bước bị chặn có level `WARNING`; case kiểm định có score `certify_outcome`. Các bước bên trong app Dify do Dify tự
+trace (bật Langfuse trong Dify, xem [infra/dify/README.md](infra/dify/README.md) mục Tracing). Lời gọi mô hình của
+backend là generation (token, chi phí). Mọi chuỗi gửi đi đều qua bộ ẩn thông tin cá nhân (`app/tracing.py`).
 
 ## Ghi chú bản quyền
 

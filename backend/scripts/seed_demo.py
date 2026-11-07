@@ -129,8 +129,8 @@ async def seed_document(db, room: ClassRoom, teacher: User) -> None:
     title = "Chương 3 - Phương trình bậc nhất một ẩn"
     existing = await db.scalar(select(Document).where(Document.class_id == room.id, Document.title == title))
     if existing is not None:
-        # Seeded earlier on the LangGraph engine: the class's Dify knowledge base does not have it yet.
-        if knowledge.uses_dify() and not existing.dify_document_id:
+        # Seeded before the class had a Dify knowledge base: send it there now.
+        if not existing.dify_document_id:
             await knowledge.process_document(existing.id)
             await wait_for_indexing(db, room, existing.id)
         return
@@ -151,8 +151,7 @@ async def seed_document(db, room: ClassRoom, teacher: User) -> None:
     document.storage_path = str(target)
     await db.commit()
     await knowledge.process_document(document.id)
-    if knowledge.uses_dify():
-        await wait_for_indexing(db, room, document.id)
+    await wait_for_indexing(db, room, document.id)
     print(f"document {title}")
 
 

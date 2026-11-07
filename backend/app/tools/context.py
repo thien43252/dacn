@@ -1,8 +1,7 @@
 """Short-lived handles linking an MCP tool call to the platform context the tool guard approved.
 
-The handle is the `ctx` argument of every tool. The LangGraph engine registers one per call; the Dify engine
-registers one per turn and passes it to the runner app, whose MCP tools send it back as a Fixed Value the model
-never sees (research R6). A handle lives at most `TTL_S` seconds and is released when its turn ends.
+The handle is the `ctx` argument of every tool. Each turn registers one and passes it to the runner app, whose MCP
+tools send it back as a Fixed Value the model never sees (research R6). A handle lives at most `TTL_S` seconds and is released when its turn ends.
 """
 
 import secrets

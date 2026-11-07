@@ -6,7 +6,8 @@ import { defineConfig } from "@playwright/test";
  *   cd backend && uv run alembic upgrade head && uv run python -m scripts.seed_demo && uv run uvicorn app.main:app --port 8001
  *   cd web && npm run dev            # then, in another terminal:
  *   npm run test:e2e                 # BASE_URL overrides the address, CHROME_PATH a local Chromium
- * Runs with LLM_PROVIDER=fake so replies and certification outcomes are deterministic.
+ * Agents answer through Dify (infra/dify/README.md, keys in .env), so the checks cover what the platform guarantees
+ * (routing, notices, redaction), not a reply's wording. The rejected agent fails static checks, before any model.
  */
 export default defineConfig({
   testDir: "e2e",

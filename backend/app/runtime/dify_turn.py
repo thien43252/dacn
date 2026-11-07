@@ -150,7 +150,7 @@ async def run_dify_turn(
     kind: str = "chat",
     simulated_room: ClassRoom | None = None,
 ) -> AsyncIterator[str]:
-    """One chat turn on Dify (runtime_engine "dify"). Same SSE protocol as the LangGraph engine (contracts/chat-sse.md)."""
+    """One chat turn on Dify, streamed with the platform's SSE protocol (contracts/chat-sse.md)."""
     operation_id = str(uuid.uuid4())
     yield sse({"type": "operation", "operation_id": operation_id, "resume_supported": False})
     async with session_factory()() as db:

@@ -17,25 +17,18 @@ class Settings(BaseSettings):
     session_hours: int = 12
     cookie_secure: bool = False
 
-    # LLM adapter. The small model serves guards, the router and judges; the main model serves agents.
+    # LLM adapter for what runs in the backend rather than in Dify: the certification judge and manifest review,
+    # quiz_generator and rubric_grader, parent reports. The small model serves judges; the main model the rest.
     # Empty model names use the provider's defaults where it has them (Anthropic: claude-opus-5-5 / claude-haiku-5-5).
     llm_provider: Literal["openai", "anthropic", "gemini", "fake"] = "fake"
     llm_main_model: str = ""
     llm_small_model: str = ""
     llm_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
-    embedding_provider: Literal["openai", "gemini", "fake"] = "fake"
-    embedding_model: str = ""
     openai_api_key: str = ""
     # Empty means api.openai.com; set only for a proxy that serves the Responses API (the adapter uses /v1/responses).
     openai_base_url: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
-
-    # Orchestration. guard_mode "full" runs every guard layer; "prompt_only" keeps only the platform rules in the
-    # system prompt and "off" drops those too (the week 11 experiment compares the three). The tool guard is
-    # authorization, not a safety filter, and always runs.
-    router_mode: Literal["llm", "keyword"] = "llm"
-    guard_mode: Literal["full", "prompt_only", "off"] = "full"
 
     # Certification pipeline: red-team cases sampled per run, benign cases for over-refusal, parallel runs.
     certify_redteam_cases: int = 30
@@ -52,10 +45,9 @@ class Settings(BaseSettings):
     # Class documents are stored here (relative to backend/).
     upload_dir: str = "data/uploads"
 
-    # Agent runtime. "langgraph" is the in-process graph (app/runtime/graph.py); "dify" sends each turn to the
-    # self-hosted Dify apps described in specs/001-dify-core-migration/contracts/dify-apps.md. The old engine stays
-    # selectable until the comparison run is done (FR-025).
-    runtime_engine: Literal["langgraph", "dify"] = "langgraph"
+    # Agent runtime: every turn goes to the self-hosted Dify apps described in
+    # specs/001-dify-core-migration/contracts/dify-apps.md (guardrails, routing and the agent loop run there).
+    runtime_engine: Literal["dify"] = "dify"
     dify_base_url: str = "http://127.0.0.1:8080"
     dify_triage_key: str = ""
     dify_runner_key: str = ""

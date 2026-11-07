@@ -1,8 +1,8 @@
 """Shared setup for the experiment scripts: an in-memory database with the platform agents and an eval user, so
 experiments never write into the demo database. The model provider comes from backend/.env (LLM_PROVIDER...).
 
-Every script takes `--engine langgraph|dify` (FR-024): `use_engine()` sets RUNTIME_ENGINE before anything reads the
-settings; the Dify engine needs DIFY_BASE_URL and the app keys in .env.
+Agents run on Dify: the scripts need DIFY_BASE_URL and the app keys in .env. `--engine dify` (the only value now)
+is kept so result rows and file names stay comparable with the engine comparison in docs/BAO-CAO.md (FR-024).
 """
 
 import csv
@@ -24,7 +24,7 @@ from app.config import get_settings  # noqa: E402
 from app.db import Base, use_sessionmaker  # noqa: E402
 
 RESULTS = ROOT / "results"
-ENGINES = ["langgraph", "dify"]
+ENGINES = ["dify"]
 
 
 def use_engine(engine: str) -> str:
@@ -34,9 +34,7 @@ def use_engine(engine: str) -> str:
 
 
 def suffixed(name: str, engine: str) -> str:
-    """Result file names: unchanged for langgraph (earlier results stay comparable), `<stem>_dify<ext>` for Dify."""
-    if engine == "langgraph":
-        return name
+    """`<stem>_dify<ext>`: the files without the suffix hold the earlier in-process engine's results."""
     stem, dot, ext = name.rpartition(".")
     return f"{stem}_{engine}{dot}{ext}"
 

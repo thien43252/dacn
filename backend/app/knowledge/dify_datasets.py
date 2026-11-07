@@ -2,7 +2,8 @@
 
 Only the backend talks to this API, with DIFY_DATASET_KEY; the dataset id always comes from the class row (or the
 turn's tool handle), never from a model, so class B cannot read class A's documents (FR-020, FR-021a).
-Response shapes were recorded from Dify 1.19 (backend/tests/fixtures/dify/dataset_*.json, indexing_status_*.json).
+Response shapes were recorded from Dify 1.19 (backend/tests/fixtures/dify/dataset_*.json, document_*.json,
+indexing_status_*.json).
 """
 
 import json
@@ -37,6 +38,12 @@ class Record:
     position: int
     content: str
     score: float
+
+
+@dataclass
+class Segment:
+    position: int
+    content: str
 
 
 def dataset_name(class_id: str) -> str:
@@ -93,6 +100,26 @@ class DifyDatasets:
             segments=int(item.get("total_segments") or item.get("completed_segments") or 0),
             error=item.get("error"),
         )
+
+    async def segments(self, dataset_id: str, document_id: str, limit: int = 200) -> list[Segment]:
+        """The chunks Dify made of one document, in order (the teacher's preview), at most `limit`."""
+        found: list[Segment] = []
+        page = 1
+        while len(found) < limit:
+            response = await self._call(
+                "GET",
+                f"/datasets/{dataset_id}/documents/{document_id}/segments",
+                params={"page": page, "limit": 100},
+            )
+            body = response.json()
+            found.extend(
+                Segment(position=int(item.get("position") or 0), content=str(item.get("content") or ""))
+                for item in body.get("data", [])
+            )
+            if not body.get("has_more"):
+                break
+            page += 1
+        return sorted(found, key=lambda segment: segment.position)[:limit]
 
     async def delete_document(self, dataset_id: str, document_id: str) -> None:
         """Deleting a document Dify no longer has counts as done."""

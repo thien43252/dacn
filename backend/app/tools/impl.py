@@ -32,16 +32,12 @@ class DocSearchArgs(BaseModel):
 
 
 async def search_class(ctx: "ToolContext", query: str, top_k: int) -> list:
-    """The class's documents: its Dify knowledge base (dataset from the handle, never from the model) or pgvector."""
+    """The class's Dify knowledge base; the dataset comes from the handle, never from the model."""
     async with session_factory()() as db:
-        if knowledge.uses_dify():
-            try:
-                return await knowledge.search_dify(db, ctx.dataset_id, query, top_k)
-            except knowledge.DifyDatasetError as error:
-                raise ToolFailure("Chưa tra được tài liệu lớp, thử lại sau.") from error
-        hits, usage = await knowledge.search(db, ctx.class_id or "", query, top_k)
-    ctx.record("embed", usage)
-    return hits
+        try:
+            return await knowledge.search(db, ctx.dataset_id, query, top_k)
+        except knowledge.DifyDatasetError as error:
+            raise ToolFailure("Chưa tra được tài liệu lớp, thử lại sau.") from error
 
 
 async def class_doc_search(ctx: "ToolContext", args: DocSearchArgs) -> dict:

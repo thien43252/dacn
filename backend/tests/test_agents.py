@@ -1,6 +1,7 @@
 from sqlalchemy import update
 
 from app.agents.models import AgentVersion
+from tests.dify_fake import deltas_sse
 from tests.helpers import chat, class_with_student, parse_sse, reply_text
 
 MANIFEST = {
@@ -134,15 +135,15 @@ async def test_class_agent_toggle_and_uninstall(as_user) -> None:
     ).status_code == 400
 
 
-async def test_sandbox_runs_draft_without_class_and_hides_from_history(as_user, fake_llm) -> None:
+async def test_sandbox_runs_draft_without_class_and_hides_from_history(as_user, dify) -> None:
     teacher = await as_user("teacher")
     agent = (await teacher.post("/api/agents", json={"manifest": MANIFEST})).json()
-    fake_llm.script("Chào em, cùng ôn Hoá 9 nhé!")
+    dify.runner = [deltas_sse("Chào em, cùng ôn Hoá 9 nhé!"), deltas_sse("Chào thầy cô.")]
     response = await teacher.post(f"/api/agents/{agent['id']}/try", json={"message": "Xin chào", "as_role": "student"})
     events = parse_sse(response.text)
     assert next(event for event in events if event["type"] == "agent")["agent"] == "on-thi-hoa-9"
     assert reply_text(events) == "Chào em, cùng ôn Hoá 9 nhé!"
-    assert "Ôn thi Hoá 9" in fake_llm.main_calls[-1]["system"]
+    assert "Ôn thi Hoá 9" in dify.calls("/chat-messages")[-1]["inputs"]["system_prompt"]
     assert (await teacher.get("/api/chat/conversations")).json() == []
     # A normal personal chat still goes to the fallback.
     events = await chat(teacher, "Xin chào")

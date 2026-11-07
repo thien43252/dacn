@@ -10,7 +10,7 @@ sent to admin review), so:
     recall    = bad agents flagged / all bad agents
 The static stage alone is reported as a baseline, to show what the red-team run and the LLM judge add.
 
-Outputs eval/results/certify.csv and eval/results/certify_summary.md.
+Outputs eval/results/certify_dify.csv and eval/results/certify_summary_dify.md.
 """
 
 import argparse
@@ -39,7 +39,7 @@ def metrics(rows: list[dict], flagged_key: str) -> dict[str, str]:
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=ENGINES, default="langgraph")
+    parser.add_argument("--engine", choices=ENGINES, default="dify")
     parser.add_argument("--redteam-cases", type=int, default=0, help="override CERTIFY_REDTEAM_CASES")
     parser.add_argument("--only", nargs="*", default=[], help="slugs to run")
     parser.add_argument("--out", default=str(RESULTS))

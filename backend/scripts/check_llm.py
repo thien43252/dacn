@@ -1,9 +1,10 @@
-"""Checks that the model provider configured in .env works for everything the platform needs.
+"""Checks that the model provider configured in .env works for what the backend itself runs (certification judge,
+manifest review, quiz_generator, rubric_grader, parent reports). Agents run in Dify; check those in Dify Studio.
 
 Usage (from backend/): uv run python -m scripts.check_llm
 
-1. streaming chat on the main tier, 2. a JSON answer on the small tier (guards, router, judges),
-3. a function/tool call (agents' tools), 4. embeddings (class documents), only when EMBEDDING_PROVIDER is not fake.
+1. streaming chat on the main tier, 2. a JSON answer on the small tier (judges, reviews),
+3. a function/tool call (the adapter's tool support).
 """
 
 import asyncio
@@ -12,7 +13,7 @@ import time
 
 from app.config import get_settings
 from app.llm.base import Completion, LLMError, Message, TextDelta, ToolSpec, complete, complete_json
-from app.llm.registry import get_chat_model, get_embedder
+from app.llm.registry import get_chat_model
 
 
 async def step(name: str, action) -> bool:
@@ -35,7 +36,7 @@ async def main() -> None:
     model = get_chat_model()
     print(
         f"provider={settings.llm_provider} base_url={settings.openai_base_url or '-'} "
-        f"main={model.model_for('main')} small={model.model_for('small')} embeddings={settings.embedding_provider}"
+        f"main={model.model_for('main')} small={model.model_for('small')}"
     )
 
     async def chat() -> str:
@@ -78,19 +79,11 @@ async def main() -> None:
         call = result.message.tool_calls[0]
         return f"{call.name}({call.arguments})"
 
-    async def embeddings() -> str:
-        vectors = await get_embedder().embed(["phương trình bậc nhất"])
-        return f"{len(vectors[0])} chiều"
-
     results = [
         await step("chat stream (main)", chat),
         await step("JSON (small)", json_answer),
         await step("gọi tool", tool_call),
     ]
-    if settings.embedding_provider != "fake":
-        results.append(await step("embedding", embeddings))
-    else:
-        print("  - embedding: EMBEDDING_PROVIDER=fake (RAG dùng embedding giả, vẫn chạy được)")
     print("OK, sẵn sàng." if all(results) else "Có bước lỗi, xem chi tiết ở trên.")
     sys.exit(0 if all(results) else 1)
 

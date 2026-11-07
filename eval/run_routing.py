@@ -1,11 +1,10 @@
-"""Routing accuracy on routing_set.jsonl.
+"""Routing accuracy of the eduagent-triage workflow on Dify, on routing_set.jsonl.
 
     cd backend
-    uv run python ../eval/run_routing.py                 # keyword router (offline baseline)
-    uv run python ../eval/run_routing.py --router llm    # LLM router with the provider configured in .env
-    uv run python ../eval/run_routing.py --engine dify   # the eduagent-triage workflow on Dify (needs .env keys)
+    uv run python ../eval/run_routing.py                 # needs DIFY_BASE_URL and DIFY_TRIAGE_KEY in .env
 
-Writes eval/results/routing_<router>.csv (routing_dify.csv for Dify) and prints accuracy overall and per `kind`.
+Writes eval/results/routing_dify.csv and prints accuracy overall and per `kind`. routing_keyword.csv and
+routing_llm.csv hold the earlier in-process routers' results (docs/BAO-CAO.md).
 """
 
 import argparse
@@ -24,10 +23,8 @@ from harness import ENGINES, use_engine  # noqa: E402
 
 from app.agents.manifest import builtin_manifests  # noqa: E402
 from app.agents.service import SEED_DIR, ResolvedAgent  # noqa: E402
-from app.llm.registry import get_chat_model  # noqa: E402
 from app.runtime.dify_client import DifyError  # noqa: E402
 from app.runtime.dify_turn import make_client, pick_agent, roster_of  # noqa: E402
-from app.runtime.router import route  # noqa: E402
 
 
 def candidates(installed: list[str], role: str) -> list[ResolvedAgent]:
@@ -60,28 +57,22 @@ async def triage_route(client, row: dict, agents: list[ResolvedAgent]):
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=ENGINES, default="langgraph")
-    parser.add_argument("--router", choices=["keyword", "llm"], default="keyword")
+    parser.add_argument("--engine", choices=ENGINES, default="dify")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--out", default=str(ROOT / "results"))
     args = parser.parse_args()
     engine = use_engine(args.engine)
-    label = "dify" if engine == "dify" else args.router
+    label = engine
 
     rows = [json.loads(line) for line in (ROOT / "routing_set.jsonl").open(encoding="utf-8")]
     if args.limit:
         rows = rows[: args.limit]
-    model = get_chat_model() if args.router == "llm" and engine == "langgraph" else None
-    client = make_client() if engine == "dify" else None
+    client = make_client()
     results = []
     for row in rows:
         agents = candidates(row["installed"], row["role"])
         started = time.perf_counter()
-        if client is not None:
-            got, reason, usage = await triage_route(client, row, agents)
-        else:
-            chosen, usage = await route(row["message"], agents, role=row["role"], model=model, mode=args.router)
-            got, reason = chosen.agent.slug, chosen.reason
+        got, reason, usage = await triage_route(client, row, agents)
         results.append(
             {
                 "engine": engine,
@@ -96,8 +87,7 @@ async def main() -> None:
                 "output_tokens": usage.output_tokens if usage else 0,
             }
         )
-    if client is not None:
-        await client.http.aclose()
+    await client.http.aclose()
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240 (a CLI script, nothing else runs)

@@ -55,3 +55,25 @@ agent, nền tảng chặn và ghi lại vi phạm, agent xấu bị kiểm đ�
   y hệt (guard bằng luật, kiểm định tĩnh). Nói rõ đang ở chế độ offline.
 - **Database lỗi:** `docker compose down -v`, chạy lại phần chuẩn bị (seed mất khoảng 10 giây).
 - **Dự phòng cuối:** video quay trước toàn bộ kịch bản (quay bằng OBS sau khi chạy xong bước chuẩn bị 3).
+
+## Ghi chú sau khi chuyển lõi sang Dify (2026-11-07)
+
+Các bước trên giữ nguyên. Lõi agent giờ chạy trên Dify, nên phần chuẩn bị và vài lời nói cần hiểu như sau:
+
+- **Chuẩn bị 1:** cần Dify đang chạy ở `127.0.0.1:8080` với 4 app đã import và các khóa `DIFY_*`, `MCP_TOKEN` trong
+  `.env` ([infra/dify/README.md](../infra/dify/README.md)). Agent, triage và review dùng mô hình cấu hình trong Dify.
+  `ANTHROPIC_API_KEY`/`LLM_PROVIDER` chỉ còn dùng cho giám khảo kiểm định và báo cáo phụ huynh. `EMBEDDING_PROVIDER`
+  không còn tác dụng: kho tri thức Dify tự embed. `seed_demo` đẩy tài liệu chương 3 vào Dify và chờ index xong.
+- **Chuẩn bị 3:** `npm run test:e2e` cần trình duyệt Chromium của Playwright (`npx playwright install chromium`) hoặc
+  `CHROME_PATH` trỏ tới Chrome sẵn có. Đã chạy 4/4 test với Dify thật.
+- **Bước 3–5:** "orchestrator" và "router" là workflow `eduagent-triage` trong Dify. Bước 4 hiện thêm phần trích dẫn
+  nguồn (tên tài liệu, đoạn) dưới câu trả lời. Ở bước 5, agent có thể hỏi gợi mở thay vì gọi `math_check`; muốn chắc
+  chắn thấy tool thì hỏi `@gia-su-toan kiểm tra giúp em x = -12 có phải nghiệm của 3x + 7 = 2x - 5 không`.
+- **Bước 6, 8:** chặn và hỗ trợ do triage của Dify quyết định. Thông báo chặn là câu cài sẵn trong
+  `infra/dify/preset-responses.json`.
+- **Bước 12:** chi phí theo mục đích gồm `triage`, `agent`, `output_guard` (review), `certify`, `judge`.
+- **Bước 15:** số liệu của Dify nằm trong các file `eval/results/*_dify*`. Bảng so sánh với lõi cũ ở
+  [docs/BAO-CAO.md](BAO-CAO.md).
+- **Nếu có sự cố:** không còn chế độ offline cho chat. `LLM_PROVIDER=fake` không thay được Dify; khi Dify không trả lời,
+  chat báo "Hệ thống trợ lý đang bận". Các bước 1, 2, 9–14 vẫn chạy được trên dữ liệu đã có. Dify lỗi thì chạy
+  `docker compose restart` trong thư mục `docker` của Dify.

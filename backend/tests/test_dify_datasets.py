@@ -3,7 +3,6 @@
 import asyncio
 import json
 
-import httpx
 import pytest
 
 from app.classes.models import ClassRoom
@@ -14,80 +13,6 @@ from app.tools import registry
 from tests.dify_fake import fixture_text
 from tests.helpers import class_with_student
 from tests.test_documents_tools import LESSON, upload
-
-
-class FakeKnowledge:
-    """Datasets, documents and indexing state in memory; every request is recorded."""
-
-    def __init__(self) -> None:
-        self.datasets: dict[str, list[str]] = {}  # dataset id -> Dify document ids
-        self.status = "completed"  # what indexing-status reports
-        self.fail_delete = False
-        self.requests: list[tuple[str, str]] = []
-        self.retrieved: list[str] = []  # dataset ids searched
-        self.uploads = 0
-
-    async def handler(self, request: httpx.Request) -> httpx.Response:
-        path, method = request.url.path.removeprefix("/v1"), request.method
-        self.requests.append((method, path))
-        parts = path.strip("/").split("/")
-        if method == "POST" and path == "/datasets":
-            name = json.loads(request.content)["name"]
-            if len(name) > 40:  # Dify 1.19 refuses longer names with 422
-                return httpx.Response(
-                    422, json={"code": "invalid_param", "message": "String should have at most 40 characters"}
-                )
-            assert name.startswith("class-")
-            dataset_id = f"ds-{len(self.datasets) + 1}"
-            self.datasets[dataset_id] = []
-            body = json.loads(fixture_text("dataset_create.json"))
-            return httpx.Response(200, json={**body, "id": dataset_id, "name": json.loads(request.content)["name"]})
-        dataset_id = parts[1]
-        if dataset_id not in self.datasets:
-            return httpx.Response(
-                404, json={"code": "dataset_not_found", "message": "Dataset not found.", "status": 404}
-            )
-        if path.endswith("/document/create-by-file"):
-            self.uploads += 1
-            document_id = f"doc-{dataset_id}-{self.uploads}"
-            self.datasets[dataset_id].append(document_id)
-            body = json.loads(fixture_text("document_create.json"))
-            body["document"]["id"] = document_id
-            return httpx.Response(200, json={**body, "batch": f"batch-{document_id}"})
-        if path.endswith("/indexing-status"):
-            name = "indexing_status_completed.json" if self.status == "completed" else "indexing_status_error.json"
-            body = json.loads(fixture_text(name))
-            if self.status not in ("completed", "error"):
-                body["data"][0]["indexing_status"] = self.status
-            return httpx.Response(200, json=body)
-        if path.endswith("/retrieve"):
-            self.retrieved.append(dataset_id)
-            body = json.loads(fixture_text("dataset_retrieve.json"))
-            documents = self.datasets[dataset_id]
-            for record in body["records"]:
-                record["segment"]["document_id"] = documents[0] if documents else "none"
-            body["records"] = body["records"] if documents else []
-            return httpx.Response(200, json=body)
-        if method == "DELETE" and len(parts) == 4:
-            if self.fail_delete:
-                return httpx.Response(500, json={"code": "internal_server_error", "message": "boom", "status": 500})
-            if parts[3] not in self.datasets[dataset_id]:
-                return httpx.Response(404, text=fixture_text("document_delete_missing.json"))
-            self.datasets[dataset_id].remove(parts[3])
-            return httpx.Response(204)
-        return httpx.Response(404, json={"code": "not_found", "message": "unknown", "status": 404})
-
-
-@pytest.fixture
-def knowledge(dify, monkeypatch) -> FakeKnowledge:
-    """The `dify` fixture switches the engine; this routes the Knowledge API to the fake."""
-    fake = FakeKnowledge()
-    monkeypatch.setattr(
-        dify_datasets,
-        "make_datasets",
-        lambda: dify_datasets.DifyDatasets(httpx.AsyncClient(transport=httpx.MockTransport(fake.handler))),
-    )
-    return fake
 
 
 async def class_row(sessionmaker, class_id: str) -> ClassRoom:

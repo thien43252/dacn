@@ -1,21 +1,15 @@
-"""Picks the agent runtime for a chat turn: the in-process LangGraph graph or Dify (`runtime_engine`).
+"""The agent runtime for a chat turn: chat, the builder's sandbox and certification all go through here.
 
-Chat, the builder's sandbox and certification all go through here, so the eval scripts can compare both engines on
-the same data (FR-024, FR-025).
+Every turn runs on the self-hosted Dify apps (specs/001-dify-core-migration/contracts/dify-apps.md); the engine
+name is kept in health and message metadata so runs stay comparable with earlier results.
 """
 
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
-from app.config import get_settings
-
 if TYPE_CHECKING:
     from app.agents.service import ResolvedAgent
     from app.chat.router import ChatIn
-
-
-def current_engine() -> str:
-    return get_settings().runtime_engine
 
 
 def run_turn(
@@ -27,11 +21,7 @@ def run_turn(
     agents_override: "list[ResolvedAgent] | None" = None,
     kind: str = "chat",
 ) -> AsyncIterator[str]:
-    """Returns the SSE stream of one turn. Engine modules are imported lazily: they import app.chat.router."""
-    if current_engine() == "dify":
-        from app.runtime.dify_turn import run_dify_turn
+    """Returns the SSE stream of one turn. Imported lazily: dify_turn imports app.chat.router."""
+    from app.runtime.dify_turn import run_dify_turn
 
-        return run_dify_turn(user_id, class_id, role, payload, agents_override=agents_override, kind=kind)
-    from app.runtime.langgraph_turn import run_langgraph_turn
-
-    return run_langgraph_turn(user_id, class_id, role, payload, agents_override=agents_override, kind=kind)
+    return run_dify_turn(user_id, class_id, role, payload, agents_override=agents_override, kind=kind)

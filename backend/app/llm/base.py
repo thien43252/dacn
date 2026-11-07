@@ -1,7 +1,7 @@
-"""Provider-neutral chat and embedding interfaces.
+"""Provider-neutral chat interface.
 
 Every provider adapter translates these shapes to its own SDK, so the runtime, guards and certification code never
-import a vendor SDK. Tiers: "main" serves agents; "small" serves guards, the router and judges.
+import a vendor SDK. Tiers: "main" serves tools and reports; "small" serves judges and reviews.
 """
 
 import json
@@ -90,14 +90,6 @@ class ChatModel(Protocol):
         tier: Tier = "main",
         max_tokens: int = 4096,
     ) -> AsyncIterator[StreamEvent]: ...
-
-
-class Embedder(Protocol):
-    provider: str
-    model: str
-    dimensions: int
-
-    async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
 class LLMError(RuntimeError):

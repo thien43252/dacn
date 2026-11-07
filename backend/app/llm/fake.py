@@ -97,27 +97,3 @@ class FakeChatModel:
             usage=Usage(self.provider, self.model_for(tier), prompt_tokens, max(1, len(reply.text) // 4)),
             stop_reason=stop,
         )
-
-
-class FakeEmbedder:
-    """Hashed bag of words: similar wording gives similar vectors, so RAG tests run offline."""
-
-    provider = "fake"
-    model = "fake-hash"
-
-    def __init__(self, dimensions: int = 768) -> None:
-        self.dimensions = dimensions
-
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        import hashlib
-        import math
-
-        vectors = []
-        for text in texts:
-            vector = [0.0] * self.dimensions
-            for token in re.findall(r"\w+", text.lower()):
-                bucket = int(hashlib.md5(token.encode()).hexdigest(), 16) % self.dimensions
-                vector[bucket] += 1.0
-            norm = math.sqrt(sum(value * value for value in vector)) or 1.0
-            vectors.append([value / norm for value in vector])
-        return vectors

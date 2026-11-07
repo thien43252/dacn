@@ -1,4 +1,4 @@
-"""OpenAI via the Responses API (streaming, function tools with reasoning) and embeddings.
+"""OpenAI via the Responses API (streaming, function tools with reasoning).
 
 Requests are stateless (`store=False`): nothing is kept on OpenAI's side, so the reasoning items of a tool loop come
 back encrypted and are replayed with the next request (Message.raw). Models without reasoning (e.g. gpt-4.1) reject
@@ -179,19 +179,3 @@ class OpenAIChatModel:
             ),
             stop_reason=stop,
         )
-
-
-class OpenAIEmbedder:
-    provider = "openai"
-
-    def __init__(self, api_key: str, model: str, dimensions: int, base_url: str = "") -> None:
-        self.client = openai.AsyncOpenAI(api_key=api_key or None, base_url=base_url or None)
-        self.model = model or "text-embedding-3-small"
-        self.dimensions = dimensions
-
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        try:
-            response = await self.client.embeddings.create(input=texts, model=self.model, dimensions=self.dimensions)
-        except openai.OpenAIError as error:
-            raise LLMError("Không tạo được embedding với OpenAI.") from error
-        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]

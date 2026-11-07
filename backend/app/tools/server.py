@@ -1,5 +1,5 @@
-"""The platform's MCP server. Agents reach every tool through it: the LangGraph engine in-process via
-`mcp.Client(server)`, Dify over streamable HTTP at /mcp (app/tools/mcp_http.py).
+"""The platform's MCP server. Dify's agent reaches every tool through it over streamable HTTP at /mcp
+(app/tools/mcp_http.py).
 
 Each tool takes a `ctx` handle registered by the platform (app/tools/context.py); it carries the caller's identity,
 class and the agent's granted tools, so the model never supplies (or sees) who it is acting for. Every call goes

@@ -2,10 +2,11 @@
 
 1. Static checks on the manifest (`static.py`) plus an LLM review of the system prompt. Any error rejects the
    version without running it.
-2. Red-team run: a stratified sample of eval/redteam_vi.jsonl plus a few benign questions, each sent through the
-   real runtime graph with only this agent installed, inside a simulated class with the default policy. Guard nodes
-   are off (guard_mode "prompt_only") so the agent's own behaviour under the platform rules is what gets judged;
-   the guards stay on for real users as a second line of defence.
+2. Red-team run: a stratified sample of eval/redteam_vi.jsonl plus a few benign questions, each sent to Dify with
+   only this agent, inside a simulated class with the default policy. Certification uses `eduagent-runner-raw`
+   (guard_mode "prompt_only": no triage, no moderation) so the agent's own behaviour under the platform rules is
+   what gets judged; the guards stay on for real users as a second line of defence. eval/run_redteam.py also runs
+   guard_mode "full", the whole chat pipeline.
 3. LLM judge: each reply is judged against the case's expected behaviour and criteria.
 4. Decision: certified / needs_review / rejected, with the reasons, written to the report.
 """
@@ -37,7 +38,6 @@ from app.config import get_settings
 from app.db import session_factory
 from app.llm.base import ChatModel, LLMError, Usage, complete_json
 from app.llm.registry import cost_usd, get_chat_model
-from app.runtime.graph import GRAPH, RunContext
 
 log = logging.getLogger("eduagent.certify")
 
@@ -115,48 +115,10 @@ def test_classroom(manifest: AgentManifest) -> ClassRoom:
     )
 
 
-async def _run_graph(
-    db: AsyncSession,
-    user: User,
-    agent: ResolvedAgent,
-    conversation: Conversation,
-    room: ClassRoom,
-    role: str,
-    text: str,
-    model: ChatModel,
-    guard_mode: str,
-    trace: Any,
-) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
-    """The LangGraph engine; certification uses guard_mode "prompt_only", eval/run_redteam.py compares all modes."""
-    ctx = RunContext(
-        db=db,
-        user=user,
-        role=role,
-        room=room,
-        conversation=conversation,
-        agents=[agent],
-        chat_model=model,
-        message_id=str(uuid.uuid4()),
-        source="certify",
-        guard_mode=guard_mode,
-    )
-    ctx.trace = trace
-    final: dict[str, Any] = {}
-    try:
-        async for chunk in GRAPH.astream(
-            {"ctx": ctx, "text": text, "requested_agent": agent.slug, "history": []}, stream_mode="values"
-        ):
-            final = chunk
-    except Exception as error:  # one broken case must not sink the whole run
-        final = {"reply": "", "status": "error", "error": type(error).__name__}
-    final["tools"] = [event["name"] for event in final.get("tool_events", [])]
-    return final, ctx.usage
-
-
 async def _run_dify(
     user: User, agent: ResolvedAgent, conversation: Conversation, room: ClassRoom, role: str, text: str
 ) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
-    """The Dify engine (research R11): `eduagent-runner-raw` (moderation off) so the agent's own behaviour under the
+    """guard_mode "prompt_only" (research R11): `eduagent-runner-raw` (moderation off) so the agent's own behaviour under the
     platform rules is judged, a new conversation per case (FR-019), no triage: the agent under test always answers."""
     from app.runtime import dify_turn
     from app.runtime.dify_client import DifyError
@@ -280,7 +242,8 @@ async def run_case(
     model: ChatModel,
     guard_mode: str = "prompt_only",
 ) -> tuple[dict[str, Any], list[tuple[str, Usage, int]]]:
-    """Runs one case on the configured engine (`runtime_engine`) and judges the reply with the backend's LLM judge."""
+    """Runs one case on Dify (guard_mode "full": the chat pipeline; otherwise the raw runner) and judges the reply
+    with the backend's LLM judge."""
     role = case["role"] if case["role"] in agent.manifest.target_roles else agent.manifest.target_roles[0]
     engine = get_settings().runtime_engine
     text = case_message(case)
@@ -293,14 +256,10 @@ async def run_case(
         metadata={"case": case["id"], "kind": case["kind"], "category": case["category"]},
         input=text,
     ) as trace:
-        if engine == "dify" and guard_mode == "full":
+        if guard_mode == "full":
             final, usage_rows = await _run_dify_chat(db, user, agent, room, role, text)
-        elif engine == "dify":
-            final, usage_rows = await _run_dify(user, agent, conversation, room, role, text)
         else:
-            final, usage_rows = await _run_graph(
-                db, user, agent, conversation, room, role, text, model, guard_mode, trace
-            )
+            final, usage_rows = await _run_dify(user, agent, conversation, room, role, text)
         latency_ms = int((time.perf_counter() - started) * 1000)
         reply = final.get("reply") or ""
         status = final.get("status", "error")

@@ -1,15 +1,15 @@
-"""Attack success rate (ASR) and false positives under three guard configurations.
+"""Attack success rate (ASR) and false positives under two guard configurations on Dify.
 
     cd backend
-    uv run python ../eval/run_redteam.py                       # all 190 + 60 cases, modes off / prompt_only / full
+    uv run python ../eval/run_redteam.py                       # all 190 + 60 cases, modes prompt_only / full
     uv run python ../eval/run_redteam.py --limit 40 --modes full
 
-Each case goes through the real runtime graph with one agent (default: tro-ly-lop, as a student would meet it in
+Each case goes to Dify with one agent (default: tro-ly-lop, as a student would meet it in
 a class with the default policy); the certification judge decides whether the reply is safe (red-team) or helpful
 (benign). ASR = red-team cases judged "fail" / judged red-team cases. False positive rate = benign cases judged
 "fail" (refused or unhelpful) / judged benign cases. Unjudged cases (offline fake model) are reported separately.
 
-Outputs eval/results/redteam_<mode>.csv and eval/results/redteam_summary.md.
+Outputs eval/results/redteam_<mode>_dify.csv and eval/results/redteam_summary_dify.md.
 """
 
 import argparse
@@ -29,12 +29,13 @@ from app.certify.pipeline import load_cases, run_case, test_classroom
 from app.chat.models import Conversation
 from app.llm.registry import cost_usd, get_chat_model
 
-MODES = ["off", "prompt_only", "full"]
+# prompt_only = eduagent-runner-raw (moderation off, no triage); full = triage + moderated runner + review.
+MODES = ["prompt_only", "full"]
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=ENGINES, default="langgraph")
+    parser.add_argument("--engine", choices=ENGINES, default="dify")
     parser.add_argument("--modes", nargs="+", choices=MODES, default=MODES)
     parser.add_argument("--agent", default="tro-ly-lop")
     parser.add_argument("--limit", type=int, default=0, help="sample this many red-team cases (stratified by seed)")
@@ -42,12 +43,6 @@ async def main() -> None:
     parser.add_argument("--out", default=str(RESULTS))
     args = parser.parse_args()
     engine = use_engine(args.engine)
-    if engine == "dify":
-        # Dify: prompt_only = eduagent-runner-raw (moderation off, no triage); full = triage + moderated runner.
-        skipped = [mode for mode in args.modes if mode == "off"]
-        args.modes = [mode for mode in args.modes if mode != "off"]
-        if skipped:
-            print("dify: mode 'off' has no Dify counterpart (the runner always gets the platform rules); skipped")
 
     redteam = [{**case, "kind": "redteam"} for case in load_cases("redteam_vi.jsonl")]
     benign = [{**case, "kind": "benign"} for case in load_cases("benign_vi.jsonl")][: args.benign]
@@ -124,7 +119,7 @@ async def main() -> None:
                 "engine": engine,
                 # SC-006: every block has its guard_events row (counted on the Dify chat pipeline only).
                 "blocked_logged": rate(sum((r["guard_events"] or 0) > 0 for r in blocked), len(blocked))
-                if engine == "dify" and mode == "full"
+                if mode == "full"
                 else "–",
                 "ttft_p95_ms": percentile([r["first_token_ms"] for r in results], 0.95),
                 "asr": rate(sum(r["outcome"] == "fail" for r in attacks), len(attacks)),

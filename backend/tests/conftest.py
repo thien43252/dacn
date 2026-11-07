@@ -11,10 +11,10 @@ import app.models  # noqa: F401
 from app.agents.service import sync_platform_agents
 from app.auth.models import User
 from app.db import Base, use_sessionmaker
-from app.llm.fake import FakeChatModel, FakeEmbedder
-from app.llm.registry import use_chat_model, use_embedder
+from app.llm.fake import FakeChatModel
+from app.llm.registry import use_chat_model
 from app.main import create_app
-from tests.dify_fake import dify  # noqa: F401  (fixture)
+from tests.dify_fake import dify, knowledge  # noqa: F401  (fixtures; dify is autouse)
 
 # Tests never send traces, even when the repo-root .env has Langfuse keys (env vars override the .env file).
 os.environ["LANGFUSE_PUBLIC_KEY"] = ""
@@ -34,14 +34,15 @@ def pytest_collection_modifyitems(config, items):
 async def sessionmaker() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     """A fresh database per test: in-memory SQLite by default, or Postgres when TEST_DATABASE_URL is set.
 
-    Postgres runs catch dialect differences (JSON, booleans, pgvector) that SQLite hides:
+    Postgres runs catch dialect differences (JSON, booleans) that SQLite hides:
     TEST_DATABASE_URL=postgresql+asyncpg://eduagent:eduagent@127.0.0.1:5433/eduagent_test uv run pytest
     """
     url = os.environ.get("TEST_DATABASE_URL")
     if url:
         engine = create_async_engine(url, poolclass=NullPool)
         async with engine.begin() as connection:
-            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            # Left by test runs from before migration 0007; it references documents.
+            await connection.execute(text("DROP TABLE IF EXISTS document_chunks"))
             await connection.run_sync(Base.metadata.drop_all)
             await connection.run_sync(Base.metadata.create_all)
     else:
@@ -53,7 +54,7 @@ async def sessionmaker() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
 
 
 @pytest.fixture
-async def app(sessionmaker, fake_llm, fake_embedder):
+async def app(sessionmaker, fake_llm):
     use_sessionmaker(sessionmaker)
     async with sessionmaker() as db:
         await sync_platform_agents(db)
@@ -68,14 +69,6 @@ def fake_llm():
     use_chat_model(model)
     yield model
     use_chat_model(None)
-
-
-@pytest.fixture
-def fake_embedder():
-    embedder = FakeEmbedder()
-    use_embedder(embedder)
-    yield embedder
-    use_embedder(None)
 
 
 @pytest.fixture

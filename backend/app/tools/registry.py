@@ -2,7 +2,8 @@
 
 The registry is the only list of tools an agent can be given. Before every call the guard checks that the tool is
 registered, listed in the agent's manifest, allowed for the caller's role and has the class context it needs; then it
-validates the arguments and calls the tool through the platform's MCP server.
+validates the arguments. Dify's agent reaches the tools through the platform's MCP server (app/tools/server.py),
+whose handler is `run_tool`.
 """
 
 import asyncio
@@ -10,25 +11,18 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from mcp.client import Client
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, ValidationError
 
-from app.agents.manifest import AgentManifest
 from app.audit.models import GuardEvent
 from app.chat.models import ToolCallLog
-from app.classes.models import ClassRoom
 from app.db import session_factory
 from app.guard.rules import redact
-from app.llm.base import ToolCall, ToolSpec, Usage
+from app.llm.base import Usage
 from app.tools import context as handles
 from app.tools import impl
-
-if TYPE_CHECKING:
-    from app.agents.service import ResolvedAgent
-    from app.runtime.graph import RunContext
 
 log = logging.getLogger("eduagent.tools")
 
@@ -96,8 +90,8 @@ class ToolContext:
     agent_slug: str
     allowed_tools: frozenset[str]
     usage: list[tuple[str, Usage]] = field(default_factory=list)
-    # Set by the Dify engine, whose tool calls arrive over HTTP: the handler then logs each call (tool_calls,
-    # guard_events) and queues `tool` SSE events for the turn. The LangGraph engine logs and emits these itself.
+    # Tool calls arrive over HTTP from Dify: the handler then logs each call (tool_calls, guard_events) and queues
+    # `tool` SSE events for the turn. Off for handles that should leave no trace.
     log_calls: bool = False
     message_id: str | None = None
     # chat | sandbox | certify, as in guard_events.source
@@ -112,28 +106,6 @@ class ToolContext:
     def record(self, purpose: str, usage: Usage) -> None:
         self.usage.append((purpose, usage))
 
-    @classmethod
-    def from_run(cls, ctx: "RunContext", agent: "ResolvedAgent") -> "ToolContext":
-        return cls(
-            user_id=ctx.user.id,
-            role=ctx.role,
-            class_id=ctx.room.id if ctx.room else None,
-            grade=ctx.room.grade if ctx.room else None,
-            conversation_id=ctx.conversation.id,
-            agent_slug=agent.slug,
-            allowed_tools=frozenset(agent.manifest.tools),
-        )
-
-
-@dataclass
-class ToolOutcome:
-    content: str
-    is_error: bool = False
-    # Why the tool guard refused the call; None when it ran.
-    denied: str | None = None
-    latency_ms: int = 0
-    usage: list[Usage] = field(default_factory=list)
-
 
 def _llm_schema(args: type[BaseModel]) -> dict[str, Any]:
     schema = args.model_json_schema()
@@ -141,17 +113,6 @@ def _llm_schema(args: type[BaseModel]) -> dict[str, Any]:
     for prop in schema.get("properties", {}).values():
         prop.pop("title", None)
     return schema
-
-
-def specs_for(manifest: AgentManifest, role: str, room: ClassRoom | None) -> list[ToolSpec]:
-    """Tools offered to the model: in the manifest, registered, allowed for this role, with context available."""
-    specs = []
-    for name in manifest.tools:
-        tool = TOOLS.get(name)
-        if tool is None or role not in tool.roles or (tool.needs_class and room is None):
-            continue
-        specs.append(ToolSpec(name=tool.name, description=tool.description, parameters=_llm_schema(tool.args)))
-    return specs
 
 
 def deny_reason(name: str, context: ToolContext) -> str | None:
@@ -166,61 +127,6 @@ def deny_reason(name: str, context: ToolContext) -> str | None:
     if tool.needs_class and not context.class_id:
         return "Công cụ này chỉ dùng trong một lớp học."
     return None
-
-
-def guard(call: ToolCall, context: ToolContext) -> str | None:
-    denied = deny_reason(call.name, context)
-    if denied:
-        return denied
-    if call.invalid:
-        return "Tham số công cụ không đầy đủ hoặc không đọc được."
-    return None
-
-
-def _result_text(result: Any) -> str:
-    parts = []
-    for item in getattr(result, "content", None) or []:
-        text = getattr(item, "text", None)
-        if text:
-            parts.append(text)
-    return "\n".join(parts)
-
-
-async def execute(call: ToolCall, context: ToolContext) -> ToolOutcome:
-    started = time.perf_counter()
-    denied = guard(call, context)
-    if denied:
-        return ToolOutcome(json.dumps({"error": denied}, ensure_ascii=False), is_error=True, denied=denied)
-    tool = TOOLS[call.name]
-    try:
-        args = tool.args.model_validate(call.arguments)
-    except ValidationError as error:
-        problems = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in error.errors()[:5])
-        return ToolOutcome(
-            json.dumps({"error": f"Tham số không hợp lệ: {problems}"}, ensure_ascii=False), is_error=True
-        )
-
-    from app.tools.server import server
-
-    handle = handles.register(context)
-    try:
-        async with Client(server) as client:
-            result = await client.call_tool(call.name, {"ctx": handle, **args.model_dump()})
-        text = _result_text(result)
-        is_error = bool(getattr(result, "is_error", False) or getattr(result, "isError", False))
-        if is_error:
-            reason = text.split(": ", 1)[1] if text.startswith("Error executing tool") and ": " in text else text
-            text = json.dumps({"error": reason or "Công cụ gặp lỗi."}, ensure_ascii=False)
-    except Exception as error:  # transport or server failure must not crash the chat turn
-        text, is_error = json.dumps({"error": f"Công cụ gặp lỗi: {type(error).__name__}"}, ensure_ascii=False), True
-    finally:
-        handles.release(handle)
-    return ToolOutcome(
-        text,
-        is_error=is_error,
-        latency_ms=int((time.perf_counter() - started) * 1000),
-        usage=[usage for _, usage in context.usage],
-    )
 
 
 IMPLEMENTATIONS = {
@@ -312,7 +218,7 @@ async def _log_call(
 
 
 async def run_tool(handle: str, name: str, arguments: dict[str, Any]) -> str:
-    """The MCP handler behind every tool, for both engines (contracts/mcp-tools.md).
+    """The MCP handler behind every tool (contracts/mcp-tools.md).
 
     Checks, in order: live handle, registered tool, granted to the agent, allowed for the role, class context, valid
     arguments. `arguments` never contains `ctx`. Errors are raised as ToolError so the model reads the message.

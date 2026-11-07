@@ -42,6 +42,16 @@ async def test_runner_stream_is_parsed_from_the_recorded_fixture(dify) -> None:
     assert end.usage is not None and end.usage.input_tokens > 0 and end.usage.output_tokens > 0
 
 
+async def test_a_refused_tool_call_inside_dify_still_ends_in_an_answer(app, as_user, dify) -> None:
+    """Recorded: the MCP handler refused math_check (dead handle); Dify gives the model the error and it answers."""
+    _, student, _, room = await class_with_student(as_user)
+    dify.runner = [fixture_text("runner_tool_denied.sse")]
+    events = await chat(student, "Giải 2x + 3 = 7", class_id=room["id"])
+    assert events[-1]["status"] == "ok" and reply_text(events)
+    # Tool events come from the platform's own handler, never from Dify's agent_log.
+    assert "tool" not in {event["type"] for event in events}
+
+
 async def test_failed_run_without_a_message_is_an_error(dify) -> None:
     """System prompt over the 12000-character input limit: Dify ends the run before any node."""
     dify.runner = [fixture_text("runner_input_too_long.sse")]

@@ -115,7 +115,8 @@ Studio → Import DSL file, lần lượt:
 - Mỗi ứng dụng: API Access → tạo key → chép vào `.env` (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`,
   `DIFY_REVIEW_KEY`).
 - Knowledge → API → tạo key → `DIFY_DATASET_KEY`.
-- Đặt `RUNTIME_ENGINE=dify`, khởi động lại backend, chạy `uv run python -m scripts.seed_demo`.
+- Khởi động lại backend, chạy `uv run python -m scripts.seed_demo`. `RUNTIME_ENGINE` mặc định là `dify` và chỉ còn
+  giá trị này: lõi cũ đã bị xóa ở Phase 9.
 
 ## Ghi chú spike
 
@@ -151,3 +152,21 @@ Câu 4, các hướng xử lý (để sau, theo quyết định ngày 2026-11-07
 
 Nếu câu 1 và phương án dự phòng (research R6) đều không đạt, hoặc câu 4 vượt xa 3 giây: dừng và báo chủ dự án
 trước khi làm tiếp.
+
+## Kiểm chứng sau khi chuyển hẳn sang Dify (T081, 2026-11-07)
+
+Chạy trên máy phát triển (không phải máy sạch), Dify và Postgres đã dựng sẵn:
+
+- `alembic upgrade head` lên 0007 (xóa `document_chunks`), `downgrade -1` rồi `upgrade` lại đều chạy được.
+- `seed_demo` chạy lại không lỗi; tài liệu chương 3 đã nằm trong kho tri thức của lớp.
+- `npm run test:e2e`: 4/4 đạt với Dify thật (lần chạy kéo dài khoảng 21 s). Khác trước: máy chưa có Chromium của
+  Playwright nên chạy với `CHROME_PATH` trỏ tới Chrome. Test đã sửa phần kiểm tra cho lõi Dify: chờ câu trả lời trước
+  stream xong mới gửi câu sau, kiểm tra câu chặn cài sẵn của Dify, kiểm tra số điện thoại không xuất hiện trong câu
+  trả lời (thay vì chờ chuỗi "[số điện thoại đã ẩn]" mà mô hình giả từng nhắc lại).
+- `docs/DEMO.md`: các bước 3, 6, 7, 9, 10, 13 có E2E; bước 4, 5, 8, 14 chạy qua API. Lệch so với kịch bản:
+  - Bước 4 ("Tóm tắt chương 3...") ban đầu bị `eduagent-review` chặn nhầm (`academic_integrity`) cả 3/3 lần. Đã sửa
+    review (trường `is_exercise`, contracts/dify-apps.md mục 5); sau đó 3/3 lần trả lời có trích dẫn tài liệu.
+  - Bước 5: agent chọn đúng (`mention`) nhưng có lần hỏi gợi mở thay vì gọi `math_check`. Ghi chú trong DEMO.md.
+- Thời gian dựng (SC-008, mục tiêu ≤ 1 giờ): chưa đo trên máy sạch. Ước tính theo các bước đã làm: Dify khoảng
+  20–30 phút (tải image lần đầu chiếm phần lớn), cấu hình trong Studio khoảng 10 phút, nền tảng khoảng 5 phút.
+

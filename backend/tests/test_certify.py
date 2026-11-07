@@ -76,7 +76,7 @@ def test_decision_rules() -> None:
     assert decide(ok, {"risk": "high", "issues": ["x"]}, passing)[0] == "rejected"
 
 
-async def test_good_agent_is_certified_published_and_reaches_students(as_user, fake_llm) -> None:
+async def test_good_agent_is_certified_published_and_reaches_students(as_user, fake_llm, dify) -> None:
     teacher = await as_user("teacher")
     student = await as_user("student")
     judge_says(fake_llm, "pass")
@@ -91,7 +91,7 @@ async def test_good_agent_is_certified_published_and_reaches_students(as_user, f
     assert report["settings"]["guard_mode"] == "prompt_only"
     assert all(f["ok"] for f in report["static"])
     # Each case ran the real agent, inside the simulated class, with the platform rules and the class policy.
-    agent_system = next(call["system"] for call in fake_llm.calls if call["tier"] == "main")
+    agent_system = dify.calls("/chat-messages")[0]["inputs"]["system_prompt"]
     assert "Ôn thi Hoá 9" in agent_system and "Lớp kiểm định" in agent_system and "KHÔNG đưa đáp án" in agent_system
 
     hub = {a["slug"]: a for a in (await student.get("/api/hub/agents")).json()}
@@ -104,12 +104,12 @@ async def test_good_agent_is_certified_published_and_reaches_students(as_user, f
     assert again.json()["id"] == result["id"]
 
 
-async def test_bad_agent_is_rejected_by_static_checks_without_running(as_user, fake_llm) -> None:
+async def test_bad_agent_is_rejected_by_static_checks_without_running(as_user, dify) -> None:
     teacher = await as_user("teacher")
     agent, version = await build(teacher, {**MANIFEST, "slug": "giai-ho", "system_prompt": BAD_PROMPT})
     result = await certify(teacher, agent, version, publish=True)
     assert result["status"] == "rejected" and result["score"] is None
-    assert result["report"]["cases"] == [] and fake_llm.main_calls == []
+    assert result["report"]["cases"] == [] and dify.calls("/chat-messages") == []
     assert any("thông tin cá nhân" in reason for reason in result["reasons"])
     listed = (await teacher.get(f"/api/agents/{agent['id']}/certifications")).json()
     assert listed[0]["status"] == "rejected"
@@ -169,7 +169,7 @@ async def test_only_the_author_certifies_and_reads_reports(as_user, fake_llm) ->
     ).status_code == 200
 
 
-async def test_dify_certification_uses_the_raw_runner_and_a_new_conversation_per_case(as_user, fake_llm, dify) -> None:
+async def test_certification_uses_the_raw_runner_and_a_new_conversation_per_case(as_user, fake_llm, dify) -> None:
     """Research R11 / FR-019: every case goes to eduagent-runner-raw (moderation off), never through triage."""
     teacher = await as_user("teacher")
     judge_says(fake_llm, "pass")

@@ -113,3 +113,8 @@ Output: `verdict` (`allow` \| `block`), `category` (`unsafe`, `privacy`, `inject
 `reason`. `block` → `text_reset` + câu cài sẵn (`answer_withheld` cho `academic_integrity`, `output_blocked` cho
 nhóm khác), `status="blocked"`, `guard_events` stage `output` detector `dify_review`; token ghi purpose
 `output_guard`. Review lỗi hoặc hết giờ: giữ câu trả lời (đã qua kiểm duyệt từ khóa), ghi log.
+
+Bên trong app: LLM trả JSON có thêm `is_exercise` (tin nhắn có phải một bài tập cụ thể: đề có số liệu, câu trắc
+nghiệm, nhờ viết bài để nộp). Node Code chỉ giữ `academic_integrity` khi `no_direct_answers` và `is_exercise` đều là
+`true`. Thêm ngày 2026-11-07 khi chạy kịch bản demo (T081): `gpt-4o-mini` chặn nhầm "Tóm tắt chương 3" dù prompt có ví
+dụ cho phép. Bộ thử 5 ca (2 phải chặn, 3 phải cho qua) đúng 15/15 sau thay đổi.

@@ -24,7 +24,6 @@ from app.llm.registry import cost_usd
 from app.runtime import engine
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-HISTORY_MESSAGES = 12
 
 
 class ChatIn(BaseModel):

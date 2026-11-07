@@ -70,16 +70,21 @@ tĩnh bắt được) và 7 agent tinh vi chỉ mô hình mới thấy (`flaw` m
 
 ## Thực nghiệm (tuần 11)
 
-Chạy từ `backend/`, dùng nhà cung cấp mô hình trong `.env`. Các script dùng database SQLite trong bộ nhớ, không ghi vào
-database demo. Kết quả ghi vào `eval/results/` (CSV từng ca và một file `*_summary.md`).
+Chạy từ `backend/`. Agent chạy trên Dify, nên cần Dify đang chạy và các khóa `DIFY_*` trong `.env`
+(`infra/dify/README.md`). Giám khảo chạy bằng nhà cung cấp mô hình trong `.env` (`LLM_PROVIDER`...). Các script dùng
+database SQLite trong bộ nhớ, không ghi vào database demo. Kết quả ghi vào `eval/results/`, gồm CSV từng ca và một file
+`*_summary.md`, tên có hậu tố `_dify`.
 
 | Script | Đo gì | Lệnh |
 | --- | --- | --- |
-| `run_redteam.py` | ASR, chặn nhầm, độ trễ p50/p95, token và chi phí theo 3 cấu hình guard (`off`, `prompt_only`, `full`) | `uv run python ../eval/run_redteam.py [--limit 60] [--modes full]` |
-| `run_routing.py` | Độ chính xác định tuyến theo loại tình huống | `uv run python ../eval/run_routing.py --router keyword` và `--router llm` |
+| `run_redteam.py` | ASR, chặn nhầm, độ trễ p50/p95, chữ đầu tiên p95, token và chi phí theo 2 cấu hình: `prompt_only` (runner-raw, không kiểm duyệt) và `full` (triage, runner có kiểm duyệt, review) | `uv run python ../eval/run_redteam.py [--limit 60] [--modes full]` |
+| `run_routing.py` | Độ chính xác định tuyến của workflow `eduagent-triage` theo loại tình huống | `uv run python ../eval/run_routing.py` |
 | `run_certify.py` | Precision/recall của kiểm định, so với chỉ kiểm tra tĩnh | `uv run python ../eval/run_certify.py [--redteam-cases 12]` |
 
-Với `LLM_PROVIDER=fake` các script vẫn chạy hết (dùng để kiểm tra, `tests/test_eval_scripts.py`), nhưng giám khảo không
-chấm được nên cột "chưa chấm" chiếm hết; số liệu cho báo cáo cần mô hình thật. Ước tính với Anthropic (Opus cho agent,
-Haiku cho guard và giám khảo): red-team đủ 3 cấu hình khoảng 750 lượt agent; nên chạy `--limit 60` trước để ước chi phí
-từ cột `cost_usd`.
+Các file trong `eval/results/` không có hậu tố `_dify` (`redteam_full.csv`, `routing_keyword.csv`, `routing_llm.csv`,
+`certify.csv`...) là kết quả của lõi cũ chạy trong backend trước khi chuyển sang Dify. Chúng được giữ làm mốc cho bảng so
+sánh trong `docs/BAO-CAO.md` (SC-009); lõi đó đã bị xóa nên không chạy lại được.
+
+Khi không có Dify (`DIFY_BASE_URL` trỏ tới địa chỉ không tồn tại), các script vẫn chạy hết: lỗi kết nối được tính là lỗi
+hoặc "chưa chấm". `tests/test_eval_scripts.py` dùng cách này để kiểm tra script. Số liệu cho báo cáo cần Dify thật và
+mô hình thật. Nên chạy `--limit 60` trước để ước chi phí từ cột `cost_usd`.

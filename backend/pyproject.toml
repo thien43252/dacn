@@ -1,7 +1,7 @@
 [project]
 name = "eduagent-hub-backend"
 version = "0.1.0"
-description = "Backend for EduAgent Hub: classes, agent hub, multi-agent runtime with guardrails and certification."
+description = "Backend for EduAgent Hub: classes, agent hub, Dify-based agent runtime, MCP tools and certification."
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi>=0.115",
@@ -11,15 +11,13 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
     "alembic>=1.14",
+    # Only for migrations 0001, 0004 and 0007; no model uses vectors any more.
     "pgvector>=0.3.6",
-    "langgraph>=1.2.17",
     "anthropic>=2.3.0",
     "openai>=3.37.0",
     "google-genai>=2.33.0",
     "pyyaml>=6.0.3",
     "sympy>=1.14.0",
-    "pypdf>=6.21.2",
-    "python-docx>=1.2.0",
     "mcp>=2.3.0",
     "python-multipart>=0.0.32",
     "langfuse>=3",

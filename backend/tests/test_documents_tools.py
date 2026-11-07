@@ -1,13 +1,11 @@
-import io
 import json
 
-import docx
+import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
-from app.knowledge.service import Section, chunk_sections
-from app.llm.base import ToolCall
-from app.llm.fake import Scripted
+from app.tools import context as handles
 from app.tools import registry
-from tests.helpers import chat, class_with_student, reply_text
+from tests.helpers import class_with_student
 
 LESSON = (
     "Chương 3. Phương trình bậc nhất một ẩn. Phương trình bậc nhất một ẩn có dạng ax + b = 0 với a khác 0. "
@@ -24,40 +22,27 @@ async def upload(client, class_id: str, name: str, data: bytes, content_type: st
     )
 
 
-async def test_teacher_uploads_text_document_and_it_is_chunked(as_user) -> None:
+async def test_teacher_uploads_a_document_students_see_it_and_teachers_preview_difys_chunks(as_user) -> None:
     teacher, student, _, room = await class_with_student(as_user)
     response = await upload(teacher, room["id"], "chuong3.txt", LESSON.encode(), "text/plain", "Bài giảng chương 3")
     assert response.status_code == 201, response.text
-    assert response.json()["status"] == "processing"
-    # Background tasks run before the test client returns.
-    documents = (await teacher.get(f"/api/classes/{room['id']}/documents")).json()
-    assert documents[0]["status"] == "ready" and documents[0]["chunk_count"] >= 1
-    chunks = (await teacher.get(f"/api/classes/{room['id']}/documents/{documents[0]['id']}/chunks")).json()
-    assert "Phương trình bậc nhất" in chunks[0]["content"]
-    # Students may list documents but not upload.
-    assert len((await student.get(f"/api/classes/{room['id']}/documents")).json()) == 1
-    denied = await upload(student, room["id"], "x.txt", b"hello world text", "text/plain")
-    assert denied.status_code == 403
+    document = response.json()
+    assert document["title"] == "Bài giảng chương 3" and document["status"] == "processing"
+    # Listing asks Dify how indexing went (the fake reports it completed).
+    [listed] = (await student.get(f"/api/classes/{room['id']}/documents")).json()
+    assert listed["status"] == "ready" and listed["chunk_count"] > 0
+    chunks = (await teacher.get(f"/api/classes/{room['id']}/documents/{document['id']}/chunks")).json()
+    assert [chunk["position"] for chunk in chunks] == [1, 2, 3]
+    assert chunks[0]["location"] == "đoạn 1" and chunks[0]["content"].startswith("Chương 3")
+    assert (await student.get(f"/api/classes/{room['id']}/documents/{document['id']}/chunks")).status_code == 403
 
 
-async def test_docx_upload_keeps_headings_as_locations(as_user) -> None:
+async def test_chunk_preview_fails_softly_when_dify_is_down(as_user, knowledge) -> None:
     teacher, _, _, room = await class_with_student(as_user)
-    document = docx.Document()
-    document.add_heading("Bài 1: Phân số", level=1)
-    document.add_paragraph("Phân số tối giản là phân số mà tử và mẫu không còn ước chung nào khác 1.")
-    buffer = io.BytesIO()
-    document.save(buffer)
-    response = await upload(
-        teacher,
-        room["id"],
-        "phan-so.docx",
-        buffer.getvalue(),
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-    assert response.status_code == 201
-    doc_id = response.json()["id"]
-    chunks = (await teacher.get(f"/api/classes/{room['id']}/documents/{doc_id}/chunks")).json()
-    assert chunks[0]["location"] == "Bài 1: Phân số"
+    document = (await upload(teacher, room["id"], "a.txt", LESSON.encode(), "text/plain")).json()
+    knowledge.datasets.clear()  # Dify lost the knowledge base
+    response = await teacher.get(f"/api/classes/{room['id']}/documents/{document['id']}/chunks")
+    assert response.status_code == 502
 
 
 async def test_unsupported_and_empty_files_are_rejected(as_user) -> None:
@@ -66,40 +51,12 @@ async def test_unsupported_and_empty_files_are_rejected(as_user) -> None:
     assert (await upload(teacher, room["id"], "empty.txt", b"", "text/plain")).status_code == 400
 
 
-async def test_class_doc_search_returns_relevant_chunk_only_from_own_class(as_user, fake_llm) -> None:
-    teacher, student, _, room = await class_with_student(as_user)
-    await upload(teacher, room["id"], "bai.txt", LESSON.encode(), "text/plain", "Bài giảng")
-    other_teacher = await as_user("teacher")
-    other = (await other_teacher.post("/api/classes", json={"name": "Lớp khác", "subject": "sinh", "grade": 7})).json()
-    await upload(
-        other_teacher, other["id"], "secret.txt", b"Bi mat lop khac: quang hop quang hop quang hop", "text/plain"
-    )
-
-    fake_llm.script(
-        Scripted(tool_calls=[ToolCall(id="s1", name="class_doc_search", arguments={"query": "quang hợp là gì"})]),
-        "Theo tài liệu lớp, quang hợp là ...",
-    )
-    events = await chat(student, "Quang hợp là gì?", class_id=room["id"])
-    assert reply_text(events).endswith("Theo tài liệu lớp, quang hợp là ...")
-    result = json.loads(fake_llm.main_calls[-1]["messages"][-1].content)
-    titles = {hit["title"] for hit in result["results"]}
-    assert titles == {"Bài giảng"}
-    assert "Quang hợp" in result["results"][0]["content"]
-
-
-async def test_deleting_document_removes_it(as_user) -> None:
+async def test_deleting_document_removes_it(as_user, knowledge) -> None:
     teacher, _, _, room = await class_with_student(as_user)
     doc = (await upload(teacher, room["id"], "a.txt", LESSON.encode(), "text/plain")).json()
     assert (await teacher.delete(f"/api/classes/{room['id']}/documents/{doc['id']}")).status_code == 204
     assert (await teacher.get(f"/api/classes/{room['id']}/documents")).json() == []
-
-
-def test_chunking_respects_size_and_overlap() -> None:
-    text = " ".join(f"Câu số {index} nói về phương trình." for index in range(200))
-    chunks = chunk_sections([Section(text, "trang 1")], size=300, overlap=50)
-    assert len(chunks) > 5
-    assert all(len(chunk.text) <= 360 for chunk in chunks)
-    assert all(chunk.location == "trang 1" for chunk in chunks)
+    assert knowledge.datasets == {"ds-1": []}
 
 
 def _ctx(role: str = "student", tools=("math_check",), class_id: str | None = "c1") -> registry.ToolContext:
@@ -114,60 +71,61 @@ def _ctx(role: str = "student", tools=("math_check",), class_id: str | None = "c
     )
 
 
+async def call(name: str, arguments: dict, context: registry.ToolContext) -> dict:
+    """One call through the MCP handler, as Dify makes it; refusals and errors raise ToolError."""
+    handle = handles.register(context)
+    try:
+        return json.loads(await registry.run_tool(handle, name, arguments))
+    finally:
+        handles.release(handle)
+
+
 async def test_math_check_operations() -> None:
     async def run(**arguments):
-        outcome = await registry.execute(ToolCall(id="m", name="math_check", arguments=arguments), _ctx())
-        return outcome, json.loads(outcome.content)
+        return await call("math_check", arguments, _ctx())
 
-    _, solved = await run(operation="solve", expression="x^2 - 5x + 6 = 0")
+    solved = await run(operation="solve", expression="x^2 - 5x + 6 = 0")
     assert sorted(solved["solutions"]) == ["2", "3"]
-    _, wrong = await run(operation="check_answer", expression="2x + 3 = 11", answer="x = 5")
+    wrong = await run(operation="check_answer", expression="2x + 3 = 11", answer="x = 5")
     assert wrong["is_correct"] is False
-    _, simplified = await run(operation="simplify", expression="(x^2 - 1)/(x - 1)")
+    simplified = await run(operation="simplify", expression="(x^2 - 1)/(x - 1)")
     assert simplified["simplified"] == "x + 1"
-    _, same = await run(operation="equivalent", expression="(x+1)^2", answer="x^2 + 2x + 1")
+    same = await run(operation="equivalent", expression="(x+1)^2", answer="x^2 + 2x + 1")
     assert same["equivalent"] is True
 
 
 async def test_math_check_rejects_code_injection() -> None:
     for payload in ["__import__('os').system('dir')", "x.__class__", "open('a')", "lambda: 1"]:
-        outcome = await registry.execute(
-            ToolCall(id="m", name="math_check", arguments={"operation": "simplify", "expression": payload}), _ctx()
-        )
-        assert outcome.is_error, payload
+        with pytest.raises(ToolError):
+            await call("math_check", {"operation": "simplify", "expression": payload}, _ctx())
 
 
-async def test_tool_guard_checks_role_class_and_arguments() -> None:
-    parent_quiz = await registry.execute(
-        ToolCall(id="q", name="quiz_generator", arguments={"topic": "phân số"}),
-        _ctx("parent", tools=("quiz_generator",)),
-    )
-    assert parent_quiz.denied == "Vai trò của người dùng không được dùng công cụ này."
-    no_class = await registry.execute(
-        ToolCall(id="d", name="class_doc_search", arguments={"query": "abc"}),
-        _ctx(tools=("class_doc_search",), class_id=None),
-    )
-    assert no_class.denied == "Công cụ này chỉ dùng trong một lớp học."
-    bad_args = await registry.execute(ToolCall(id="m", name="math_check", arguments={"operation": "fly"}), _ctx())
-    assert bad_args.is_error and bad_args.denied is None and "Tham số không hợp lệ" in bad_args.content
-    unknown = await registry.execute(ToolCall(id="x", name="shell", arguments={}), _ctx(tools=("shell",)))
-    assert unknown.denied == "Công cụ không có trong danh mục của nền tảng."
+@pytest.mark.parametrize(
+    ("name", "arguments", "context", "message"),
+    [
+        ("quiz_generator", {"topic": "phân số"}, _ctx("parent", ("quiz_generator",)), "Vai trò của người dùng"),
+        ("class_doc_search", {"query": "abc"}, _ctx(tools=("class_doc_search",), class_id=None), "trong một lớp"),
+        ("math_check", {"operation": "fly"}, _ctx(), "Tham số không hợp lệ"),
+        ("shell", {}, _ctx(tools=("shell",)), "không có trong danh mục"),
+        ("progress_summary", {}, _ctx(), "không được cấp"),
+    ],
+)
+async def test_tool_guard_checks_role_class_and_arguments(name, arguments, context, message) -> None:
+    with pytest.raises(ToolError, match=message):
+        await call(name, arguments, context)
 
 
 async def test_quiz_hides_answers_from_students(fake_llm) -> None:
     quiz = '{"questions":[{"type":"mcq","question":"2+2?","options":["A. 3","B. 4"],"answer":"B","explanation":"vì"}]}'
     fake_llm.script(quiz, quiz)
-    student = await registry.execute(
-        ToolCall(id="q", name="quiz_generator", arguments={"topic": "cộng", "with_answers": True}),
-        _ctx("student", tools=("quiz_generator",), class_id=None),
+    as_student = _ctx("student", tools=("quiz_generator",), class_id=None)
+    student = await call("quiz_generator", {"topic": "cộng", "with_answers": True}, as_student)
+    teacher = await call(
+        "quiz_generator", {"topic": "cộng", "with_answers": True}, _ctx("teacher", ("quiz_generator",))
     )
-    teacher = await registry.execute(
-        ToolCall(id="q", name="quiz_generator", arguments={"topic": "cộng", "with_answers": True}),
-        _ctx("teacher", tools=("quiz_generator",), class_id=None),
-    )
-    assert "answer" not in json.loads(student.content)["questions"][0]
-    assert json.loads(teacher.content)["questions"][0]["answer"] == "B"
-    assert student.usage and student.usage[0].provider == "fake"
+    assert "answer" not in student["questions"][0]
+    assert teacher["questions"][0]["answer"] == "B"
+    assert as_student.usage and as_student.usage[0][1].provider == "fake"
 
 
 async def test_rubric_grader_gives_students_feedback_without_scores(fake_llm) -> None:
@@ -184,11 +142,8 @@ async def test_rubric_grader_gives_students_feedback_without_scores(fake_llm) ->
         }
     )
     fake_llm.script(graded)
-    outcome = await registry.execute(
-        ToolCall(id="r", name="rubric_grader", arguments={"essay": "Mùa thu đến rồi, lá vàng rơi đầy sân trường em."}),
-        _ctx("student", tools=("rubric_grader",)),
-    )
-    result = json.loads(outcome.content)
+    essay = "Mùa thu đến rồi, lá vàng rơi đầy sân trường em."
+    result = await call("rubric_grader", {"essay": essay}, _ctx("student", tools=("rubric_grader",)))
     assert "total" not in result and "score" not in result["criteria"][0]
     assert result["criteria"][0]["suggestion"] == "Thêm kết bài"
 
