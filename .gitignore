@@ -58,3 +58,7 @@ eval/results/
 Thumbs.db
 .vscode/
 .idea/
+
+# Archify: diagram output and the installed skill (reinstall from skills-lock.json, see README)
+.archify/
+.claude/skills/archify/

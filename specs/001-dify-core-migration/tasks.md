@@ -333,6 +333,6 @@ Mỗi bước giữ `RUNTIME_ENGINE=langgraph` làm đường lui cho tới Phas
 
 ## Phase 11: Convergence
 
-- [ ] T087 Đo thời gian dựng toàn bộ hệ thống (Dify + nền tảng) trên một máy sạch chỉ theo `README.md` và `infra/dify/README.md`, ghi số phút và các bước bị vấp vào mục "Kiểm chứng sau khi chuyển hẳn sang Dify" của `infra/dify/README.md` per SC-008 (partial)
-- [ ] T088 Sửa mục 4 của `specs/001-dify-core-migration/quickstart.md`: bỏ hướng dẫn chạy với `RUNTIME_ENGINE=langgraph` (lõi cũ đã bị xóa), chỉ chạy các script trên Dify và trỏ tới kết quả cũ không có hậu tố `_dify` làm mốc so sánh per T081 (partial)
-- [ ] T089 Thêm test offline trong `backend/tests/test_dify_dsl.py` chạy hàm `main()` của node Code `parse` trong `infra/dify/eduagent-review.yml`: `academic_integrity` chỉ bị chặn khi `no_direct_answers` và `is_exercise` đều là `true`, thiếu `category` hoặc JSON hỏng thì cho qua per FR-007 (partial)
+- [ ] T087 Đo thời gian dựng toàn bộ hệ thống (Dify + nền tảng) trên một máy sạch chỉ theo `README.md` và `infra/dify/README.md`, ghi số phút và các bước bị vấp vào mục "Kiểm chứng sau khi chuyển hẳn sang Dify" của `infra/dify/README.md` per SC-008 (partial) **Chưa làm**: cần máy sạch, chủ dự án tự đo.
+- [X] T088 Sửa mục 4 của `specs/001-dify-core-migration/quickstart.md`: bỏ hướng dẫn chạy với `RUNTIME_ENGINE=langgraph` (lõi cũ đã bị xóa), chỉ chạy các script trên Dify và trỏ tới kết quả cũ không có hậu tố `_dify` làm mốc so sánh per T081 (partial) **Xong (2026-11-08)**; thêm luôn `DIFY_REVIEW_KEY` còn thiếu trong khối `.env` của mục 1.
+- [X] T089 Thêm test offline trong `backend/tests/test_dify_dsl.py` chạy hàm `main()` của node Code `parse` trong `infra/dify/eduagent-review.yml`: `academic_integrity` chỉ bị chặn khi `no_direct_answers` và `is_exercise` đều là `true`, thiếu `category` hoặc JSON hỏng thì cho qua per FR-007 (partial) **Xong (2026-11-08)**: 9 ca, chạy đúng mã trong DSL bằng `exec`.

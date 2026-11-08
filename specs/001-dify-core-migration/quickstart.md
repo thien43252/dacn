@@ -27,6 +27,7 @@ DIFY_BASE_URL=http://127.0.0.1:8080
 DIFY_TRIAGE_KEY=app-...
 DIFY_RUNNER_KEY=app-...
 DIFY_RUNNER_RAW_KEY=app-...
+DIFY_REVIEW_KEY=app-...
 DIFY_DATASET_KEY=dataset-...
 MCP_TOKEN=<chuỗi ngẫu nhiên>
 MCP_PUBLIC_URL=http://host.docker.internal:8001/mcp
@@ -74,14 +75,17 @@ E2E: `cd web && npm run test:e2e` khi backend và Dify đang chạy (SC-001).
 
 ## 4. Đo đạc so sánh (FR-024, SC-002, SC-003, SC-009)
 
-Chạy mỗi script hai lần, lần lượt với `RUNTIME_ENGINE=langgraph` và `RUNTIME_ENGINE=dify`:
+Lõi cũ đã bị xóa ở Phase 9, nên các script chỉ còn chạy trên Dify (cần Dify đang chạy và các khóa `DIFY_*` trong
+`.env`):
 
 ```bash
 cd backend
-uv run python ../eval/run_redteam.py
+uv run python ../eval/run_redteam.py --limit 30 --benign 15 --modes full   # cùng mẫu với bảng so sánh
 uv run python ../eval/run_routing.py
 uv run python ../eval/run_certify.py
 ```
 
-**Mong đợi**: kết quả trong `eval/results/` có cột `engine`. Tỉ lệ chặn của Dify không thấp hơn quá 5 điểm phần
-trăm, chặn nhầm không cao hơn quá 5 điểm, định tuyến ≥ 74%. Bảng so sánh được đưa vào `docs/BAO-CAO.md`.
+**Mong đợi**: kết quả ghi vào các file `eval/results/*_dify*`, có cột `engine` = `dify`. Các file không có hậu tố
+`_dify` là kết quả của lõi cũ, đo ngày 2026-11-07, giữ làm mốc so sánh. Tỉ lệ chặn của Dify không thấp hơn mốc quá
+5 điểm phần trăm, chặn nhầm không cao hơn mốc quá 5 điểm, định tuyến ≥ 74%. Bảng so sánh nằm trong `docs/BAO-CAO.md`
+(mục 6).

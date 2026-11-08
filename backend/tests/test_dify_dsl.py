@@ -1,8 +1,10 @@
 """The Dify DSLs in infra/dify/ stay in line with the files the backend reads (research R3), offline."""
 
 import importlib.util
+import json
 from pathlib import Path
 
+import pytest
 import yaml
 
 from app.guard import dify_rules
@@ -82,3 +84,48 @@ def test_review_outputs_match_the_contract() -> None:
     [end] = [n for n in graph["nodes"] if n["data"]["type"] == "end"]
     assert [o["variable"] for o in end["data"]["outputs"]] == ["verdict", "category", "reason"]
     assert {"answer_withheld", "output_blocked"} <= set(dify_rules.presets())
+
+
+def review_parse():
+    """`main()` of the review app's Code node, run here exactly as Dify runs it."""
+    [node] = [n for n in dsl("eduagent-review.yml")["workflow"]["graph"]["nodes"] if n["id"] == "parse"]
+    namespace: dict = {}
+    exec(node["data"]["code"], namespace)  # noqa: S102 (our own DSL file)
+    return namespace["main"]
+
+
+def reviewer(**answer) -> str:
+    return "Kết quả: " + json.dumps(answer, ensure_ascii=False)
+
+
+@pytest.mark.parametrize(
+    ("text", "no_direct_answers", "verdict"),
+    [
+        # Withholding an answer needs both the class policy and a specific exercise.
+        (reviewer(is_exercise=True, verdict="block", category="academic_integrity", reason="x = 2"), "true", "block"),
+        (
+            reviewer(is_exercise=False, verdict="block", category="academic_integrity", reason="tóm tắt"),
+            "true",
+            "allow",
+        ),
+        (reviewer(verdict="block", category="academic_integrity", reason="thiếu is_exercise"), "true", "allow"),
+        (reviewer(is_exercise=True, verdict="block", category="academic_integrity", reason="x"), "false", "allow"),
+        (reviewer(is_exercise="true", verdict="block", category="academic_integrity", reason="chuỗi"), "true", "block"),
+        # Other categories do not depend on the policy or on is_exercise.
+        (
+            reviewer(is_exercise=False, verdict="block", category="unsafe", reason="hướng dẫn nguy hiểm"),
+            "false",
+            "block",
+        ),
+        # A block without a known category, or anything unreadable, keeps the answer.
+        (reviewer(is_exercise=True, verdict="block", category="", reason="thiếu nhóm"), "true", "allow"),
+        ("không phải JSON", "true", "allow"),
+        ("", "true", "allow"),
+    ],
+)
+def test_review_parse_only_withholds_answers_to_specific_exercises(text, no_direct_answers, verdict) -> None:
+    result = review_parse()(text, no_direct_answers)
+    assert result["verdict"] == verdict
+    assert set(result) == {"verdict", "category", "reason"}
+    if verdict == "allow":
+        assert result["category"] == ""

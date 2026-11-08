@@ -150,6 +150,18 @@ Dify. Bước bị chặn có level `WARNING`; case kiểm định có score `ce
 trace (bật Langfuse trong Dify, xem [infra/dify/README.md](infra/dify/README.md) mục Tracing). Lời gọi mô hình của
 backend là generation (token, chi phí). Mọi chuỗi gửi đi đều qua bộ ẩn thông tin cá nhân (`app/tracing.py`).
 
+## Sơ đồ kiến trúc (Archify)
+
+Skill [Archify](https://github.com/tt-a1i/archify) cho Claude Code vẽ sơ đồ HTML tương tác từ code (kiến trúc, luồng,
+sequence, ERD…). Skill không nằm trong repo, chỉ có `skills-lock.json` ghi nguồn và hash. Cài lại (cần Node.js):
+
+```bash
+npx -y skills add tt-a1i/archify -s archify -a claude-code -y --copy
+```
+
+Rồi mở phiên Claude Code mới và gọi `/archify <yêu cầu>`, ví dụ `/archify vẽ ERD từ backend/app/models.py`. Sơ đồ được
+ghi vào `.archify/` (đã bỏ qua trong git); sơ đồ muốn giữ thì chép vào `docs/`.
+
 ## Ghi chú bản quyền
 
 Mascot trong `web/src/assets/mascots` theo MIT (xem `LICENSE` cùng thư mục). Ảnh minh họa trong
