@@ -37,3 +37,5 @@
   chờ 24 giờ, các giới hạn mặc định, xác nhận cách hiểu của agent tính vào lần hỏi lại.
   Phiên clarify 2026-11-10 đã chốt: công tắc theo lớp, không hạn mức lượt, ghi chú làm việc hiển thị sau kiểm duyệt.
 - FR-045 (cập nhật `dev.ps1`) đến từ nguyên tắc III của hiến pháp.
+- Ngày 2026-11-10, khi lập plan: phạm vi mở rộng thêm bộ 5 công cụ cần xác nhận cho giáo viên (FR-047 đến FR-050,
+  2 thực thể mới). Đã kiểm tra lại, các mục vẫn đạt.

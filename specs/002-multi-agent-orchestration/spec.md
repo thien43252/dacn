@@ -34,6 +34,9 @@ Yêu cầu đơn giản (phần lớn câu hỏi hằng ngày) vẫn đi đườ
 
 ### Session 2026-11-10
 
+- Bổ sung khi lập plan (yêu cầu của người dùng): đưa vào phạm vi bộ công cụ cần xác nhận sẽ cần sau này (FR-047 đến
+  FR-050), thay cho giả định cũ "công cụ thật là feature sau".
+
 - Q: Giáo viên có được bật/tắt chế độ nhiều agent phối hợp (và việc hỏi lại) cho từng lớp không? → A: Có một
   công tắc theo lớp, mặc định bật.
 - Q: Có giới hạn số lượt đi đường đầy đủ cho mỗi người dùng mỗi ngày để kiểm soát chi phí không? → A: Không giới
@@ -152,16 +155,17 @@ thu gọn khi xong, và mở lại được. Tải lại trang, mở lại hội
 ### User Story 4 - Xin xác nhận trước những việc quan trọng (Priority: P2)
 
 Trước khi thực hiện một hành động có tác dụng ra ngoài cuộc trò chuyện (ví dụ giao bài cho cả lớp, gửi thông báo
-cho phụ huynh, ghi điểm), hoặc khi agent sắp làm một việc lớn dựa trên một cách hiểu có thể sai, hệ thống trình
+cho phụ huynh, cài agent vào lớp), hoặc khi agent sắp làm một việc lớn dựa trên một cách hiểu có thể sai, hệ thống trình
 bày ngắn gọn việc sắp làm và chờ người dùng bấm "Đồng ý" hoặc "Không". Với hành động có tác dụng ra ngoài, việc
 xác nhận là **bắt buộc**, do nền tảng ép buộc chứ không do agent tự quyết, và không tính vào giới hạn hỏi lại.
 
-**Why this priority**: Hiện chưa có công cụ nào có tác dụng ra ngoài (các công cụ hiện tại chỉ đọc hoặc tạo nội
-dung trong cuộc trò chuyện). Cơ chế này cần có trước khi thêm những công cụ đó, và đã dùng được ngay cho việc xác
-nhận cách hiểu của agent. Vì vậy xếp P2.
+**Why this priority**: Các công cụ hiện tại chỉ đọc hoặc tạo nội dung trong cuộc trò chuyện. Feature này thêm cả cơ
+chế xác nhận lẫn một bộ công cụ giáo viên có tác dụng ra ngoài (FR-047): lưu tài liệu lớp, đổi ghi chú cho agent,
+cài agent vào lớp, đăng thông báo, giao bài luyện. Story phụ thuộc story 1 (cách dừng chờ người dùng) nên xếp P2.
 
-**Independent Test**: Đánh dấu một công cụ thử nghiệm là "cần xác nhận", cho agent gọi công cụ đó. Kiểm tra công
-cụ không chạy khi chưa có xác nhận, chạy sau khi bấm "Đồng ý", và không chạy khi bấm "Không".
+**Independent Test**: Đăng nhập giáo viên demo, nhờ agent soạn 5 câu ôn tập rồi "giao cho cả lớp". Kiểm tra bài luyện
+chưa xuất hiện với học sinh khi chưa xác nhận, xuất hiện đúng nội dung đã xem trước sau khi bấm "Đồng ý", và không
+xuất hiện khi bấm "Không". Lặp lại với từng công cụ còn lại ở FR-047.
 
 **Acceptance Scenarios**:
 
@@ -291,6 +295,25 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
   hỏi lại (theo FR-008).
 - **FR-018**: Hành động được xác nhận MUST chạy với đúng tham số đã trình bày cho người dùng. Hành động bị từ chối,
   hết hạn hoặc bị huỷ MUST không chạy, và kết quả cuối MUST nói rõ việc đó chưa được thực hiện.
+- **FR-047**: Hệ thống MUST cung cấp các công cụ có tác dụng ra ngoài sau, đều thuộc loại "cần xác nhận" và chỉ dành
+  cho giáo viên của lớp hiện tại:
+  - **Lưu tài liệu lớp**: lưu nội dung agent soạn (đề ôn, tóm tắt…) thành tài liệu của lớp, để học sinh và các agent
+    dùng được.
+  - **Đổi ghi chú cho agent**: thay hoặc thêm vào ghi chú của giáo viên dành cho mọi agent trong lớp. Công cụ này
+    MUST không đổi được các thiết lập an toàn khác của lớp (không đưa đáp án, môn được phép, cho agent cá nhân, xử lý
+    nhiều bước); các thiết lập đó chỉ đổi trên giao diện.
+  - **Cài agent vào lớp**: cài một agent mà giáo viên được phép cài từ Hub, theo đúng quy tắc của màn hình cài agent.
+  - **Đăng thông báo lớp**: đăng một thông báo tới học sinh, phụ huynh hoặc cả hai nhóm của lớp; người nhận thấy
+    thông báo trên trang lớp của mình.
+  - **Giao bài luyện**: giao một bộ câu hỏi (tối đa 20 câu, có thể kèm hạn) cho học sinh của lớp. Học sinh thấy bài
+    trong trang lớp và mở được bài để làm cùng agent trong chat. Đáp án (nếu có) chỉ giáo viên thấy.
+- **FR-048**: Yêu cầu xác nhận của các công cụ ở FR-047 MUST cho xem trước đúng nội dung sẽ được tạo (tiêu đề và nội
+  dung, hoặc tên agent, hoặc ghi chú mới) và đối tượng chịu tác động (lớp nào, nhóm người nhận, số người).
+- **FR-049**: Nội dung mà công cụ ở FR-047 sẽ hiển thị cho người khác MUST qua kiểm duyệt nội dung trước khi được đưa ra
+  xin xác nhận; nội dung không qua kiểm duyệt MUST không được đề nghị xác nhận, và agent được báo lại lý do.
+- **FR-050**: Mỗi xác nhận MUST chạy công cụ tối đa một lần (bấm lại, gửi lại hoặc tải lại trang không tạo bản thứ hai).
+  Giáo viên MUST gỡ được kết quả của công cụ qua giao diện: xoá tài liệu, gỡ agent, xoá thông báo, xoá bài luyện, sửa
+  lại ghi chú.
 
 **Thực hiện các phần việc**
 
@@ -389,6 +412,10 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
 - **Agent (đã có)**: Bổ sung vai trò trong một lượt: agent chính hoặc agent đóng góp. Năng lực đã khai báo của agent
   là căn cứ để giao việc.
 - **Công cụ (đã có)**: Bổ sung thuộc tính "cần xác nhận".
+- **Thông báo lớp**: Thông báo giáo viên đăng cho lớp (qua công cụ hoặc giao diện): tiêu đề, nội dung, nhóm người
+  nhận (học sinh, phụ huynh, cả hai), người đăng, thời điểm.
+- **Bài luyện được giao**: Bộ câu hỏi giáo viên giao cho học sinh của lớp: tiêu đề, hướng dẫn, danh sách câu hỏi (có
+  thể có lựa chọn), đáp án chỉ giáo viên thấy, hạn (không bắt buộc), người giao, thời điểm.
 - **Tin nhắn trả lời (đã có)**: Gắn với lượt xử lý tạo ra nó. Lưu agent chính, các agent đóng góp và tóm tắt quá
   trình để hiển thị lại.
 
@@ -432,8 +459,9 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
   dụng (FR-042); giới hạn trong từng lượt (FR-025) vẫn áp dụng.
 - Thời gian xử lý của đường đầy đủ không có mục tiêu nghiệm thu cứng; giới hạn tổng thời gian ở FR-025 chỉ là chốt
   an toàn để một lượt không chạy mãi, mặc định đủ rộng (ví dụ 120 giây) và chỉnh được trong cấu hình.
-- Hiện chưa có công cụ nào có tác dụng ra ngoài cuộc trò chuyện. Cơ chế xác nhận được xây và kiểm thử bằng công cụ
-  thử nghiệm; các công cụ thật (giao bài, gửi thông báo) là feature sau.
+- Bộ công cụ cần xác nhận trong feature này gồm 5 công cụ ở FR-047, đều dành cho giáo viên. Học sinh và phụ huynh
+  chưa có công cụ nào có tác dụng ra ngoài. Ghi điểm (cần sổ điểm), nhắn tin riêng tới từng phụ huynh (cần hộp
+  thư), nộp và chấm bài luyện là feature sau.
 - Không gian cá nhân (không thuộc lớp) cũng dùng quá trình mới, với các agent dùng được trong không gian đó.
 - Giao diện vẫn chỉ cho gửi một tin nhắn khi không có câu trả lời nào đang chạy, như hiện nay.
 - Năng lực khai báo trong manifest của các agent mẫu đủ tốt để chia việc; nếu bộ đánh giá cho thấy chưa đủ, manifest
