@@ -30,6 +30,19 @@ dùng biết hệ thống đã làm gì, nhưng không phải đọc lại toàn
 
 Yêu cầu đơn giản (phần lớn câu hỏi hằng ngày) vẫn đi đường nhanh như hiện nay, không bị chậm thêm.
 
+## Clarifications
+
+### Session 2026-11-10
+
+- Q: Giáo viên có được bật/tắt chế độ nhiều agent phối hợp (và việc hỏi lại) cho từng lớp không? → A: Có một
+  công tắc theo lớp, mặc định bật.
+- Q: Có giới hạn số lượt đi đường đầy đủ cho mỗi người dùng mỗi ngày để kiểm soát chi phí không? → A: Không giới
+  hạn; chỉ theo dõi qua báo cáo sử dụng hiện có.
+- Q: Ai được xem ghi chú làm việc của từng agent trong khung quá trình? → A: Mọi vai trò đều xem được, nhưng ghi chú
+  phải qua kiểm duyệt đầu ra trước khi hiển thị.
+- Q: Với yêu cầu đi đường đầy đủ, người dùng chờ tối đa bao lâu là chấp nhận được? → A: Không đặt mục tiêu cứng,
+  chỉ đo và báo cáo.
+
 Các phần sau giữ nguyên như feature 001: cổng đồng ý của phụ huynh, ẩn thông tin cá nhân, sàng lọc an toàn đầu
 vào, kiểm duyệt đầu ra, chính sách lớp, quyền dùng công cụ theo agent và vai trò, trích dẫn nguồn, gợi ý câu hỏi
 tiếp theo, nhật ký và báo cáo sử dụng.
@@ -125,10 +138,11 @@ thu gọn khi xong, và mở lại được. Tải lại trang, mở lại hội
    tiến trình cập nhật ngay, hiển thị tên agent và mô tả ngắn của phần việc đó.
 2. **Given** kết quả cuối đã xong, **When** người dùng nhìn câu trả lời, **Then** khung tiến trình đã thu gọn
    thành một dòng tóm tắt, và kết quả cuối là phần nổi bật nhất.
-3. **Given** người dùng là học sinh hoặc phụ huynh, **When** mở khung tiến trình, **Then** chỉ thấy tiêu đề và
-   trạng thái của từng phần việc, không thấy bản nháp trung gian.
-4. **Given** người dùng là giáo viên trong hội thoại của chính mình, **When** mở một phần việc, **Then** thấy được
-   ghi chú làm việc của agent cho phần đó.
+3. **Given** người dùng ở bất kỳ vai trò nào, **When** mở một phần việc trong khung tiến trình, **Then** thấy được
+   ghi chú làm việc của agent cho phần đó, nếu ghi chú đã qua kiểm duyệt đầu ra áp dụng cho vai trò của người dùng.
+4. **Given** ghi chú làm việc của một phần việc không qua kiểm duyệt (ví dụ ghi chú có lời giải hoàn chỉnh trong
+   khi lớp cấm đưa đáp án cho học sinh), **When** người dùng mở phần việc đó, **Then** chỉ thấy tiêu đề, trạng thái
+   và thông báo nội dung đã được ẩn; nội dung ghi chú không hiện ra.
 5. **Given** yêu cầu đi đường nhanh (một agent), **When** trả lời, **Then** không hiển thị khung tiến trình.
 6. **Given** người dùng mở lại một hội thoại cũ, **When** xem một câu trả lời từng đi qua nhiều bước, **Then** dòng
    tóm tắt quá trình vẫn hiển thị và mở ra được.
@@ -219,6 +233,12 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
   luồng hỗ trợ an toàn như hiện nay.
 - **Chế độ không có người thật** (chứng nhận agent, bộ đánh giá, sandbox thử agent). Không có ai để trả lời: mọi
   câu hỏi lại được xử lý như "Cứ làm luôn" và mọi xác nhận được coi là "Không".
+- **Giáo viên tắt chế độ xử lý nhiều bước khi lớp đang có yêu cầu chờ người dùng trả lời.** Khi người dùng trả
+  lời, yêu cầu đang chờ bị huỷ và tin nhắn được xử lý theo đường nhanh.
+- **Kết quả cuối qua kiểm duyệt nhưng ghi chú làm việc của một phần việc thì không.** Kết quả cuối vẫn hiển thị;
+  chỉ ghi chú đó bị ẩn trong khung tiến trình.
+- **Kết quả cuối bị chặn ở kiểm duyệt đầu ra.** Mọi ghi chú làm việc của lượt đó cũng bị ẩn, để người dùng không
+  lấy được nội dung bị chặn qua khung tiến trình.
 - **Người dùng gửi tin nhắn mới trong lúc lượt trước vẫn đang chạy.** Giữ hành vi hiện tại của giao diện (không
   cho gửi khi đang có câu trả lời chạy), không chạy hai quá trình song song trong cùng hội thoại.
 
@@ -240,6 +260,10 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
 - **FR-005**: Khi người dùng chọn hoặc `@mention` một agent, agent đó MUST là agent chính; các agent khác vẫn có
   thể được giao phần việc phụ.
 - **FR-006**: Nếu bước phân tích lỗi hoặc trả về kết quả không dùng được, hệ thống MUST quay về đường nhanh.
+- **FR-046**: Giáo viên của lớp MUST bật/tắt được chế độ xử lý nhiều bước (đường đầy đủ, gồm phối hợp nhiều agent và
+  hỏi lại) cho lớp đó bằng một công tắc trong chính sách lớp, mặc định **bật**. Khi tắt, mọi yêu cầu trong lớp đi
+  đường nhanh và không hỏi lại; việc xác nhận hành động có tác dụng ra ngoài (FR-014) vẫn luôn áp dụng. Không gian
+  cá nhân không có công tắc này và luôn bật.
 
 **Hỏi lại người dùng**
 
@@ -297,7 +321,8 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
 - **FR-029**: Kết quả cuối MUST giữ trích dẫn nguồn tài liệu từ các phần việc có dùng tài liệu lớp, và MUST ghi tên
   các agent đã đóng góp.
 - **FR-030**: Kết quả cuối MUST đi qua kiểm duyệt đầu ra như câu trả lời hiện nay. Gợi ý câu hỏi tiếp theo chỉ
-  hiển thị cho kết quả không bị chặn.
+  hiển thị cho kết quả không bị chặn. Không nội dung nào chưa qua kiểm duyệt đầu ra MUST hiển thị cho người dùng,
+  kể cả ghi chú làm việc trong khung tiến trình (FR-034).
 - **FR-031**: Ngữ cảnh hội thoại để agent nhớ ở các lượt sau MUST gồm yêu cầu của người dùng, các câu hỏi lại và
   câu trả lời của người dùng, và kết quả cuối; không gồm ghi chú làm việc trung gian.
 
@@ -307,8 +332,11 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
   tích, từng phần việc với tên, avatar của agent và trạng thái (chờ, đang làm, xong, lỗi, bỏ qua).
 - **FR-033**: Khi có kết quả cuối, khung tiến trình MUST thu gọn thành một dòng tóm tắt (số agent, thời gian) và
   MUST mở lại được.
-- **FR-034**: Học sinh và phụ huynh MUST chỉ thấy tiêu đề và trạng thái của phần việc, không thấy ghi chú làm việc.
-  Giáo viên MAY xem ghi chú làm việc trong hội thoại của chính mình.
+- **FR-034**: Người dùng ở mọi vai trò MUST xem được ghi chú làm việc của từng phần việc trong hội thoại của chính
+  mình, với điều kiện ghi chú đã qua kiểm duyệt đầu ra theo đúng quy tắc áp dụng cho kết quả cuối với vai trò và
+  lớp đó (gồm cả chính sách không đưa đáp án cho học sinh). Ghi chú MUST được kiểm duyệt trước lần hiển thị đầu
+  tiên; ghi chú không qua kiểm duyệt MUST bị ẩn và thay bằng thông báo nội dung đã được ẩn, và việc chặn MUST được
+  ghi thành sự kiện an toàn. Tiêu đề và trạng thái của phần việc luôn hiển thị.
 - **FR-035**: Quá trình làm việc của một câu trả lời MUST được lưu cùng câu trả lời, để khi mở lại hội thoại vẫn
   xem được dòng tóm tắt và danh sách phần việc.
 - **FR-036**: Câu hỏi lại và yêu cầu xác nhận MUST hiển thị như một tin nhắn của hệ thống trong hội thoại, kèm các
@@ -331,7 +359,8 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
 
 - **FR-042**: Hệ thống MUST ghi nhận cho mỗi lượt: đường xử lý đã chọn, kế hoạch, từng phần việc (agent, trạng
   thái, thời gian), các lần hỏi lại và xác nhận cùng kết quả, và lượng sử dụng mô hình theo từng agent và từng
-  bước, để báo cáo sử dụng và truy vết hiện có tiếp tục đúng.
+  bước, để báo cáo sử dụng và truy vết hiện có tiếp tục đúng. Báo cáo sử dụng MUST tách được lượng dùng của đường
+  nhanh và đường đầy đủ, vì chi phí được kiểm soát bằng theo dõi chứ không bằng hạn mức.
 - **FR-043**: Sự kiện an toàn (chặn, hỗ trợ an toàn, kiểm duyệt đầu ra) MUST tiếp tục được ghi như hiện nay và
   MUST ghi được agent của phần việc liên quan.
 - **FR-044**: Dự án MUST có bộ đánh giá cho việc phân tích, gồm các ca: yêu cầu đơn giản (kỳ vọng đường nhanh),
@@ -352,7 +381,8 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
 - **Kế hoạch**: Kết quả phân tích của một lượt xử lý: mục tiêu, agent chính, thông tin còn thiếu, hành động cần
   xác nhận, danh sách phần việc. Có thể có phiên bản mới khi lập lại kế hoạch.
 - **Phần việc (Step)**: Một việc giao cho một agent trong kế hoạch: agent làm, mô tả, các phần việc phụ thuộc,
-  trạng thái, thời gian, ghi chú làm việc, các tín hiệu agent đã báo, nguồn tài liệu đã dùng.
+  trạng thái, thời gian, ghi chú làm việc, kết quả kiểm duyệt của ghi chú (chưa kiểm duyệt, hiển thị được, đã ẩn),
+  các tín hiệu agent đã báo, nguồn tài liệu đã dùng.
 - **Yêu cầu chờ người dùng**: Một lần hỏi lại (1–3 câu hỏi, mỗi câu có thể có lựa chọn) hoặc một yêu cầu xác nhận
   (hành động, tham số, tác động). Lưu cả câu trả lời của người dùng, hoặc ghi nhận "Cứ làm luôn", từ chối, hết
   hạn.
@@ -376,8 +406,9 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
   việc và số agent.
 - **SC-005**: 0 hành động có tác dụng ra ngoài chạy mà không có xác nhận rõ ràng của người dùng, kiểm tra bằng các
   ca thử cố tình yêu cầu agent bỏ qua xác nhận.
-- **SC-006**: Với yêu cầu đi đường đầy đủ, 90% lượt có kết quả cuối trong vòng 45 giây (không tính thời gian chờ
-  người dùng trả lời), và khung tiến trình có cập nhật đầu tiên trong vòng 3 giây.
+- **SC-006**: Với yêu cầu đi đường đầy đủ, khung tiến trình có cập nhật đầu tiên trong vòng 3 giây. Thời gian tới
+  kết quả cuối (không tính thời gian chờ người dùng trả lời) không có mục tiêu cứng, nhưng MUST được đo và báo cáo
+  ở dạng trung vị và phân vị 90 trên bộ đánh giá.
 - **SC-007**: Kết quả cuối ở đường đầy đủ dài không quá 300 từ trong ít nhất 90% lượt, trừ khi người dùng yêu cầu
   chi tiết hoặc yêu cầu bản thân là tạo nội dung dài (ví dụ đề ôn tập).
 - **SC-008**: Trên bộ red-team hiện có cộng thêm các ca lách chính sách qua phối hợp, tỉ lệ nội dung vi phạm lọt ra
@@ -396,7 +427,11 @@ story 1 và 2. Story này phức tạp và rủi ro hơn nên làm sau.
   đủ.
 - Các giới hạn mặc định (1 lần hỏi lại mỗi lượt, 3 câu mỗi lần, 5 phần việc, 3 agent, 1 lần lập lại kế hoạch,
   chờ người dùng 24 giờ) là điểm khởi đầu và sẽ được chỉnh theo kết quả đánh giá.
-- Phối hợp nhiều agent được bật cho mọi lớp; chưa có tuỳ chọn bật tắt theo lớp trong phạm vi này.
+- Chế độ xử lý nhiều bước mặc định bật cho mọi lớp; giáo viên tắt được theo từng lớp (FR-046).
+- Không có hạn mức số lượt đi đường đầy đủ theo người dùng hay theo lớp. Chi phí chỉ được theo dõi qua báo cáo sử
+  dụng (FR-042); giới hạn trong từng lượt (FR-025) vẫn áp dụng.
+- Thời gian xử lý của đường đầy đủ không có mục tiêu nghiệm thu cứng; giới hạn tổng thời gian ở FR-025 chỉ là chốt
+  an toàn để một lượt không chạy mãi, mặc định đủ rộng (ví dụ 120 giây) và chỉnh được trong cấu hình.
 - Hiện chưa có công cụ nào có tác dụng ra ngoài cuộc trò chuyện. Cơ chế xác nhận được xây và kiểm thử bằng công cụ
   thử nghiệm; các công cụ thật (giao bài, gửi thông báo) là feature sau.
 - Không gian cá nhân (không thuộc lớp) cũng dùng quá trình mới, với các agent dùng được trong không gian đó.

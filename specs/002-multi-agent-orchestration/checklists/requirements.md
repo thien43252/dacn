@@ -33,7 +33,7 @@
 
 - Spec có nhắc tới Dify ở mục Bối cảnh và Assumptions. Đây là ràng buộc nền tảng kế thừa từ feature 001 (giữ
   Dify là nền tảng chạy agent), không phải lựa chọn cách cài đặt, nên được chấp nhận.
-- Không có [NEEDS CLARIFICATION]. Các điểm còn để mở được chốt bằng giả định có ghi trong Assumptions: bật phối hợp
-  cho mọi lớp, thời hạn chờ 24 giờ, các giới hạn mặc định, giáo viên được xem ghi chú làm việc, xác nhận cách hiểu
-  của agent tính vào lần hỏi lại. Có thể xem lại bằng `/speckit-clarify` nếu muốn đổi.
+- Không có [NEEDS CLARIFICATION]. Các điểm còn để mở được chốt bằng giả định có ghi trong Assumptions: thời hạn
+  chờ 24 giờ, các giới hạn mặc định, xác nhận cách hiểu của agent tính vào lần hỏi lại.
+  Phiên clarify 2026-11-10 đã chốt: công tắc theo lớp, không hạn mức lượt, ghi chú làm việc hiển thị sau kiểm duyệt.
 - FR-045 (cập nhật `dev.ps1`) đến từ nguyên tắc III của hiến pháp.
