@@ -61,6 +61,8 @@ class PolicyModel(BaseModel):
     allowed_subjects: list[str] = Field(default_factory=list, max_length=20)
     allow_personal_agents: bool = True
     notes_for_agents: str = Field(default="", max_length=1000)
+    # Xử lý nhiều bước (FR-046): tắt thì mọi lượt đi đường nhanh; xác nhận hành động vẫn áp dụng.
+    multi_step: bool = True
 
 
 class JoinIn(BaseModel):

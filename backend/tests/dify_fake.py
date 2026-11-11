@@ -31,6 +31,15 @@ def triage_body(name: str = "triage_safe.json", **outputs) -> dict:
     return body
 
 
+def planner_body(name: str = "planner_multi.json", plan: dict | None = None, **changes) -> dict:
+    """A recorded-shape planner response; `plan` replaces the plan, `changes` update its top-level keys."""
+    body = json.loads(fixture_text(name))
+    if plan is not None or changes:
+        current = json.loads(body["data"]["outputs"]["plan"]) if plan is None else plan
+        body["data"]["outputs"] = {"ok": "true", "plan": json.dumps({**current, **changes}, ensure_ascii=False)}
+    return body
+
+
 def sse_body(*events: dict) -> str:
     return "".join(f"data: {json.dumps(event, ensure_ascii=False)}\n\n" for event in events)
 
@@ -126,6 +135,8 @@ class FakeDify:
         self.triage: dict | int = triage_body()
         # eduagent-review outputs, or "down" to fail; recorded under the path "/workflows/run#review".
         self.review: dict | str = {"verdict": "allow", "category": "", "reason": ""}
+        # eduagent-planner response body (feature 002), an HTTP status, or "down"; recorded as "#planner".
+        self.planner: dict | int | str = planner_body("planner_multi.json")
         # One entry per runner call: SSE text, or (status, json body) for a refused request.
         self.runner: list[str | tuple[int, dict]] = [fixture_text("runner_plain.sse")]
         # Follow-up questions for GET /messages/{id}/suggested, or an HTTP status to fail with.
@@ -136,13 +147,22 @@ class FakeDify:
         self.knowledge = FakeKnowledge()
 
     def calls(self, kind: str) -> list[dict]:
-        """Request bodies whose path contains `kind`; review calls only when asked for ("#review")."""
-        return [body for path, body in self.requests if kind in path and ("#review" in kind or "#review" not in path)]
+        """Request bodies whose path contains `kind`; review and planner calls only when asked for ("#review",
+        "#planner")."""
+        return [body for path, body in self.requests if kind in path and ("#" in kind or "#" not in path)]
 
     async def handler(self, request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content) if request.content else dict(request.url.params)
         key = request.headers.get("authorization", "").removeprefix("Bearer ")
         path = request.url.path
+        if path.endswith("/workflows/run") and key == "app-planner":
+            self.requests.append((path + "#planner", body))
+            self.keys.append((path + "#planner", key))
+            if self.planner == "down":
+                raise httpx.ConnectError("Dify is down", request=request)
+            if isinstance(self.planner, int):
+                return httpx.Response(self.planner, json={"code": "internal_server_error", "message": "boom"})
+            return httpx.Response(200, json=self.planner)
         if path.endswith("/workflows/run") and key == "app-review":
             self.requests.append((path + "#review", body))
             self.keys.append((path + "#review", key))
@@ -195,6 +215,8 @@ def dify(request, monkeypatch) -> FakeDify | None:
         "DIFY_RUNNER_RAW_KEY": "app-runner-raw",
         "DIFY_DATASET_KEY": "dataset-key",
         "DIFY_REVIEW_KEY": "app-review",
+        # On, as in a configured install: turns stay on the fast path unless triage says "full".
+        "DIFY_PLANNER_KEY": "app-planner",
     }.items():
         monkeypatch.setenv(name, value)
     get_settings.cache_clear()

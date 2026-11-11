@@ -1,3 +1,12 @@
+/** Event types of the multi-step full path (feature 002). They pass through unchanged, in order; their shapes are
+ *  PlanEvent, StepEvent and AskEvent in types.ts. `done` may end with status `awaiting_user` (a question is
+ *  pending), which completes the stream like any other `done`. */
+export const ORCHESTRATION_EVENTS = new Set(["plan", "step", "ask"]);
+
+export function isOrchestrationEvent(event: { type: string }): boolean {
+  return ORCHESTRATION_EVENTS.has(event.type);
+}
+
 /** Public chat text carries UTF-16 offsets so snapshot replay cannot duplicate Unicode text. */
 export interface ChatStreamEvent {
   type: string;

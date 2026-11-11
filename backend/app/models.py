@@ -8,5 +8,7 @@ from app.audit import models as audit_models  # noqa: F401,E402
 from app.auth import models as auth_models  # noqa: F401,E402
 from app.certify import models as certify_models  # noqa: F401,E402
 from app.chat import models as chat_models  # noqa: F401,E402
+from app.class_feed import models as class_feed_models  # noqa: F401,E402
 from app.classes import models as classes_models  # noqa: F401,E402
 from app.knowledge import models as knowledge_models  # noqa: F401,E402
+from app.orchestrator import models as orchestrator_models  # noqa: F401,E402

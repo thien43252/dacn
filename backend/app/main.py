@@ -88,8 +88,14 @@ def create_app() -> FastAPI:
 
     @api.get("/health")
     async def health() -> dict[str, str]:
-        """Liveness: the process is up and which agent runtime it uses. Does not touch the database."""
-        return {"status": "ok", "engine": get_settings().runtime_engine}
+        """Liveness: the process is up, which agent runtime it uses and whether multi-step handling is on (off
+        without DIFY_PLANNER_KEY). Does not touch the database."""
+        settings = get_settings()
+        return {
+            "status": "ok",
+            "engine": settings.runtime_engine,
+            "orchestrator": "on" if settings.dify_planner_key else "off",
+        }
 
     @api.get("/health/ready")
     async def ready() -> dict[str, str]:

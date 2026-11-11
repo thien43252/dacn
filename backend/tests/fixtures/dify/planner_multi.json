@@ -1,0 +1,19 @@
+{
+ "task_id": "5b1c0e7a-9f43-4d8e-b7a2-0c2f8f4b6a10",
+ "workflow_run_id": "c3a1d9e2-7b44-4f0a-9c55-2b8d1e6f0a37",
+ "data": {
+  "id": "c3a1d9e2-7b44-4f0a-9c55-2b8d1e6f0a37",
+  "workflow_id": "8e2f4a61-0d3b-4c7e-a915-6f1b2d3c4e5f",
+  "status": "succeeded",
+  "outputs": {
+   "ok": "true",
+   "plan": "{\"goal\": \"Ôn định lý Pytago theo tài liệu lớp và có một bài luyện\", \"lead\": \"gia-su-toan\", \"answers_pending\": false, \"missing\": [], \"assumptions\": [\"Bài luyện mức trung bình\"], \"confirm_interpretation\": \"\", \"steps\": [{\"key\": \"s1\", \"agent\": \"on-tap-tai-lieu\", \"title\": \"Tìm lý thuyết trong tài liệu lớp\", \"task\": \"Tìm phần định lý Pytago trong tài liệu lớp, tóm tắt kèm vị trí\", \"depends_on\": []}, {\"key\": \"s2\", \"agent\": \"tao-de\", \"title\": \"Soạn một bài luyện\", \"task\": \"Soạn 1 bài luyện định lý Pytago bám phần lý thuyết ở s1, không kèm lời giải\", \"depends_on\": [\"s1\"]}]}"
+  },
+  "error": null,
+  "elapsed_time": 3.41,
+  "total_tokens": 1430,
+  "total_steps": 4,
+  "created_at": 1794300000,
+  "finished_at": 1794300003
+ }
+}

@@ -15,6 +15,16 @@ const PURPOSE_LABELS: Record<string, string> = {
   embed: "Embedding tài liệu",
   certify: "Kiểm định: chạy agent",
   judge: "Kiểm định: giám khảo",
+  planner: "Lập kế hoạch",
+  step: "Phần việc của agent",
+  synthesis: "Tổng hợp kết quả",
+  note_review: "Kiểm duyệt ghi chú",
+};
+
+const PATH_LABELS: Record<string, string> = {
+  fast: "Đường nhanh (một agent)",
+  full: "Đường đầy đủ (nhiều bước)",
+  other: "Ngoài lượt chat",
 };
 
 /** Teacher: guard events from every class they teach. */
@@ -84,6 +94,7 @@ function UsagePanel() {
         </div>
       )}
       {usage.data && usage.data.by_purpose.length > 0 && <UsageTable rows={usage.data.by_purpose} label="Mục đích" labels={PURPOSE_LABELS} />}
+      {usage.data?.by_path && usage.data.by_path.length > 0 && <UsageTable rows={usage.data.by_path} label="Đường xử lý" labels={PATH_LABELS} />}
       {usage.data && usage.data.by_model.length > 0 && <UsageTable rows={usage.data.by_model} label="Mô hình" />}
       <p className="ea-muted">Chi phí chỉ tính cho mô hình có bảng giá (Anthropic); nhà cung cấp khác ghi token, chưa ghi tiền.</p>
     </section>

@@ -28,6 +28,20 @@ model gpt-4o-mini, `user` = `spike-user`. Id hội thoại, tin nhắn và task 
 Còn dựng tay: `runner_error_midstream.sse`, vì Dify không có cách gây lỗi giữa stream theo ý muốn. Hình dạng sự kiện
 lấy từ mã nguồn Dify 1.19.
 
+### Feature 002 (xử lý nhiều bước)
+
+| File | Nguồn | Dùng cho |
+|---|---|---|
+| `runner_step_note.sse` | ghi thật (2026-11-10): runner với `conversation_id=""`, `system_prompt` có khối chế độ phần việc, phần việc "tóm tắt định lý Pytago" | ghi chú làm việc của một phần việc |
+| `runner_step_replaced.sse` | ghi thật (2026-11-10): như trên, câu bị kiểm duyệt đầu ra thay | phần việc `blocked` |
+| `triage_path_full.json`, `triage_path_fast.json` | **dựng tay** từ `triage_safe.json`, thêm output `path` | chọn đường nhanh/đầy đủ |
+| `planner_multi.json`, `planner_missing.json`, `planner_bad_slug.json`, `planner_invalid.json`, `planner_resume_answer.json`, `planner_resume_new_topic.json` | **dựng tay** theo contracts/dify-apps.md §2 (hình dạng phản hồi `workflows/run` blocking như triage) | kiểm tra kế hoạch, hỏi lại, làm tiếp |
+| `runner_step_signal.sse` | **dựng tay** từ hình dạng của `runner_step_note.sse`, có `agent_log` gọi `ask_user` | phần việc báo tín hiệu |
+
+Các file dựng tay ở trên chờ ghi lại bằng Dify thật sau khi import `eduagent-planner.yml` và bản `eduagent-triage.yml`
+có nhánh `path` (tasks T002–T004). Tín hiệu trong test đến từ MCP handler (`FakeDify.tool_calls`), không từ
+`agent_log`, nên thay bằng bản ghi thật không đổi hành vi test.
+
 ## Cách ghi
 
 ```bash

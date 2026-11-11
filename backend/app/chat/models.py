@@ -74,4 +74,6 @@ class UsageRecord(Base):
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    # fast · full for chat turns (feature 002); null for older rows and for usage outside a chat turn.
+    path: Mapped[str | None] = mapped_column(String(8), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

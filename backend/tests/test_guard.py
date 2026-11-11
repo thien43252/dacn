@@ -46,5 +46,6 @@ async def test_admin_usage_summary(as_user) -> None:
     admin = await as_user("admin")
     usage = (await admin.get("/api/admin/usage")).json()
     assert {row["key"] for row in usage["by_purpose"]} >= {"triage", "agent", "output_guard"}
+    assert {row["key"] for row in usage["by_path"]} == {"fast"}  # FR-042: fast and full counted apart
     assert usage["total"]["calls"] >= 3
     assert (await student.get("/api/admin/usage")).status_code == 403

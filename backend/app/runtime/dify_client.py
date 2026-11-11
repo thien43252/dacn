@@ -45,6 +45,18 @@ class TriageResult:
     agent: str
     route_reason: str
     usage: Usage | None = None
+    # fast | full (feature 002); a triage app without the branch, or an odd value, means fast.
+    path: str = "fast"
+
+
+@dataclass
+class PlannerResult:
+    """eduagent-planner's answer (specs/002-multi-agent-orchestration/contracts/dify-apps.md §2). `ok` is False
+    when the plan could not be parsed; the caller then falls back to the fast path (FR-006)."""
+
+    ok: bool
+    plan: dict[str, Any]
+    usage: Usage | None = None
 
 
 @dataclass
@@ -156,7 +168,38 @@ class DifyClient:
             usage=Usage(provider="dify", model=self.settings.dify_triage_model, input_tokens=tokens)
             if tokens
             else None,
+            path="full" if str(outputs.get("path") or "").strip().lower() == "full" else "fast",
         )
+
+    async def run_planner(self, inputs: dict[str, str], user: str) -> PlannerResult:
+        """Runs eduagent-planner (workflow, blocking). Raises DifyError when Dify fails; an unusable plan comes back
+        with ok=False."""
+        try:
+            response = await self.http.post(
+                f"{self.base}/workflows/run",
+                headers=self._headers(self.settings.dify_planner_key),
+                json={"inputs": inputs, "response_mode": "blocking", "user": user},
+                timeout=self.settings.dify_timeout_s,
+            )
+        except httpx.HTTPError as error:
+            raise DifyError(f"planner: {type(error).__name__}") from error
+        if response.status_code != 200:
+            raise DifyError(f"planner HTTP {response.status_code}: {_error_message(response)}")
+        data = response.json().get("data") or {}
+        if data.get("status") != "succeeded":
+            raise DifyError(f"planner {data.get('status')}: {data.get('error') or ''}"[:300])
+        outputs = data.get("outputs") or {}
+        tokens = int(data.get("total_tokens") or 0)
+        usage = Usage(provider="dify", model=self.settings.dify_triage_model, input_tokens=tokens) if tokens else None
+        plan: Any = {}
+        if str(outputs.get("ok") or "").lower() == "true":
+            try:
+                plan = json.loads(outputs.get("plan") or "{}")
+            except ValueError:
+                plan = {}
+        if not isinstance(plan, dict) or not plan:
+            return PlannerResult(ok=False, plan={}, usage=usage)
+        return PlannerResult(ok=True, plan=plan, usage=usage)
 
     async def stream_runner(
         self,

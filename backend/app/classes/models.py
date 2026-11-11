@@ -12,6 +12,8 @@ DEFAULT_POLICY: dict = {
     "allowed_subjects": [],
     "allow_personal_agents": True,
     "notes_for_agents": "",
+    # Multi-step handling (planner, several agents, clarifying questions); classes without the key count as on.
+    "multi_step": True,
 }
 
 

@@ -181,6 +181,26 @@ async def test_policy_roundtrip_with_defaults(as_user) -> None:
     assert (await teacher.get(f"/api/classes/{room['id']}/policy")).json() == updated
 
 
+async def test_policy_multi_step_defaults_on_and_toggles(as_user, sessionmaker) -> None:
+    """FR-046: on by default, also for classes stored before the key existed; only the class teacher changes it."""
+    teacher = await as_user("teacher")
+    room = await create_class(teacher)
+    url = f"/api/classes/{room['id']}/policy"
+    policy = (await teacher.get(url)).json()
+    assert policy["multi_step"] is True
+    async with sessionmaker() as db:
+        stored = await db.get(ClassRoom, room["id"])
+        stored.policy = {k: v for k, v in stored.policy.items() if k != "multi_step"}
+        await db.commit()
+    assert (await teacher.get(url)).json()["multi_step"] is True
+    assert (await teacher.put(url, json={**policy, "multi_step": False})).json()["multi_step"] is False
+    async with sessionmaker() as db:
+        assert (await db.get(ClassRoom, room["id"])).policy["multi_step"] is False
+    student = await as_user("student")
+    await student.post("/api/classes/join", json={"code": room["join_code"]})
+    assert (await student.put(url, json={**policy, "multi_step": True})).status_code == 403
+
+
 async def test_policy_ignores_blocked_topics(as_user, sessionmaker) -> None:
     """Old clients may still send the removed field, and old rows may still hold it."""
     teacher = await as_user("teacher")

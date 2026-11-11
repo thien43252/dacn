@@ -180,6 +180,11 @@ người dùng bấm nút thì mới bảo đảm được điều này, và tha
 - Khi làm tiếp, các phần việc đã xong được giữ nguyên (FR-011). Nếu một agent trong kế hoạch không còn dùng được thì
   gọi planner lập lại kế hoạch với danh sách agent hiện tại (Edge Cases). Nếu lớp vừa tắt `multi_step` thì run bị
   huỷ và tin nhắn đi đường nhanh.
+- Khi planner trả `confirm_interpretation` khác rỗng (và `can_ask` đúng), backend dừng **trước khi chạy phần việc**
+  với `pending.kind="confirm"`, `confirm.source="interpretation"`, `confirm.summary` = câu đó, và tăng
+  `clarify_rounds` (FR-017). Nếu kế hoạch có cả `missing` thì chỉ hỏi `missing`; câu xác nhận cách hiểu chuyển thành
+  giả định. "Không" ở loại xác nhận này nghĩa là huỷ run và trả lời rằng hệ thống chưa làm gì, mời người dùng nói rõ
+  lại yêu cầu.
 
 **Rationale**: Không cần hàng đợi việc hay websocket. Mỗi lần làm tiếp là một request `/chat/stream` bình thường, nên
 các cổng an toàn hiện có tự áp dụng.
@@ -193,7 +198,8 @@ nhanh: hàm `_stream_runner()` được tách từ `_answer()` hiện tại.
 - `query` gồm yêu cầu gốc, cộng thêm khối "Thông tin bổ sung" chứa câu hỏi và câu trả lời nếu đã hỏi lại. Nhờ vậy bộ
   nhớ Dify của hội thoại chỉ có yêu cầu, thông tin bổ sung và kết quả cuối (FR-031).
 - Ghi chú làm việc đi trong `system_prompt`, ở khối `SYNTHESIS_MODE`. Mỗi ghi chú bị cắt còn tối đa
-  `12000 / số phần việc` ký tự. Khối này cũng nêu yêu cầu viết: ngắn gọn, tối đa 300 từ trừ khi tạo nội dung dài,
+  `floor(6000 / số phần việc)` ký tự, để phần prompt của agent chính còn chỗ trong giới hạn 12000 ký tự của
+  `system_prompt`. Khối này cũng nêu yêu cầu viết: ngắn gọn, tối đa 300 từ trừ khi tạo nội dung dài,
   nêu giả định, không chép nguyên văn ghi chú, nêu phần chưa làm được.
 - Tên các agent đóng góp được giao diện hiển thị từ `meta.contributors`, không để LLM tự viết (FR-029).
 - Trích dẫn là hợp các trích dẫn của mọi phần việc và của bước tổng hợp.
@@ -263,9 +269,11 @@ lượt nhiều agent.
 | `ORCH_STEP_TIMEOUT_S` | 60 | FR-025, FR-026 |
 | `ORCH_DEADLINE_S` | 120 | FR-025 |
 | `ORCH_PENDING_TTL_H` | 24 | FR-013 |
+| `ORCH_SHARE_REVIEW_TIMEOUT_S` | 20 | FR-049 (R18) |
 | `ENABLE_TEST_TOOLS` | false | R6 |
 
-`/api/health` báo thêm `orchestrator: "on" | "off (no planner key)"`.
+`/api/health` báo thêm `orchestrator: "on" | "off"` (`off` khi thiếu `DIFY_PLANNER_KEY`), như
+[contracts/chat-sse.md](contracts/chat-sse.md).
 
 ## R13. Usage, tracing và báo cáo
 
@@ -293,7 +301,8 @@ Certify và sandbox mặc định vẫn đi **đường nhanh**, vì danh sách 
   `ambiguous` (kỳ vọng hỏi lại), `clear` (kỳ vọng không hỏi), `discover` (vài ca chỉ lộ ra cần agent khác trong lúc
   làm, dùng cho kiểm tra thủ công User Story 5 và `--e2e`). Mỗi ca có `role`, `installed` và kỳ vọng tương ứng.
 - `eval/run_planning.py` gọi triage và planner thật, tính các chỉ số SC-002, SC-003 và SC-004. Cờ `--e2e` chạy trọn
-  lượt qua `run_dify_turn` để đo thời gian tới kết quả cuối (trung vị, p90) và độ dài kết quả (SC-006, SC-007).
+  lượt qua `run_dify_turn` để đo thời gian tới cập nhật đầu tiên của khung tiến trình (sự kiện `step(analyze)` hoặc
+  `plan`, kỳ vọng ≤ 3 giây), thời gian tới kết quả cuối (trung vị, p90) và độ dài kết quả (SC-006, SC-007).
 - Thêm khoảng 10 ca "lách chính sách qua phối hợp" vào `eval/redteam_vi.jsonl` cho SC-008.
 - SC-001 đo bằng `run_routing.py --latency` trước và sau thay đổi trên cùng bộ `simple`.
 
@@ -346,6 +355,10 @@ Các điểm chung:
   `dify_rules.contains_blocked_keyword`. Với thông báo và bài luyện (học sinh đọc) còn chạy thêm `eduagent-review`
   với `role="student"` và `no_direct_answers="false"` (giáo viên được chủ động chia sẻ lời giải). Trúng thì guard trả lỗi tool "Nội dung không phù hợp để chia sẻ: …", không tạo yêu cầu xác
   nhận, và ghi `guard_events` (stage `tool`, category `share_blocked`).
+  - Lần gọi review này nằm **trong handler MCP**, mà proxy SSRF của Dify chỉ đọc tối đa 60 giây cho mỗi lần gọi tool
+    (R5). Vì vậy review có timeout riêng `ORCH_SHARE_REVIEW_TIMEOUT_S` (mặc định 20 giây), ngắn hơn hẳn giới hạn đó.
+  - Review lỗi hoặc quá giờ thì **fail closed**: coi như bị chặn, trả lỗi tool "Chưa kiểm duyệt được nội dung, thử
+    lại sau.", ghi `guard_events` category `share_blocked` với `detector="timeout"`, và không tạo yêu cầu xác nhận.
 - **Chạy đúng một lần (FR-050).** Khi `reply.decision=approve`, backend khoá dòng `turn_runs` bằng
   `SELECT … FOR UPDATE` (Postgres; SQLite chạy tuần tự), kiểm tra `pending.kind=="confirm"`, ghi
   `confirmations[i].decision`, xoá `pending` **trước** khi chạy tool, rồi commit. Request trùng hoặc gửi lại sẽ thấy
@@ -354,6 +367,13 @@ Các điểm chung:
   giáo viên của lớp). Ghi chú sửa lại ở tab Chính sách.
 - **Kiểm tra quyền lúc chạy.** Ngoài guard lúc agent gọi tool, backend kiểm tra lại quyền giáo viên ngay trước khi chạy
   tool sau xác nhận, phòng trường hợp quyền đã đổi trong lúc chờ.
+- **Dựng lại ngữ cảnh lúc chạy.** Người dùng có thể bấm "Đồng ý" muộn tới `ORCH_PENDING_TTL_H` giờ, trong khi handle của
+  lượt cũ đã hết hạn sau 600 giây. Backend không dùng lại handle mà dựng một `ToolContext` mới:
+  - `user_id`, `role`, `class_id`, `conversation_id` lấy từ `turn_runs` và phiên của request hiện tại;
+  - `dataset_id` và `grade` đọc lại từ lớp hiện tại;
+  - `agent_slug` là agent đã gọi tool (lưu trong `pending.confirm.agent`);
+  - `allowed_tools={tool}`, `source="chat"`, `log_calls=True`, `message_id` là tin nhắn kết quả của request này;
+  - `mode="synthesis"`, `events` là hàng đợi SSE của request này.
 - **Manifest mẫu.** Thêm tool vào agent phù hợp trong `seed/agents/`:
 
 | Agent | Tool thêm |

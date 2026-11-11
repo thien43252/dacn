@@ -62,7 +62,8 @@ export function fromStored(messages: StoredMessage[], agents: ChatAgent[]): Thre
       content: message.content,
       agent: message.agent_slug ? { slug: message.agent_slug, name: agent?.name ?? message.agent_slug, avatar: agent?.avatar ?? "owl", reason: message.meta?.route_reason } : undefined,
       tools: message.meta?.tools ?? [],
-      status: message.status,
+      // A question waiting for the user reads as a normal message until the ask card renders it.
+      status: message.status === "awaiting_user" ? "ok" : message.status,
       citations: message.meta?.citations,
       suggestions: message.meta?.suggestions,
     };

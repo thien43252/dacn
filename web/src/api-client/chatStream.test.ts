@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { type ChatStreamEvent, consumeChatStream } from "./chatStream";
+import { type ChatStreamEvent, consumeChatStream, isOrchestrationEvent } from "./chatStream";
 
 const operation = { type: "operation", operation_id: "job-1", resume_supported: true };
 const text = (delta: string, text_offset = 0, generation = 0): ChatStreamEvent => ({
@@ -96,6 +96,26 @@ describe("chat reconnect", () => {
     const fetch = vi.fn().mockResolvedValueOnce(stream([operation, text("A"), { type: "response_ready" }, new TypeError("lost")]));
     vi.stubGlobal("fetch", fetch);
     await consumeChatStream("body", new AbortController().signal, () => {}, 0);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes plan, step and ask events through in order and ends on done(awaiting_user)", async () => {
+    const agent = { slug: "gia-su-toan", name: "Gia sư Toán", avatar: "owl" };
+    const events = [
+      operation,
+      { type: "step", message_id: "1", key: "analyze", status: "running" },
+      { type: "plan", message_id: "1", run_id: "r1", goal: "Ôn", lead: agent, steps: [], resumed: false },
+      { type: "tool", message_id: "1", name: "class_doc_search", status: "start", step_key: "s1" },
+      { type: "ask", message_id: "q1", run_id: "r1", kind: "clarify", agent, intro: "", questions: [], skippable: true },
+      { type: "done", message_id: "q1", status: "awaiting_user", path: "full" },
+    ];
+    const fetch = vi.fn().mockResolvedValueOnce(stream(events));
+    vi.stubGlobal("fetch", fetch);
+    const received: ChatStreamEvent[] = [];
+    await consumeChatStream("body", new AbortController().signal, event => received.push(event), 0);
+    expect(received.map(item => item.type)).toEqual(["operation", "step", "plan", "tool", "ask", "done"]);
+    expect(received.filter(isOrchestrationEvent).map(item => item.type)).toEqual(["step", "plan", "ask"]);
+    expect(received[2]).toEqual(events[2]);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 

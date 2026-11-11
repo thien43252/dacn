@@ -67,6 +67,8 @@ export interface ClassPolicy {
   allowed_subjects: string[];
   allow_personal_agents: boolean;
   notes_for_agents: string;
+  /** Xử lý nhiều bước (feature 002, FR-046); older backends omit it, which means on. */
+  multi_step?: boolean;
 }
 
 export interface Consent {
@@ -129,7 +131,8 @@ export interface StoredMessage {
   role: "user" | "assistant";
   content: string;
   agent_slug: string | null;
-  status: "ok" | "blocked" | "error";
+  /** `awaiting_user`: a clarifying question or a confirmation request (feature 002). */
+  status: "ok" | "blocked" | "error" | "awaiting_user";
   created_at: string;
   meta: {
     tools?: { name: string; status: string }[];
@@ -137,7 +140,123 @@ export interface StoredMessage {
     guard?: { stage: string; verdict: string; category: string }[];
     citations?: Citation[];
     suggestions?: string[];
+    /** Feature 002 (specs/002-multi-agent-orchestration/data-model.md, `chat_messages.meta`). */
+    path?: ChatPath;
+    run_id?: string;
+    contributors?: AgentRef[];
+    process?: ProcessSummary;
+    assumptions?: string[];
+    ask?: StoredAsk;
+    /** On the user's message that answered a question. */
+    reply_to?: { run_id: string; ask_message_id: string };
   };
+}
+
+// ---- Multi-step orchestration (specs/002-multi-agent-orchestration/contracts/chat-sse.md) ----
+
+export type ChatPath = "fast" | "full";
+export type StepStatus = "pending" | "running" | "done" | "error" | "blocked" | "skipped";
+
+export interface AgentRef {
+  slug: string;
+  name: string;
+  avatar: string;
+}
+
+export interface PlanStep {
+  key: string;
+  title: string;
+  agent: AgentRef;
+  depends_on: string[];
+  status: StepStatus;
+}
+
+/** `plan`: sent whenever the plan is made, resumed or redone; the client replaces its whole step list. */
+export interface PlanEvent {
+  type: "plan";
+  message_id: string;
+  run_id: string;
+  goal: string;
+  lead: AgentRef;
+  steps: PlanStep[];
+  resumed: boolean;
+}
+
+/** `step`: one step changed; `analyze` and `synthesis` are the special keys. */
+export interface StepEvent {
+  type: "step";
+  message_id: string;
+  key: string;
+  status: StepStatus;
+  title?: string;
+  agent?: AgentRef;
+  duration_ms?: number;
+}
+
+export interface AskQuestion {
+  id: string;
+  question: string;
+  options: string[];
+}
+
+export interface ConfirmPreview {
+  title?: string;
+  body?: string;
+  items?: string[];
+  before?: string;
+  after?: string;
+}
+
+export interface AskConfirm {
+  tool: string;
+  summary: string;
+  impact?: string;
+  audience_count?: number;
+  preview?: ConfirmPreview;
+}
+
+/** `ask`: always right before `done(status="awaiting_user")`; `message_id` is the question message. */
+export interface AskEvent {
+  type: "ask";
+  message_id: string;
+  run_id: string;
+  kind: "clarify" | "confirm";
+  agent: AgentRef;
+  intro: string;
+  questions?: AskQuestion[];
+  confirm?: AskConfirm;
+  skippable: boolean;
+}
+
+export type AskState = "open" | "answered" | "skipped" | "approved" | "rejected" | "expired" | "cancelled";
+
+export interface StoredAsk {
+  run_id: string;
+  kind: "clarify" | "confirm";
+  questions?: AskQuestion[];
+  confirm?: AskConfirm;
+  state: AskState;
+  answers?: Record<string, string>;
+}
+
+export interface ProcessSummary {
+  duration_ms: number;
+  agents: number;
+  steps: { key: string; title: string; agent: string; status: StepStatus }[];
+}
+
+/** `reply` of POST /api/chat/stream: an answer to the pending question of `run_id`. */
+export interface ChatReply {
+  run_id: string;
+  answers?: Record<string, string>;
+  skip_all?: boolean;
+  decision?: "approve" | "reject" | null;
+}
+
+/** Extra fields of `done` on the full path. */
+export interface DoneExtras {
+  path?: ChatPath;
+  contributors?: AgentRef[];
 }
 
 export interface AgentManifest {
@@ -301,6 +420,8 @@ export interface UsageReport {
   days: number;
   total: UsageRow;
   by_purpose: UsageRow[];
+  /** fast · full · other (feature 002); older backends omit it. */
+  by_path?: UsageRow[];
   by_model: UsageRow[];
   by_day: UsageRow[];
 }

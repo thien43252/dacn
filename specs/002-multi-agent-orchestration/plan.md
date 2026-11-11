@@ -205,6 +205,7 @@ Bước 2 + 3 là MVP demo được: hệ thống biết hỏi lại, có khung 
 | Hội thoại Dify mồ côi tích tụ | DB Dify lớn dần | chấp nhận cho demo; ghi chú dọn dẹp trong README |
 | Lách chính sách lớp qua phối hợp | lộ đáp án | mọi phần việc dùng `policy_block`; review trên kết quả cuối và ghi chú; ca red-team riêng (SC-008) |
 | Tài liệu lớp chứa chỉ dẫn lừa agent gọi tool cần xác nhận (prompt injection) | đăng/giao nội dung giáo viên không muốn | backend ép xác nhận và cho xem trước đúng nội dung; tool không đổi được thiết lập an toàn; kiểm duyệt chia sẻ; ca red-team "tài liệu bảo agent giao bài" |
+| Kiểm duyệt chia sẻ (`eduagent-review`) chạy trong handler MCP, cộng với thời gian agent đã dùng, vượt giới hạn đọc 60 giây của proxy SSRF | lần gọi tool bị cắt giữa chừng, thẻ xác nhận không hiện | timeout riêng `ORCH_SHARE_REVIEW_TIMEOUT_S=20`; quá giờ hoặc lỗi thì fail closed (coi như bị chặn, ghi `share_blocked`) và agent báo người dùng thử lại (research R18) |
 | Phạm vi tăng do 5 tool và tab Bảng tin | trễ các bước khác | bước 6b tách riêng, làm sau MVP (bước 2–3); bài luyện không có nộp/chấm |
 
 ## Complexity Tracking

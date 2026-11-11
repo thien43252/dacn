@@ -1,0 +1,23 @@
+{
+ "task_id": "c5947098-cfd7-4892-9a16-1ddc6cfab270",
+ "workflow_run_id": "618be63d-3cd6-4252-9aa9-b068225efc13",
+ "data": {
+  "id": "618be63d-3cd6-4252-9aa9-b068225efc13",
+  "workflow_id": "5dbcdbac-ab47-489e-8c88-e0386dd61d90",
+  "status": "succeeded",
+  "outputs": {
+   "verdict": "allow",
+   "category": "safe",
+   "reason": "",
+   "agent": "gia-su-toan",
+   "route_reason": "router: câu hỏi Toán",
+   "path": "fast"
+  },
+  "error": null,
+  "elapsed_time": 4.9842852399997355,
+  "total_tokens": 1655,
+  "total_steps": 8,
+  "created_at": 1793995092,
+  "finished_at": 1793995097
+ }
+}

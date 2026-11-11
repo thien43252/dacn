@@ -10,8 +10,9 @@ import asyncio
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, ValidationError
@@ -35,6 +36,17 @@ class PlatformTool:
     args: type[BaseModel]
     roles: frozenset[str]
     needs_class: bool = False
+    # Feature 002 (contracts/mcp-tools.md). The platform never runs a tool that requires confirmation until the user
+    # approves that exact call; `confirm_template` describes its effect from the arguments (never written by a model).
+    requires_confirmation: bool = False
+    # Signal tools (request_help, ask_user, request_confirmation) only record a signal for the orchestrator; any agent
+    # may call them, in a step of the full path only.
+    signal: bool = False
+    confirm_template: str = ""
+    # Builds the confirmation preview (FR-048): (context, args) -> {title?, body?, items?, before?, after?, ...}.
+    preview: Callable[..., Any] | None = None
+    # Content other people will read: also reviewed by eduagent-review before confirmation is asked (FR-049).
+    share_review: bool = False
 
 
 TOOLS: dict[str, PlatformTool] = {
@@ -102,6 +114,13 @@ class ToolContext:
     excerpt: str = ""
     events: "asyncio.Queue[dict[str, Any]] | None" = None
     citations: list[dict[str, Any]] = field(default_factory=list)
+    # Feature 002: which part of a full-path turn this runner call is. Signal tools work only in `step` mode.
+    step_key: str | None = None
+    mode: Literal["fast", "step", "synthesis"] = "fast"
+    # Signals recorded by signal tools and by tools waiting for confirmation, read by the orchestrator afterwards.
+    signals: list[dict[str, Any]] = field(default_factory=list)
+    # False in a step created by request_help: a helper cannot ask for help in turn (FR-024).
+    may_request_help: bool = False
 
     def record(self, purpose: str, usage: Usage) -> None:
         self.usage.append((purpose, usage))
@@ -115,12 +134,19 @@ def _llm_schema(args: type[BaseModel]) -> dict[str, Any]:
     return schema
 
 
+STEP_ONLY = "Công cụ này chỉ dùng trong phần việc của quá trình nhiều bước."
+
+
 def deny_reason(name: str, context: ToolContext) -> str | None:
-    """Authorization checks 2–5 of contracts/mcp-tools.md; None when the call may run."""
+    """Authorization checks 2–5 of contracts/mcp-tools.md (with 2a/2b of feature 002); None when the call may run."""
     tool = TOOLS.get(name)
     if tool is None:
         return "Công cụ không có trong danh mục của nền tảng."
-    if name not in context.allowed_tools:
+    if tool.signal:
+        # 2a: signal tools belong to a step of the full path; 2b: they need no manifest entry.
+        if context.mode != "step":
+            return STEP_ONLY
+    elif name not in context.allowed_tools:
         return "Agent này không được cấp công cụ đó."
     if context.role not in tool.roles:
         return "Vai trò của người dùng không được dùng công cụ này."
@@ -161,7 +187,16 @@ def add_citations(context: ToolContext, data: dict[str, Any]) -> None:
 
 def _emit(context: ToolContext, name: str, status: str) -> None:
     if context.events is not None:
-        context.events.put_nowait({"type": "tool", "message_id": context.message_id, "name": name, "status": status})
+        context.events.put_nowait(
+            {
+                "type": "tool",
+                "message_id": context.message_id,
+                "name": name,
+                "status": status,
+                # null on the fast path and in the synthesis; the client files the tool under that step otherwise.
+                "step_key": context.step_key,
+            }
+        )
 
 
 async def _log_call(

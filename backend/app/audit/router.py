@@ -157,6 +157,8 @@ class UsageOut(BaseModel):
     days: int
     total: UsageRow
     by_purpose: list[UsageRow]
+    # fast · full · other (usage outside a chat turn, and rows from before feature 002); FR-042
+    by_path: list[UsageRow]
     by_model: list[UsageRow]
     by_day: list[UsageRow]
 
@@ -205,6 +207,7 @@ async def usage(_: Admin, db: DbSession, days: int = Query(default=7, ge=1, le=9
         days=days,
         total=total,
         by_purpose=by_purpose,
+        by_path=await _usage_rows(db, func.coalesce(UsageRecord.path, "other"), since),
         by_model=await _usage_rows(db, UsageRecord.model, since),
         by_day=await _usage_rows(db, func.date(UsageRecord.created_at), since),
     )

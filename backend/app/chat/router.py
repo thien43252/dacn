@@ -149,7 +149,16 @@ async def stream(payload: ChatIn, user: CurrentUser, db: DbSession) -> Streaming
     )
 
 
-def record_usage(db, user_id: str, class_id: str | None, conversation_id: str, usage: list[tuple[str, Usage, int]]):
+def record_usage(
+    db,
+    user_id: str,
+    class_id: str | None,
+    conversation_id: str,
+    usage: list[tuple[str, Usage, int]],
+    path: str | None = None,
+):
+    """One usage_ledger row per model call. `path` is fast | full for chat turns (feature 002); purposes added by
+    the full path: planner, step, synthesis, note_review."""
     for purpose, item, latency in usage:
         db.add(
             UsageRecord(
@@ -165,6 +174,7 @@ def record_usage(db, user_id: str, class_id: str | None, conversation_id: str, u
                 if item.cost_usd is not None
                 else cost_usd(item.model, item.input_tokens, item.output_tokens),
                 latency_ms=latency,
+                path=path,
             )
         )
 

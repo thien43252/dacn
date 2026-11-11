@@ -17,6 +17,8 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import aclosing
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -32,6 +34,7 @@ from app.chat.models import ChatMessage, Conversation
 from app.chat.router import record_usage, sse
 from app.classes import service as classes
 from app.classes.models import ClassRoom
+from app.config import get_settings
 from app.db import session_factory
 from app.guard import dify_rules, rules
 from app.llm.base import Usage
@@ -107,6 +110,10 @@ class Turn:
         self.trace: tracing.Trace | None = None
         # The class in the database (None in personal chat and in a simulated certification class).
         self.class_id: str | None = room.id if room else None
+        # fast | full (feature 002): stored in the message meta, the `done` event and every usage row of the turn.
+        self.path = "fast"
+        # Set by `_finish`: ok | blocked | error.
+        self.final_status = ""
 
     def log(
         self,
@@ -149,8 +156,11 @@ async def run_dify_turn(
     agents_override: list[ResolvedAgent] | None = None,
     kind: str = "chat",
     simulated_room: ClassRoom | None = None,
+    force_path: str | None = None,
 ) -> AsyncIterator[str]:
-    """One chat turn on Dify, streamed with the platform's SSE protocol (contracts/chat-sse.md)."""
+    """One chat turn on Dify, streamed with the platform's SSE protocol (contracts/chat-sse.md).
+
+    `force_path` ("fast" | "full") is internal, for eval only: it overrides triage's path choice (research R14)."""
     operation_id = str(uuid.uuid4())
     yield sse({"type": "operation", "operation_id": operation_id, "resume_supported": False})
     async with session_factory()() as db:
@@ -214,7 +224,7 @@ async def run_dify_turn(
             input=text,
         ) as trace:
             turn.trace = trace
-            answer = _answer(turn, client, agents, text, payload, previous_agent, user_message)
+            answer = _answer(turn, client, agents, text, payload, previous_agent, user_message, force_path)
             try:
                 async for event in answer:
                     yield event
@@ -232,16 +242,10 @@ async def _answer(
     payload: "ChatIn",
     previous_agent: str | None,
     user_message: ChatMessage,
+    force_path: str | None = None,
 ) -> AsyncIterator[str]:
     message_id = turn.message_id
     started = time.perf_counter()
-    agent: ResolvedAgent | None = None
-    route_reason = ""
-    reply = ""
-    status = "error"
-    blocked_stage = None
-    dify_message_id = None
-    tool_events: list[dict[str, Any]] = []
 
     if not agents:
         yield sse({"type": "error", "message_id": message_id, "message": "Chưa có agent nào khả dụng."})
@@ -290,22 +294,74 @@ async def _answer(
     if support:
         turn.log("input", "support", triage.category, "dify_classifier", triage.reason, text)
 
+    if takes_full_path(turn, triage, force_path):
+        from app.orchestrator import conductor  # the orchestrator imports this module
+
+        # The agent the user picked or @mentioned leads the plan (FR-005); triage reports it as ui / mention.
+        chosen = triage.agent if triage.route_reason in ("ui", "mention") else ""
+        outcome = conductor.FullPath()
+        async with aclosing(
+            conductor.run_full(turn, client, agents, text, chosen, user_message, started, outcome)
+        ) as full:
+            async for event in full:
+                yield event
+        if not outcome.fell_back:
+            return
+
     agent = pick_agent(agents, triage.agent)
     if agent.slug != triage.agent:
         route_reason = "fallback"
-    yield sse(
+    yield agent_event(message_id, agent, route_reason)
+
+    context = tool_context(turn, agent, text)
+    system_prompt = build_system_prompt(agent, turn.room, turn.role, agents, safety_note=support)
+    result = RunnerResult()
+    # aclosing: when the client goes away, the inner stream must stop its Dify task before the HTTP client closes.
+    async with aclosing(
+        _stream_runner(turn, client, agent, context, system_prompt, text, result, safety_note=support)
+    ) as stream:
+        async for event in stream:
+            yield event
+    async with aclosing(
+        _finish(turn, client, agent, text, result, context, started, user_message, {"route_reason": route_reason})
+    ) as finish:
+        async for event in finish:
+            yield event
+
+
+def takes_full_path(turn: Turn, triage, force_path: str | None = None) -> bool:
+    """The full path only when every condition of research R2 holds; anything else answers on the fast path.
+
+    Self-harm signals (verdict `support`) and blocked messages never get a plan (FR-038). Certification and the
+    sandbox stay on the fast path unless eval forces the full one (research R14). A class can switch it off (FR-046);
+    personal space cannot. Without a planner key the feature is off."""
+    if triage.verdict != "allow" or not get_settings().dify_planner_key:
+        return False
+    if force_path is not None:
+        return force_path == "full"
+    if turn.kind != "chat" or triage.path != "full":
+        return False
+    if turn.room is not None and (turn.room.policy or {}).get("multi_step", True) is False:
+        return False
+    return True
+
+
+def agent_event(message_id: str, agent: ResolvedAgent, reason: str) -> str:
+    return sse(
         {
             "type": "agent",
             "message_id": message_id,
             "agent": agent.slug,
             "name": agent.manifest.name,
             "avatar": agent.manifest.avatar,
-            "reason": route_reason,
+            "reason": reason,
         }
     )
 
-    out: asyncio.Queue[Any] = asyncio.Queue()
-    context = registry.ToolContext(
+
+def tool_context(turn: Turn, agent: ResolvedAgent, excerpt: str, **extra: Any) -> registry.ToolContext:
+    """The tool handle's context for one runner call of `agent` in this turn (`mode`, `step_key`… via extra)."""
+    return registry.ToolContext(
         user_id=turn.user.id,
         role=turn.role,
         class_id=turn.room.id if turn.room else None,
@@ -314,35 +370,72 @@ async def _answer(
         agent_slug=agent.slug,
         allowed_tools=frozenset(agent.manifest.tools),
         log_calls=True,
-        message_id=message_id,
+        message_id=turn.message_id,
         source=turn.kind,
         dataset_id=turn.room.dify_dataset_id if turn.room else None,
-        excerpt=text,
-        # The MCP handler puts `tool` events here; the runner pump below puts RunnerEvents in the same queue, so
-        # both come out in the order they happened.
-        events=out,
+        excerpt=excerpt,
+        **extra,
     )
+
+
+@dataclass
+class RunnerResult:
+    """What one streamed runner call left behind, for `_finish`."""
+
+    text: str = ""
+    blocked_stage: str | None = None
+    dify_message_id: str | None = None
+    error_text: str = ""
+    tool_events: list[dict[str, Any]] = field(default_factory=list)
+
+
+async def _stream_runner(
+    turn: Turn,
+    client: DifyClient,
+    agent: ResolvedAgent,
+    context: registry.ToolContext,
+    system_prompt: str,
+    query: str,
+    result: RunnerResult,
+    *,
+    safety_note: bool = False,
+    purpose: str = "agent",
+    span: str = "run_agent",
+) -> AsyncIterator[str]:
+    """Streams one runner call on the conversation's main Dify conversation to the user: `text_delta`,
+    `text_reset`, `tool` and `notice(context_reset)`. Used by the fast path and by the full path's synthesis
+    (research R8). What happened is left in `result`; usage is booked on the turn under `purpose`.
+
+    When the client goes away mid-stream the Dify task is stopped too (FR-006, FR-040)."""
+    message_id = turn.message_id
+    out: asyncio.Queue[Any] = asyncio.Queue()
+    # The MCP handler puts `tool` events here; the runner pump below puts RunnerEvents in the same queue, so both come
+    # out in the order they happened.
+    context.events = out
     handle = handles.register(context)
-    system_prompt = build_system_prompt(agent, turn.room, turn.role, agents, safety_note=support)[:MAX_SYSTEM_PROMPT]
-    inputs = {"system_prompt": system_prompt, "ctx": handle, "safety_note": "true" if support else "false"}
+    inputs = {
+        "system_prompt": system_prompt[:MAX_SYSTEM_PROMPT],
+        "ctx": handle,
+        "safety_note": "true" if safety_note else "false",
+    }
     task_id = ""
     finished = False
 
     async def pump() -> None:
         # Runs in its own task without yields, so the span stays current for its whole run.
-        with tracing.node(turn.trace, "run_agent", as_type="agent", input=text):
+        with tracing.node(turn.trace, span, as_type="agent", input=query):
             await stream()
 
     async def stream() -> None:
         conversation_id = turn.conversation.dify_conversation_id or ""
         try:
             try:
-                async for event in client.stream_runner(text, inputs, conversation_id, turn.user.id):
+                async for event in client.stream_runner(query, inputs, conversation_id, turn.user.id):
                     await out.put(event)
             except DifyConversationNotFound:
                 # Dify lost the conversation (rebuilt or data deleted): start a new one and say so (research R5).
                 await out.put("context_reset")
-                async for event in client.stream_runner(text, inputs, "", turn.user.id):
+                async for event in client.stream_runner(query, inputs, "", turn.user.id):
                     await out.put(event)
         except DifyError as error:
             await out.put(RunnerEvent("error", text=str(error)))
@@ -353,14 +446,13 @@ async def _answer(
     task = asyncio.create_task(pump())
     shown = ""
     generation = 0
-    error_text = ""
     try:
         while True:
             item = await out.get()
             if item is None:
                 break
             if isinstance(item, dict):  # a tool event from the MCP handler
-                tool_events.append({"name": item["name"], "status": item["status"]})
+                result.tool_events.append({"name": item["name"], "status": item["status"]})
                 yield sse(item)
                 continue
             if item == "context_reset":
@@ -389,7 +481,7 @@ async def _answer(
                 )
                 generation = 1
                 shown = event.text
-                blocked_stage = "output"
+                result.blocked_stage = "output"
                 yield sse({"type": "text_reset", "message_id": message_id, "generation": generation})
                 yield sse(
                     {
@@ -401,15 +493,16 @@ async def _answer(
                     }
                 )
             elif event.kind == "end":
-                dify_message_id = event.message_id or None
+                result.dify_message_id = event.message_id or None
                 if event.conversation_id:
                     turn.conversation.dify_conversation_id = event.conversation_id
                 if event.usage:
-                    turn.usage.append(("agent", event.usage, int((time.perf_counter() - runner_started) * 1000)))
+                    turn.usage.append((purpose, event.usage, int((time.perf_counter() - runner_started) * 1000)))
             elif event.kind == "error":
-                error_text = event.text
+                result.error_text = event.text
         finished = True
     finally:
+        result.text = shown
         if not finished:
             # The client went away (or the turn was cancelled): stop Dify's run too (FR-006).
             task.cancel()
@@ -420,9 +513,27 @@ async def _answer(
                     log.warning("could not stop Dify task %s: %s", task_id, error)
         handles.release(handle)
 
+
+async def _finish(
+    turn: Turn,
+    client: DifyClient,
+    agent: ResolvedAgent,
+    question: str,
+    result: RunnerResult,
+    context: registry.ToolContext,
+    started: float,
+    user_message: ChatMessage,
+    meta_extra: dict[str, Any],
+    done_extra: dict[str, Any] | None = None,
+) -> AsyncIterator[str]:
+    """After the streamed answer: status, the policy review, sources, follow-up questions, the stored message and
+    `done` (FR-030). The same for a fast-path answer and a full-path synthesis."""
+    message_id = turn.message_id
+    shown = result.text
     reply = shown
-    if error_text:
-        log.warning("runner failed: %s", error_text)
+    blocked_stage = result.blocked_stage
+    if result.error_text:
+        log.warning("runner failed: %s", result.error_text)
         status = "error"
         if not shown:
             reply = TURN_FAILED
@@ -431,13 +542,13 @@ async def _answer(
         status = "blocked"
     elif dify_rules.is_preset_input_block(shown):
         # The runner's own input moderation answered with its preset refusal.
-        turn.log("input", "block", "moderation", "dify_moderation", "Kiểm duyệt đầu vào của Dify", text)
+        turn.log("input", "block", "moderation", "dify_moderation", "Kiểm duyệt đầu vào của Dify", question)
         status, blocked_stage = "blocked", "input"
         user_message.status = "blocked"
     else:
         status = "ok"
     if status == "ok" and shown.strip():
-        verdict = await _review(client, turn, text, shown)
+        verdict = await _review(client, turn, question, shown)
         if verdict is not None:
             # Retract the streamed answer, as the old engine's output guard did.
             turn.log("output", "block", verdict.category, "dify_review", verdict.reason, shown, agent.slug)
@@ -455,17 +566,18 @@ async def _answer(
         if context.citations:
             extras["citations"] = context.citations
             yield sse({"type": "citations", "message_id": message_id, "items": context.citations})
-        suggestions = await _suggestions(client, dify_message_id, turn.user.id)
+        suggestions = await _suggestions(client, result.dify_message_id, turn.user.id)
         if suggestions:
             extras["suggestions"] = suggestions
             yield sse({"type": "suggestions", "message_id": message_id, "items": suggestions})
     meta = {
-        "dify_message_id": dify_message_id,
-        "route_reason": route_reason,
-        "tools": tool_events,
+        "dify_message_id": result.dify_message_id,
+        "path": turn.path,
+        **meta_extra,
+        "tools": result.tool_events,
         **extras,
         **({"blocked_stage": blocked_stage} if blocked_stage else {}),
-        **({"error": error_text[:300]} if error_text else {}),
+        **({"error": result.error_text[:300]} if result.error_text else {}),
     }
     if turn.trace is not None:
         turn.trace.update(
@@ -474,12 +586,23 @@ async def _answer(
             metadata={
                 "status": status,
                 "agent": agent.slug,
-                "dify_message_id": dify_message_id,
+                "path": turn.path,
+                "dify_message_id": result.dify_message_id,
                 "dify_conversation_id": turn.conversation.dify_conversation_id,
             },
         )
+    turn.final_status = status
     await _store(turn, agent, reply, status, meta, started, context.usage)
-    yield sse({"type": "done", "message_id": message_id, "status": status, "agent": agent.slug})
+    yield sse(
+        {
+            "type": "done",
+            "message_id": message_id,
+            "status": status,
+            "agent": agent.slug,
+            "path": turn.path,
+            **(done_extra or {}),
+        }
+    )
 
 
 MAX_SUGGESTIONS = 3
@@ -553,5 +676,6 @@ async def _store(
     )
     turn.conversation.updated_at = datetime.now(UTC)
     usage = turn.usage + [(purpose, item, 0) for purpose, item in tool_usage]
-    record_usage(turn.db, turn.user.id, turn.class_id, turn.conversation.id, usage)
+    record_usage(turn.db, turn.user.id, turn.class_id, turn.conversation.id, usage, path=turn.path)
+    turn.usage = []  # booked; a turn that stores twice (a paused run) does not count it again
     await turn.db.commit()

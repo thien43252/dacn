@@ -60,7 +60,7 @@ manifest của agent (bước 3 của handler). Ngoài 6 bước cũ, handler ki
 | # | Điều kiện | Khi sai |
 |---|---|---|
 | 6a | người dùng là giáo viên của `class_id` trong handle (không chỉ có vai trò `teacher`) | từ chối, `tool_denied` |
-| 6b | kiểm duyệt nội dung chia sẻ (FR-049): từ khóa cho mọi trường văn bản; thêm `eduagent-review` (`role="student"`, `no_direct_answers="false"`: giáo viên được chủ động chia sẻ lời giải, chỉ chặn nội dung không an toàn, lộ thông tin cá nhân hay chứa chỉ dẫn chèn vào) với tool có `share_review` | lỗi tool "Nội dung không phù hợp để chia sẻ: <lý do>"; `guard_events` stage `tool`, category `share_blocked`; **không** tạo yêu cầu xác nhận |
+| 6b | kiểm duyệt nội dung chia sẻ (FR-049): từ khóa cho mọi trường văn bản; thêm `eduagent-review` (`role="student"`, `no_direct_answers="false"`: giáo viên được chủ động chia sẻ lời giải, chỉ chặn nội dung không an toàn, lộ thông tin cá nhân hay chứa chỉ dẫn chèn vào) với tool có `share_review`. Review có timeout `ORCH_SHARE_REVIEW_TIMEOUT_S` (mặc định 20 giây, dưới giới hạn đọc 60 giây của proxy SSRF); lỗi hoặc quá giờ thì fail closed | lỗi tool "Nội dung không phù hợp để chia sẻ: <lý do>" (quá giờ hoặc lỗi review: "Chưa kiểm duyệt được nội dung, thử lại sau."); `guard_events` stage `tool`, category `share_blocked` (`detector="timeout"` khi quá giờ); **không** tạo yêu cầu xác nhận |
 
 Sau đó áp dụng bước 7 (chưa chạy, tạo yêu cầu xác nhận kèm `preview`).
 

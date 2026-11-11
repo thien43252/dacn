@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     dify_dataset_key: str = ""
     # eduagent-review: checks a finished answer against the class policy for students and parents; empty = skipped.
     dify_review_key: str = ""
+    # eduagent-planner (feature 002): lập kế hoạch cho đường đầy đủ; empty = every turn takes the fast path.
+    dify_planner_key: str = ""
     dify_timeout_s: float = 30.0
     # The models the Dify apps run (Dify does not report them); usage_ledger records and prices usage under these.
     dify_triage_model: str = "gpt-4o-mini"
@@ -65,6 +67,19 @@ class Settings(BaseSettings):
     # containers use to reach the backend (host.docker.internal on Docker Desktop).
     mcp_token: str = ""
     mcp_public_url: str = "http://host.docker.internal:8001/mcp"
+
+    # Multi-step orchestration limits (specs/002-multi-agent-orchestration research R12).
+    orch_max_clarify_rounds: int = 1  # lần dừng hỏi lại mỗi lượt (FR-008)
+    orch_max_questions: int = 3  # câu hỏi mỗi lần (FR-008)
+    orch_max_steps: int = 5  # phần việc mỗi lượt (FR-025)
+    orch_max_agents: int = 3  # agent tham gia, tính cả agent chính (FR-025)
+    orch_max_replans: int = 1  # lần lập lại kế hoạch (FR-025)
+    orch_step_timeout_s: float = 60.0  # mỗi phần việc (FR-026)
+    orch_deadline_s: float = 120.0  # cả lượt; chốt an toàn, không phải mục tiêu (FR-025)
+    orch_pending_ttl_h: float = 24.0  # câu hỏi đang chờ hết hạn sau (FR-013)
+    orch_share_review_timeout_s: float = 20.0  # review nội dung chia sẻ trong handler MCP (FR-049)
+    # Registers confirm_probe, a confirmation-only test tool (research R6). Tests and eval only.
+    enable_test_tools: bool = False
 
 
 @lru_cache

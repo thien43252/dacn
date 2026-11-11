@@ -46,7 +46,7 @@ Index: unique một phần trên `conversation_id` với điều kiện `status 
   "ask_message_id": "<chat_messages.id của câu hỏi>",
   "step_key": "s2 | null",
   "questions": [{"id": "q1", "question": "Em học lớp mấy?", "options": ["6", "7", "8", "9"]}],
-  "confirm": {"tool": "confirm_probe", "args": {...}, "summary": "…", "impact": "…", "source": "tool | interpretation"}
+  "confirm": {"tool": "confirm_probe", "agent": "tro-ly-lop", "args": {...}, "summary": "…", "impact": "…", "source": "tool | interpretation"}
 }
 ```
 
@@ -146,8 +146,10 @@ Quy tắc:
 
 ### `ToolContext` (app/tools/registry.py)
 
-Thêm: `step_key: str | None`, `mode: "fast" | "step" | "synthesis"`, `signals: list[dict]`, `may_request_help: bool`,
-`approved: list[{tool, args}]` (không dùng trong luồng hiện tại; dành cho thử nghiệm).
+Thêm: `step_key: str | None`, `mode: "fast" | "step" | "synthesis"`, `signals: list[dict]`, `may_request_help: bool`.
+
+Khi chạy tool sau xác nhận, backend dựng một `ToolContext` mới thay vì dùng lại handle đã hết hạn (research R18,
+"Dựng lại ngữ cảnh lúc chạy").
 
 ### `PlatformTool`
 

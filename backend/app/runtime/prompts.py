@@ -4,7 +4,9 @@ The platform block comes first and the agent cannot override it; the class polic
 class, which is what keeps several agents behaving consistently.
 """
 
-from app.agents.manifest import AgentManifest
+import json
+
+from app.agents.manifest import FALLBACK_SLUG, AgentManifest
 from app.agents.service import ResolvedAgent
 from app.classes.models import ClassRoom
 
@@ -76,3 +78,24 @@ def build_system_prompt(
     if safety_note:
         sections.append(SAFETY_NOTE)
     return "\n\n".join(sections)
+
+
+def planner_roster(agents: list[ResolvedAgent], role: str | None = None) -> str:
+    """The `roster` input of eduagent-planner (contracts/dify-apps.md §2): every agent usable here, with its tools
+    and whether it is the fallback. Agents not meant for `role` are left out (FR-039)."""
+    return json.dumps(
+        [
+            {
+                "slug": agent.slug,
+                "name": agent.manifest.name,
+                "description": agent.manifest.description,
+                "capabilities": list(agent.manifest.capabilities),
+                "subjects": list(agent.manifest.subjects),
+                "tools": list(agent.manifest.tools),
+                "is_fallback": agent.slug == FALLBACK_SLUG,
+            }
+            for agent in agents
+            if role is None or role in agent.manifest.target_roles
+        ],
+        ensure_ascii=False,
+    )

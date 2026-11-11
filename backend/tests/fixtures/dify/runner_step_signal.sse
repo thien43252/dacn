@@ -1,0 +1,14 @@
+data: {"event": "workflow_started", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300100, "workflow_run_id": "e0f1a2b3-c4d5-4e6f-a7b8-c9d0e1f2a3b4", "data": {"id": "e0f1a2b3-c4d5-4e6f-a7b8-c9d0e1f2a3b4"}}
+
+data: {"event": "agent_log", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300101, "data": {"node_execution_id": "agent", "label": "CALL ask_user", "status": "success", "data": {"tool_name": "ask_user", "tool_input": {"questions": [{"question": "Em học lớp mấy?", "options": ["7", "8", "9"]}]}, "output": "Đã ghi nhận câu hỏi. Hãy kết thúc phần việc; nếu không hỏi được, hệ thống sẽ ghi giả định."}, "node_id": "agent"}}
+
+data: {"event": "message", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300102, "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "answer": "Cần biết lớp của học sinh", "from_variable_selector": ["agent", "text"]}
+
+data: {"event": "message", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300102, "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "answer": " để chọn độ khó bài luyện;", "from_variable_selector": ["agent", "text"]}
+
+data: {"event": "message", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300102, "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "answer": " đã gửi câu hỏi cho người dùng.", "from_variable_selector": ["agent", "text"]}
+
+data: {"event": "message_end", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300103, "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "metadata": {"usage": {"prompt_tokens": 1650, "completion_tokens": 64, "total_tokens": 1714, "total_price": "0.0002859", "currency": "USD"}}, "files": []}
+
+data: {"event": "workflow_finished", "conversation_id": "7f0e2b1c-3d4a-4e5f-8a9b-0c1d2e3f4a5b", "message_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "task_id": "d4c3b2a1-6f5e-4b7a-9d8c-5d4c3b2a1f0e", "created_at": 1794300103, "workflow_run_id": "e0f1a2b3-c4d5-4e6f-a7b8-c9d0e1f2a3b4", "data": {"id": "e0f1a2b3-c4d5-4e6f-a7b8-c9d0e1f2a3b4", "status": "succeeded"}}
+
