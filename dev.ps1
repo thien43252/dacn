@@ -66,9 +66,46 @@ if ($LASTEXITCODE -ne 0) { throw 'Database failed to start.' }
 # Pick the shell used for the new windows (pwsh if available, else Windows PowerShell)
 $Shell = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
 
+function Test-Port($port) {
+    [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+}
+
 function Start-Window($title, $dir, $command) {
     $cmd = "`$Host.UI.RawUI.WindowTitle = '$title'; Set-Location '$dir'; $command"
     Start-Process $Shell -ArgumentList '-NoExit', '-Command', $cmd | Out-Null
+}
+
+function Invoke-Psql($db, $sql) {
+    $out = docker compose -f $Compose exec -T postgres psql -U eduagent -d $db -tAc $sql 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ($out | Out-String).Trim()
+}
+
+# Pick a database whose migration history matches this checkout. Branches share one Postgres container; if another
+# branch migrated the default database past what this code knows (alembic: "Can't locate revision"), use a separate
+# database for this branch instead of touching the other branch's data.
+function Select-Database {
+    $known = Get-ChildItem (Join-Path $Backend 'migrations/versions') -Filter *.py |
+        Select-String -Pattern '^revision[^=]*=\s*"([^"]+)"' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+
+    $db = 'eduagent'
+    $current = Invoke-Psql $db 'SELECT version_num FROM alembic_version'
+    if ($current -and ($known -notcontains $current)) {
+        $branch = (git -C $Root rev-parse --abbrev-ref HEAD 2>$null) -replace '[^A-Za-z0-9]', '_'
+        if (-not $branch) { $branch = 'local' }
+        $db = "eduagent_$($branch.ToLower())"
+        Write-Host "    Database 'eduagent' is at revision $current, unknown to this branch -> using '$db'" -ForegroundColor Yellow
+        $exists = Invoke-Psql 'eduagent' "SELECT 1 FROM pg_database WHERE datname = '$db'"
+        if ($exists -ne '1') {
+            Step "Creating database $db"
+            docker compose -f $Compose exec -T postgres psql -U eduagent -d eduagent -c "CREATE DATABASE $db" | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Could not create database $db" }
+        }
+        $current = Invoke-Psql $db 'SELECT version_num FROM alembic_version'
+    }
+    # Child processes (alembic, seed, the backend window) inherit this; it overrides DATABASE_URL in .env.
+    $env:DATABASE_URL = "postgresql+asyncpg://eduagent:eduagent@127.0.0.1:5433/$db"
+    return [pscustomobject]@{ Name = $db; Fresh = -not $current }
 }
 
 if (-not $NoBackend) {
@@ -78,16 +115,22 @@ if (-not $NoBackend) {
         Invoke-Checked $Backend { uv sync }
     }
 
-    Step 'Applying migrations'
+    $database = Select-Database
+
+    Step "Applying migrations ($($database.Name))"
     Invoke-Checked $Backend { uv run alembic upgrade head }
 
-    if ($Setup -or $firstRun) {
+    if ($Setup -or $firstRun -or $database.Fresh) {
         Step 'Seeding demo data'
         Invoke-Checked $Backend { uv run python -m scripts.seed_demo }
     }
 
-    Step 'Starting backend in a new window -> http://127.0.0.1:8001'
-    Start-Window 'EduAgent backend' $Backend 'uv run uvicorn app.main:app --reload --port 8001'
+    if (Test-Port 8001) {
+        Write-Host '    Port 8001 already in use - backend is probably running, not starting another.' -ForegroundColor Yellow
+    } else {
+        Step 'Starting backend in a new window -> http://127.0.0.1:8001'
+        Start-Window 'EduAgent backend' $Backend 'uv run uvicorn app.main:app --reload --port 8001'
+    }
 }
 
 if (-not $NoWeb) {
@@ -96,8 +139,12 @@ if (-not $NoWeb) {
         Invoke-Checked $Web { npm install }
     }
 
-    Step 'Starting frontend in a new window -> http://127.0.0.1:5173'
-    Start-Window 'EduAgent web' $Web 'npm run dev'
+    if (Test-Port 5173) {
+        Write-Host '    Port 5173 already in use - frontend is probably running, not starting another.' -ForegroundColor Yellow
+    } else {
+        Step 'Starting frontend in a new window -> http://127.0.0.1:5173'
+        Start-Window 'EduAgent web' $Web 'npm run dev'
+    }
 }
 
 Write-Host ''
