@@ -12,6 +12,7 @@ import type {
   HubAgent,
   Installation,
   PlatformTool,
+  StepNote,
   StoredMessage,
 } from "./types";
 
@@ -29,6 +30,9 @@ export const chatApi = {
   conversations: (classId: string | null) =>
     apiRequest<ConversationSummary[]>(`/api/chat/conversations${query({ class_id: classId })}`),
   messages: (conversationId: string) => apiRequest<StoredMessage[]>(`/api/chat/conversations/${enc(conversationId)}/messages`),
+  /** A working note of a full-path answer (feature 002); the first call may run the review. */
+  stepNote: (messageId: string, stepKey: string) =>
+    apiRequest<StepNote>(`/api/chat/messages/${enc(messageId)}/steps/${enc(stepKey)}/note`),
   deleteConversation: (conversationId: string) =>
     apiRequest<void>(`/api/chat/conversations/${enc(conversationId)}`, { method: "DELETE" }),
 };

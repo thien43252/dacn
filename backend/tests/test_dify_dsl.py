@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from app.guard import dify_rules
+from app.tools import registry
 
 DIFY = Path(__file__).resolve().parents[2] / "infra" / "dify"
 
@@ -53,13 +54,12 @@ def test_tool_ctx_is_a_fixed_variable_and_hidden_from_the_model() -> None:
     for name in ("eduagent-runner.yml", "eduagent-runner-raw.yml"):
         [agent] = [n for n in dsl(name)["workflow"]["graph"]["nodes"] if n["data"]["type"] == "agent"]
         tools = agent["data"]["agent_parameters"]["tools"]["value"]
-        assert {tool["tool_name"] for tool in tools} == {
-            "class_doc_search",
-            "quiz_generator",
-            "rubric_grader",
-            "math_check",
-            "progress_summary",
-        }
+        # Every platform tool, including the signal tools and the teacher actions of feature 002; never the test-only
+        # confirm_probe (contracts/mcp-tools.md).
+        assert {tool["tool_name"] for tool in tools} == set(registry.TOOLS) - registry.TEST_TOOLS
+        assert "confirm_probe" not in {tool["tool_name"] for tool in tools}
+        # One more round than before: a step may call a signal tool, then finish (research R5).
+        assert agent["data"]["agent_parameters"]["maximum_iterations"] == {"type": "constant", "value": 6}
         for tool in tools:
             assert tool["provider_name"] == "eduagent-tools" and tool["type"] == "mcp"
             # type "variable": with "mixed"/"constant" Dify would send the template text itself (spike T006).

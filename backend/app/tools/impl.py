@@ -287,3 +287,58 @@ async def progress_summary(ctx: "ToolContext", args: ProgressArgs) -> dict:
             # The count of wellbeing signals goes to the adult; the details stay in the teacher's audit log.
             reports_out.append({"student": student.name, **data})
     return {"reports": reports_out, "note": "Số liệu tổng hợp; không chứa nguyên văn tin nhắn của học sinh."}
+
+
+# ---------- Signal tools (feature 002, contracts/mcp-tools.md) ----------
+# They only record what the agent needs; the orchestrator acts on it once the step ends (research R5).
+
+HELP_RECORDED = "Đã ghi nhận yêu cầu hỗ trợ. Hãy kết thúc phần việc với những gì đã có; hệ thống sẽ gửi lại kết quả."
+QUESTION_RECORDED = "Đã ghi nhận câu hỏi. Hãy kết thúc phần việc; nếu không hỏi được, hệ thống sẽ ghi giả định."
+NO_MORE_HELP = "Phần việc này không được nhờ thêm agent khác."
+
+
+class RequestHelpArgs(BaseModel):
+    agent: str = Field(default="", max_length=48, description="Slug agent nên làm việc này; để trống nếu không chắc")
+    task: str = Field(min_length=10, max_length=1000, description="Việc cần agent khác làm")
+
+
+class UserQuestion(BaseModel):
+    question: str = Field(min_length=1, max_length=200)
+    options: list[str] = Field(default_factory=list, max_length=6)
+
+
+class AskUserArgs(BaseModel):
+    questions: list[UserQuestion] = Field(min_length=1, max_length=3, description="1–3 câu hỏi cho người dùng")
+
+
+class RequestConfirmationArgs(BaseModel):
+    summary: str = Field(min_length=10, max_length=400, description="Cách hiểu yêu cầu cần người dùng xác nhận")
+
+
+async def request_help(ctx: "ToolContext", args: RequestHelpArgs) -> dict:
+    if not ctx.may_request_help:
+        raise ToolFailure(NO_MORE_HELP)
+    ctx.signals.append({"type": "request_help", "agent": args.agent.strip().lstrip("@"), "task": args.task.strip()})
+    return {"message": HELP_RECORDED}
+
+
+async def ask_user(ctx: "ToolContext", args: AskUserArgs) -> dict:
+    ctx.signals.append({"type": "ask_user", "questions": [q.model_dump() for q in args.questions]})
+    return {"message": QUESTION_RECORDED}
+
+
+async def request_confirmation(ctx: "ToolContext", args: RequestConfirmationArgs) -> dict:
+    ctx.signals.append({"type": "request_confirmation", "summary": args.summary.strip()})
+    return {"message": QUESTION_RECORDED}
+
+
+# ---------- confirm_probe (tests and eval only, ENABLE_TEST_TOOLS) ----------
+
+
+class ConfirmProbeArgs(BaseModel):
+    target: str = Field(min_length=1, max_length=100, description="Nơi nhận thông báo thử")
+    note: str = Field(min_length=1, max_length=300, description="Nội dung thông báo thử")
+
+
+async def confirm_probe(ctx: "ToolContext", args: ConfirmProbeArgs) -> dict:
+    return {"ok": True, "target": args.target, "done": True, "summary": f"Đã ghi thông báo thử tới “{args.target}”."}

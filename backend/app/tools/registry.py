@@ -19,11 +19,13 @@ from pydantic import BaseModel, ValidationError
 
 from app.audit.models import GuardEvent
 from app.chat.models import ToolCallLog
+from app.config import get_settings
 from app.db import session_factory
+from app.guard import dify_rules
 from app.guard.rules import redact
 from app.llm.base import Usage
+from app.tools import actions, impl
 from app.tools import context as handles
-from app.tools import impl
 
 log = logging.getLogger("eduagent.tools")
 
@@ -48,6 +50,11 @@ class PlatformTool:
     # Content other people will read: also reviewed by eduagent-review before confirmation is asked (FR-049).
     share_review: bool = False
 
+
+ALL_ROLES = frozenset({"teacher", "student", "parent"})
+TEACHER = frozenset({"teacher"})
+# Only in tests and eval (ENABLE_TEST_TOOLS); not in any released runner.
+TEST_TOOLS = {"confirm_probe"}
 
 TOOLS: dict[str, PlatformTool] = {
     tool.name: tool
@@ -88,6 +95,89 @@ TOOLS: dict[str, PlatformTool] = {
             impl.ProgressArgs,
             frozenset({"teacher", "parent"}),
         ),
+        # --- Feature 002: signal tools (any agent, in a step of the full path only) ---
+        PlatformTool(
+            "request_help",
+            "Nhờ agent khác",
+            "Báo rằng phần việc cần một agent khác làm một việc ngoài chuyên môn của bạn, rồi kết thúc phần việc.",
+            impl.RequestHelpArgs,
+            ALL_ROLES,
+            signal=True,
+        ),
+        PlatformTool(
+            "ask_user",
+            "Hỏi người dùng",
+            "Báo rằng cần thông tin chỉ người dùng mới biết (1–3 câu hỏi), rồi kết thúc phần việc.",
+            impl.AskUserArgs,
+            ALL_ROLES,
+            signal=True,
+        ),
+        PlatformTool(
+            "request_confirmation",
+            "Xin xác nhận cách hiểu",
+            "Báo rằng cần người dùng xác nhận cách hiểu yêu cầu trước khi làm tiếp, rồi kết thúc phần việc.",
+            impl.RequestConfirmationArgs,
+            ALL_ROLES,
+            signal=True,
+        ),
+        # --- Feature 002: tools that act outside the conversation; never run before the user confirms ---
+        PlatformTool(
+            "confirm_probe",
+            "Thông báo thử",
+            "Công cụ thử cơ chế xác nhận (chỉ dùng khi kiểm thử).",
+            impl.ConfirmProbeArgs,
+            ALL_ROLES,
+            requires_confirmation=True,
+            confirm_template="Ghi một thông báo thử tới “{target}”: {note}",
+        ),
+        PlatformTool(
+            "save_class_document",
+            "Lưu tài liệu lớp",
+            "Lưu nội dung Markdown thành tài liệu của lớp để học sinh và các agent đọc. Cần giáo viên xác nhận.",
+            actions.SaveDocumentArgs,
+            TEACHER,
+            needs_class=True,
+            requires_confirmation=True,
+            share_review=True,
+        ),
+        PlatformTool(
+            "set_agent_notes",
+            "Sửa ghi chú cho agent",
+            "Thay hoặc thêm ghi chú mà mọi agent của lớp phải theo. Cần giáo viên xác nhận.",
+            actions.AgentNotesArgs,
+            TEACHER,
+            needs_class=True,
+            requires_confirmation=True,
+        ),
+        PlatformTool(
+            "install_agent",
+            "Cài agent vào lớp",
+            "Cài một agent từ Hub vào lớp. Cần giáo viên xác nhận.",
+            actions.InstallAgentArgs,
+            TEACHER,
+            needs_class=True,
+            requires_confirmation=True,
+        ),
+        PlatformTool(
+            "post_class_announcement",
+            "Đăng thông báo lớp",
+            "Đăng thông báo tới học sinh, phụ huynh hoặc cả hai. Cần giáo viên xác nhận.",
+            actions.AnnouncementArgs,
+            TEACHER,
+            needs_class=True,
+            requires_confirmation=True,
+            share_review=True,
+        ),
+        PlatformTool(
+            "assign_practice",
+            "Giao bài luyện",
+            "Giao một bài luyện (1–20 câu, có thể có hạn) cho học sinh của lớp. Cần giáo viên xác nhận.",
+            actions.PracticeArgs,
+            TEACHER,
+            needs_class=True,
+            requires_confirmation=True,
+            share_review=True,
+        ),
     ]
 }
 
@@ -121,6 +211,8 @@ class ToolContext:
     signals: list[dict[str, Any]] = field(default_factory=list)
     # False in a step created by request_help: a helper cannot ask for help in turn (FR-024).
     may_request_help: bool = False
+    # The run a confirmed action belongs to (stored on announcements and assignments it creates).
+    run_id: str | None = None
 
     def record(self, purpose: str, usage: Usage) -> None:
         self.usage.append((purpose, usage))
@@ -140,7 +232,7 @@ STEP_ONLY = "Công cụ này chỉ dùng trong phần việc của quá trình n
 def deny_reason(name: str, context: ToolContext) -> str | None:
     """Authorization checks 2–5 of contracts/mcp-tools.md (with 2a/2b of feature 002); None when the call may run."""
     tool = TOOLS.get(name)
-    if tool is None:
+    if tool is None or (name in TEST_TOOLS and not get_settings().enable_test_tools):
         return "Công cụ không có trong danh mục của nền tảng."
     if tool.signal:
         # 2a: signal tools belong to a step of the full path; 2b: they need no manifest entry.
@@ -161,7 +253,24 @@ IMPLEMENTATIONS = {
     "rubric_grader": impl.rubric_grader,
     "math_check": impl.math_check,
     "progress_summary": impl.progress_summary,
+    "request_help": impl.request_help,
+    "ask_user": impl.ask_user,
+    "request_confirmation": impl.request_confirmation,
+    "confirm_probe": impl.confirm_probe,
 }
+
+
+def _action(name: str) -> Callable[..., Any]:
+    async def run(context: "ToolContext", args: BaseModel) -> dict[str, Any]:
+        try:
+            return await actions.execute(name, context, args, run_id=context.run_id)
+        except actions.ActionFailure as failure:
+            raise impl.ToolFailure(str(failure)) from failure
+
+    return run
+
+
+IMPLEMENTATIONS.update({name: _action(name) for name in actions.TEACHER_TOOLS})
 
 
 CITATION_EXCERPT = 300
@@ -208,6 +317,7 @@ async def _log_call(
     is_error: bool = False,
     denied: str | None = None,
     latency_ms: int = 0,
+    guard: bool = True,
 ) -> None:
     """One tool_calls row per call, plus a guard event when the call was refused. Never fails the call."""
     if not context.log_calls or not context.conversation_id:
@@ -227,7 +337,7 @@ async def _log_call(
                     latency_ms=latency_ms,
                 )
             )
-            if denied:
+            if denied and guard:
                 excerpt, _ = redact(context.excerpt)
                 db.add(
                     GuardEvent(
@@ -280,6 +390,9 @@ async def run_tool(handle: str, name: str, arguments: dict[str, Any]) -> str:
         _emit(context, name, "error")
         await _log_call(context, name, arguments, json.dumps({"error": message}, ensure_ascii=False), is_error=True)
         raise ToolError(message) from error
+    tool = TOOLS[name]
+    if tool.requires_confirmation:
+        return await _hold_for_confirmation(context, tool, args, arguments, elapsed)
     try:
         data = await IMPLEMENTATIONS[name](context, args)
         if name == "class_doc_search":
@@ -304,3 +417,146 @@ async def run_tool(handle: str, name: str, arguments: dict[str, Any]) -> str:
         latency_ms=elapsed(),
     )
     raise ToolError(message)
+
+
+# ---------- Feature 002: tools that need the user's confirmation (contracts/mcp-tools.md, steps 6a, 6b, 7) ----------
+
+AWAITING_CONFIRMATION = "awaiting_confirmation"
+CONFIRM_PENDING = "Cần người dùng xác nhận trước khi thực hiện; hệ thống sẽ hỏi. Hãy kết thúc phần việc."
+NOT_CLASS_TEACHER = "Chỉ giáo viên của lớp này mới dùng được công cụ này."
+SHARE_BLOCKED = "Nội dung không phù hợp để chia sẻ: {reason}"
+SHARE_UNREVIEWED = "Chưa kiểm duyệt được nội dung, thử lại sau."
+
+
+async def _log_guard(context: ToolContext, name: str, category: str, detector: str, reason: str, text: str) -> None:
+    if not context.log_calls:
+        return
+    try:
+        async with session_factory()() as db:
+            excerpt, _ = redact(text)
+            db.add(
+                GuardEvent(
+                    source=context.source,
+                    class_id=context.class_id,
+                    user_id=context.user_id,
+                    role=context.role,
+                    conversation_id=context.conversation_id,
+                    message_id=context.message_id,
+                    agent_slug=context.agent_slug,
+                    stage="tool",
+                    verdict="block",
+                    category=category,
+                    detector=detector,
+                    severity="medium",
+                    reason=f"{name}: {reason}"[:300],
+                    excerpt=excerpt[:300],
+                )
+            )
+            await db.commit()
+    except Exception:
+        log.exception("could not log guard event for %s", name)
+
+
+async def screen_share(context: ToolContext, name: str, args: BaseModel) -> tuple[str, str, str] | None:
+    """Step 6b (FR-049): what others would read is checked before anyone is asked to confirm it. Returns
+    (message for the agent, detector, reason) when it must not be shared. The review fails closed."""
+    if name not in actions.TEACHER_TOOLS:
+        return None
+    if dify_rules.contains_blocked_keyword(actions.keyword_text(name, args)):
+        return SHARE_BLOCKED.format(reason="có từ khóa bị chặn"), "keyword", "từ khóa bị chặn"
+    settings = get_settings()
+    if not TOOLS[name].share_review or not settings.dify_review_key:
+        return None
+    from app.runtime.dify_client import DifyError  # runtime imports this module
+    from app.runtime.dify_turn import make_client
+
+    client = make_client()
+    try:
+        async with asyncio.timeout(settings.orch_share_review_timeout_s):
+            result = await client.run_review(
+                {
+                    "question": "Nội dung giáo viên sẽ chia sẻ cho học sinh và phụ huynh của lớp.",
+                    "reply": actions.shared_text(name, args)[:12000],
+                    "role": "student",
+                    # Teachers may share solutions on purpose; the review still stops unsafe, private or injected text.
+                    "no_direct_answers": "false",
+                },
+                user=context.user_id,
+            )
+    except (TimeoutError, DifyError) as error:
+        log.warning("share review failed for %s, blocked: %s", name, error)
+        return SHARE_UNREVIEWED, "timeout", f"review: {type(error).__name__}"
+    finally:
+        await client.http.aclose()
+    if result.usage:
+        context.record("share_review", result.usage)
+    if result.verdict == "block":
+        return SHARE_BLOCKED.format(reason=result.reason or result.category), "dify_review", result.reason
+    return None
+
+
+async def confirmation_request(context: ToolContext, tool: PlatformTool, args: BaseModel) -> dict[str, Any]:
+    """The signal of step 7: the exact arguments and a description built by code (FR-048), never by a model."""
+    if tool.name in actions.TEACHER_TOOLS:
+        try:
+            shown = await actions.preview(tool.name, context, args)
+        except actions.ActionFailure as failure:
+            raise impl.ToolFailure(str(failure)) from failure
+    else:
+        shown = {
+            "summary": tool.confirm_template.format(**args.model_dump()),
+            "impact": "",
+            "audience_count": None,
+            "preview": {},
+        }
+    return {
+        "type": "confirm_tool",
+        "tool": tool.name,
+        "agent": context.agent_slug,
+        "args": args.model_dump(mode="json"),
+        **shown,
+    }
+
+
+async def _hold_for_confirmation(
+    context: ToolContext, tool: PlatformTool, args: BaseModel, arguments: dict[str, Any], elapsed: Callable[[], int]
+) -> str:
+    """Steps 6a, 6b and 7: the tool does not run; a confirmation request is recorded for the orchestrator."""
+    name = tool.name
+
+    async def refuse(message: str, *, denied: str | None = None) -> str:
+        _emit(context, name, "denied" if denied else "error")
+        await _log_call(
+            context,
+            name,
+            arguments,
+            json.dumps({"error": message}, ensure_ascii=False),
+            is_error=denied is None,
+            denied=denied,
+            latency_ms=elapsed(),
+        )
+        raise ToolError(message)
+
+    if name in actions.TEACHER_TOOLS and not await actions.is_class_teacher(context.user_id, context.class_id):
+        return await refuse(NOT_CLASS_TEACHER, denied=NOT_CLASS_TEACHER)
+    blocked = await screen_share(context, name, args)
+    if blocked:
+        message, detector, reason = blocked
+        await _log_guard(context, name, "share_blocked", detector, reason, actions.shared_text(name, args))
+        return await refuse(message)
+    try:
+        request = await confirmation_request(context, tool, args)
+    except impl.ToolFailure as failure:
+        return await refuse(str(failure))
+    context.signals.append(request)
+    _emit(context, name, "confirm")
+    await _log_call(
+        context,
+        name,
+        arguments,
+        json.dumps({"pending": AWAITING_CONFIRMATION, "summary": request["summary"]}, ensure_ascii=False),
+        denied=AWAITING_CONFIRMATION,
+        latency_ms=elapsed(),
+        guard=False,
+    )
+    return json.dumps({"message": CONFIRM_PENDING}, ensure_ascii=False)

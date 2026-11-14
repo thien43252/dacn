@@ -50,6 +50,13 @@ export function PolicyTab({ room }: { room: ClassRoom }) {
           <small className="ea-muted">Agent học sinh tự kéo từ Hub (đã kiểm định) vẫn chịu chính sách này.</small>
         </span>
       </label>
+      <label className="ea-switch">
+        <input type="checkbox" checked={form.multi_step !== false} onChange={(event) => setForm({ ...form, multi_step: event.target.checked })} />
+        <span>
+          <strong>Xử lý nhiều bước (nhiều agent phối hợp, hỏi lại khi thiếu thông tin)</strong><br />
+          <small className="ea-muted">Tắt thì mọi câu hỏi được một agent trả lời ngay, không lập kế hoạch và không hỏi lại.</small>
+        </span>
+      </label>
       <p className="ea-muted">Kiểm duyệt dùng bộ luật chung cho mọi lớp.</p>
       <label className="field">
         <span>Ghi chú cho agent</span>

@@ -8,7 +8,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func, or_, select
 
-from app.agents.manifest import FALLBACK_SLUG, AgentManifest
+from app.agents import service
+from app.agents.manifest import AgentManifest
 from app.agents.models import Agent, AgentVersion, Installation
 from app.agents.service import ResolvedAgent, latest_version
 from app.auth.deps import CurrentUser, DbSession, require_roles
@@ -107,13 +108,7 @@ async def _out(db, agent: Agent, version: AgentVersion | None) -> HubAgentOut:
     )
 
 
-async def certified_version(db, agent_id: str) -> AgentVersion | None:
-    return await db.scalar(
-        select(AgentVersion)
-        .where(AgentVersion.agent_id == agent_id, AgentVersion.certification_status == "certified")
-        .order_by(AgentVersion.version.desc())
-        .limit(1)
-    )
+certified_version = service.certified_version
 
 
 def validate_manifest(data: dict[str, Any]) -> AgentManifest:
@@ -236,25 +231,10 @@ async def hub_detail(agent_id: str, user: CurrentUser, db: DbSession) -> AgentDe
 
 
 async def _installable(db, user: User, payload: InstallIn) -> tuple[Agent, AgentVersion]:
-    agent = await db.get(Agent, payload.agent_id)
-    if agent is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy agent.")
-    own = agent.owner_id == user.id
-    if payload.version_id:
-        version = await db.get(AgentVersion, payload.version_id)
-        if version is None or version.agent_id != agent.id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy phiên bản.")
-        if not own and version.certification_status != "certified":
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Chỉ cài được phiên bản đã kiểm định của agent người khác.")
-    else:
-        version = await latest_version(db, agent.id) if own else await certified_version(db, agent.id)
-    if version is None:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Agent chưa có phiên bản để cài. Hãy “Tạo phiên bản” trong trình tạo agent."
-        )
-    if not own and agent.visibility != "public":
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy agent.")
-    return agent, version
+    try:
+        return await service.installable(db, user, payload.agent_id, payload.version_id)
+    except service.InstallError as error:
+        raise HTTPException(error.status, error.message) from error
 
 
 async def _installation_out(db, installation: Installation) -> InstallationOut:
@@ -284,25 +264,10 @@ async def class_agents(class_id: str, user: CurrentUser, db: DbSession) -> list[
 @router.post("/classes/{class_id}/agents", response_model=InstallationOut, status_code=status.HTTP_201_CREATED)
 async def install_in_class(class_id: str, payload: InstallIn, user: CurrentUser, db: DbSession) -> InstallationOut:
     room, _ = await classes.load_class(db, class_id, user, {"teacher"})
-    agent, version = await _installable(db, user, payload)
-    if agent.slug == FALLBACK_SLUG:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Trợ lý lớp luôn có sẵn trong mọi lớp.")
-    existing = await db.scalar(
-        select(Installation).where(
-            Installation.scope == "class", Installation.class_id == room.id, Installation.agent_id == agent.id
-        )
-    )
-    if existing:
-        # Re-installing moves the class to the chosen version.
-        existing.agent_version_id, existing.enabled = version.id, True
-        installation = existing
-    else:
-        installation = Installation(
-            agent_id=agent.id, agent_version_id=version.id, scope="class", class_id=room.id, installed_by=user.id
-        )
-        db.add(installation)
-    await db.commit()
-    await db.refresh(installation)
+    try:
+        installation, _ = await service.install_in_class(db, room, user, payload.agent_id, payload.version_id)
+    except service.InstallError as error:
+        raise HTTPException(error.status, error.message) from error
     return await _installation_out(db, installation)
 
 

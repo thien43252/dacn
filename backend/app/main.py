@@ -18,6 +18,7 @@ from app.auth.router import router as auth_router
 from app.certify.pipeline import fail_interrupted
 from app.certify.router import router as certify_router
 from app.chat.router import router as chat_router
+from app.class_feed.router import router as class_feed_router
 from app.classes.router import router as classes_router
 from app.config import get_settings
 from app.db import dispose_engine, ping_database, session_factory
@@ -112,6 +113,7 @@ def create_app() -> FastAPI:
     api.include_router(certify_router)
     api.include_router(reports_router)
     api.include_router(tools_router)
+    api.include_router(class_feed_router)
     app.include_router(api)
 
     # MCP over streamable HTTP for Dify, outside /api and without cookies (app/tools/mcp_http.py).

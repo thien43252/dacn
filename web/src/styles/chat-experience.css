@@ -126,6 +126,24 @@
 .question-card__next, .question-card__submit { border-color: var(--primary) !important; color: var(--surface) !important; background: var(--primary) !important; }
 .question-card__skip-all { justify-self: center; font-size: 12.5px; }
 
+/* Feature 002: the ask card (clarify or confirm) and the full path's waiting line. */
+.ask-card { width: 100%; box-sizing: border-box; }
+.ask-card.is-locked { border-color: var(--line-strong); box-shadow: none; animation: none; }
+.ask-card.is-locked .question-card__option:not(.is-chosen) { opacity: 0.6; }
+.ask-card__body { display: grid; gap: 10px; }
+.ask-card__impact { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--warning); font-size: 13px; }
+.ask-card__impact svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.ask-card__audience { margin: 0; font-size: 12.5px; }
+.ask-card__preview {
+  display: grid; gap: 6px; max-height: 260px; overflow: auto; padding: 10px 12px; border: 1px solid var(--line-strong);
+  border-radius: 12px; background: var(--background); font-size: 13.5px; line-height: 1.5;
+}
+.ask-card__preview p, .ask-card__preview ol { margin: 0; white-space: pre-wrap; }
+.ask-card__diff { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+.ask-card__diff dt { color: var(--muted); font-weight: 700; }
+.ask-card__diff dd { margin: 0; white-space: pre-wrap; }
+.ea-phase { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; }
+
 /* Session history: a sheet over the conversation, newest first. */
 .chat-history {
   position: absolute; inset: 76px 0 0 0; z-index: 5; display: flex; flex-direction: column; gap: 10px; padding: 14px var(--space-4);
@@ -218,3 +236,43 @@
 .chat-panel .chat-composer__foot { grid-column: 1 / -1; grid-row: 3; flex-wrap: wrap; min-width: 0; padding: 0; }
 .chat-panel .chat-composer > :is(p, details) { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
 .chat-panel .chat-composer__foot .teacher-group-trigger { max-width: 100%; white-space: normal; }
+
+/* Feature 002: the agents that worked on a full-path answer, under it. */
+.ea-contributors { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
+.ea-contributor { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 3px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--surface); }
+.ea-contributor .mascot { width: 20px; height: 20px; flex: 0 0 20px; }
+
+/* Feature 002: the progress panel of a multi-step answer, live then collapsed into one line. */
+.ea-process { margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--background); font-size: 13px; }
+.ea-process > summary { display: flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 600; cursor: pointer; list-style: none; }
+.ea-process > summary::-webkit-details-marker { display: none; }
+.ea-process > summary svg { width: 15px; height: 15px; }
+.ea-process.is-done { background: transparent; }
+.ea-process__steps { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ea-process__line { display: flex; align-items: center; gap: 8px; padding: 4px 2px; cursor: default; list-style: none; }
+.ea-process__step details > summary { cursor: pointer; }
+.ea-process__step details > summary::-webkit-details-marker { display: none; }
+.ea-process__line .mascot { width: 24px; height: 24px; flex: 0 0 24px; }
+.ea-process__title { display: grid; flex: 1; min-width: 0; }
+.ea-process__title strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ea-process__title small { color: var(--muted); font-size: 12px; }
+.ea-process__status { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.ea-process__status svg { width: 13px; height: 13px; }
+.ea-process__status--done { color: var(--success); }
+.ea-process__status--error, .ea-process__status--blocked { color: var(--danger, #c0392b); }
+.ea-process__status--running { color: var(--primary); }
+.ea-process__note { margin: 4px 0 6px 32px; padding: 8px 10px; border-left: 2px solid var(--line-strong); }
+.ea-process__tools { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 4px 32px; padding: 0; list-style: none; font-size: 12px; }
+
+/* Feature 002: class feed (announcements, practice sets). */
+.ea-feed-tab { display: grid; gap: var(--space-4, 16px); }
+.ea-feed { display: grid; gap: 10px; }
+.ea-feed-toggle > summary { cursor: pointer; color: var(--primary-strong, var(--primary)); font-weight: 600; font-size: 13.5px; }
+.ea-feed__list { display: grid; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ea-feed__item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); }
+.ea-feed__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ea-feed__head strong { flex: 1; min-width: 0; }
+.ea-feed__body { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
+.ea-feed__questions { margin: 6px 0; padding-left: 1.4em; font-size: 13.5px; }
+.ea-feed__answers { padding: 8px 10px; border-radius: 10px; background: var(--warning-soft); font-size: 13px; }
+.ea-feed__answers ol { margin: 4px 0 0; padding-left: 1.4em; }

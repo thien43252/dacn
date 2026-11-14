@@ -80,15 +80,30 @@ Studio → Import DSL file, lần lượt:
 | `eduagent-runner.yml` | Chatflow | `DIFY_RUNNER_KEY` |
 | `eduagent-runner-raw.yml` | Chatflow (tắt kiểm duyệt) | `DIFY_RUNNER_RAW_KEY` |
 | `eduagent-review.yml` | Workflow | `DIFY_REVIEW_KEY` |
+| `eduagent-planner.yml` | Workflow | `DIFY_PLANNER_KEY` |
 
 `eduagent-runner.yml` và `eduagent-runner-raw.yml` phải giống nhau ngoài phần kiểm duyệt nội dung.
+
+### Cập nhật cho xử lý nhiều bước (feature 002)
+
+Đã dựng Dify từ trước thì làm thêm, theo đúng thứ tự:
+
+1. Khởi động lại backend để MCP server có tool mới, rồi trong Dify mở Tools → MCP → `eduagent-tools` và bấm cập
+   nhật (refresh) danh sách tool. Phải làm **trước** khi import runner: nếu Dify chưa thấy tool mới, runner import
+   vào sẽ thiếu tool.
+2. Import lại `eduagent-triage.yml` (có thêm nhánh `path` chạy song song và output `path`).
+3. Import lại `eduagent-runner.yml` và `eduagent-runner-raw.yml` (13 tool, agent tối đa 6 vòng).
+4. Import `eduagent-planner.yml`, tạo khóa API, đặt `DIFY_PLANNER_KEY` trong `.env`, khởi động lại backend.
+   `/api/health` phải báo `orchestrator: "on"`.
+
+Thiếu `DIFY_PLANNER_KEY` thì mọi lượt đi đường nhanh; các tool cần xác nhận vẫn hoạt động.
 
 ## Nối MCP
 
 1. Đặt `MCP_TOKEN` trong `.env` của dự án (chuỗi ngẫu nhiên dài) và khởi động lại backend.
 2. Tools → MCP → Add MCP Server (HTTP): tên `eduagent-tools`, URL `http://host.docker.internal:8001/mcp`, header
    `Authorization: Bearer <MCP_TOKEN>`.
-3. Server Identifier phải là `eduagent-tools`. DSL của runner đã bật sẵn 5 tool và đặt `ctx` ở chế độ
+3. Server Identifier phải là `eduagent-tools`. DSL của runner đã bật sẵn 13 tool và đặt `ctx` ở chế độ
    **Fixed Value** = biến `ctx` của Start node. Nếu sửa trong Studio, phải chọn biến (`type: variable`), không gõ
    `{{#start.ctx#}}` vào ô chữ: với kiểu `mixed`/`constant`, Dify gửi nguyên chuỗi template cho tool.
 4. Bộ từ khóa và câu trả lời cài sẵn trong DSL runner lấy từ `moderation-keywords.txt` và
@@ -102,6 +117,24 @@ Studio → Import DSL file, lần lượt:
    rồi import lại `eduagent-runner.yml` trong Studio. Dify chỉ cho một loại kiểm duyệt mỗi ứng dụng (keywords,
    OpenAI Moderation hoặc API extension), nên runner dùng keywords; OpenAI Moderation không bật cùng lúc được.
 
+### Danh sách tool MCP
+
+| Nhóm | Tool | Ghi chú |
+|---|---|---|
+| Thường | `class_doc_search`, `quiz_generator`, `rubric_grader`, `math_check`, `progress_summary` | phải có trong manifest của agent |
+| Tín hiệu | `request_help`, `ask_user`, `request_confirmation` | không cần manifest; chỉ dùng được trong phần việc của đường đầy đủ, handler chỉ ghi nhận rồi trả ngay |
+| Cần giáo viên xác nhận | `save_class_document`, `set_agent_notes`, `install_agent`, `post_class_announcement`, `assign_practice` | phải có trong manifest; chỉ giáo viên của lớp; không bao giờ chạy khi agent gọi, backend tự chạy sau khi giáo viên bấm "Đồng ý" |
+| Chỉ để thử | `confirm_probe` | chỉ khi `ENABLE_TEST_TOOLS=true`; không có trong DSL |
+
+### Hội thoại mồ côi của phần việc
+
+Mỗi phần việc của đường đầy đủ chạy runner trên một hội thoại Dify mới (`conversation_id=""`) và không dùng lại.
+Các hội thoại này tích tụ trong DB của Dify (bảng `conversations`, `messages` của app runner). Với dữ liệu demo thì
+chấp nhận được. Muốn dọn: Studio → app runner → Logs & Annotations để xoá theo tay, hoặc xoá các hội thoại của app
+runner cũ hơn N ngày bằng API `DELETE /v1/conversations/{id}` với khóa `DIFY_RUNNER_KEY` (người dùng là `users.id`
+của nền tảng). Hội thoại chính của mỗi cuộc trò chuyện được lưu ở `conversations.dify_conversation_id`, đừng xoá
+những hội thoại đó.
+
 ## Tracing
 
 - Backend tự ghi trace của mỗi lượt Dify vào Langfuse (khi có `LANGFUSE_*` trong `.env`): span `triage` và
@@ -113,7 +146,7 @@ Studio → Import DSL file, lần lượt:
 ## API key
 
 - Mỗi ứng dụng: API Access → tạo key → chép vào `.env` (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`,
-  `DIFY_REVIEW_KEY`).
+  `DIFY_REVIEW_KEY`, `DIFY_PLANNER_KEY`).
 - Knowledge → API → tạo key → `DIFY_DATASET_KEY`.
 - Khởi động lại backend, chạy `uv run python -m scripts.seed_demo`. `RUNTIME_ENGINE` mặc định là `dify` và chỉ còn
   giá trị này: lõi cũ đã bị xóa ở Phase 9.

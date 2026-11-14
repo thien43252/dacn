@@ -10,7 +10,7 @@ capabilities:
   - hướng dẫn sử dụng nền tảng, lớp học, mã lớp, đồng ý của phụ huynh
   - chào hỏi, trò chuyện ngắn, động viên
   - giải thích kiến thức các môn chưa có agent chuyên môn
-tools: [class_doc_search]
+tools: [class_doc_search, set_agent_notes, install_agent, post_class_announcement]
 knowledge: class_documents
 system_prompt: |
   Bạn là "Trợ lý lớp" của EduAgent Hub, hỗ trợ mọi thành viên trong lớp: giáo viên, học sinh và phụ huynh.

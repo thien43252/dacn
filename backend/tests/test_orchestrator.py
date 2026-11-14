@@ -1,10 +1,12 @@
 """The full path (specs/002-multi-agent-orchestration): path choice, planner checks, steps and synthesis, offline
 against recorded or recorded-shape Dify responses (tests/fixtures/dify/README.md)."""
 
+import asyncio
 import json
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
 from app.agents.manifest import builtin_manifests
 from app.agents.service import SEED_DIR, ResolvedAgent
@@ -23,7 +25,7 @@ from app.orchestrator.prompts import (
 from app.runtime.dify_client import TriageResult
 from app.runtime.dify_turn import takes_full_path
 from app.runtime.prompts import planner_roster
-from tests.dify_fake import deltas_sse, fixture_text, planner_body, rows, triage_body
+from tests.dify_fake import Slow, deltas_sse, fixture_text, planner_body, rows, triage_body
 from tests.helpers import chat, class_with_student, reply_text
 
 MANIFESTS = builtin_manifests(SEED_DIR)
@@ -363,7 +365,7 @@ async def test_class_switch_keeps_every_turn_on_the_fast_path(app, as_user, dify
 async def test_a_blocked_step_is_logged_with_its_agent_and_the_rest_continues(app, as_user, dify, sessionmaker) -> None:
     _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
     dify.triage = triage_body("triage_path_full.json")
-    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan")))
+    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan", ["s1"])))
     dify.runner = [fixture_text("runner_step_replaced.sse"), step_note("Ghi chú s2."), deltas_sse("Xong.")]
     events = await chat(student, "Tìm lý thuyết rồi soạn bài", class_id=room["id"])
     assert [(e["key"], e["status"]) for e in events if e["type"] == "step" and e["key"] in ("s1", "s2")][1::2] == [
@@ -391,3 +393,279 @@ async def test_every_step_failing_gives_a_friendly_error(app, as_user, dify, ses
     assert run.status == "error"
     # Only the planner was asked after triage: no synthesis on nothing.
     assert len(dify.calls("/chat-messages")) == 1
+
+
+# --- Several agents (User Story 2) -----------------------------------------------------------------------------------
+
+
+def three_steps() -> dict:
+    """s1 and s2 are independent (one layer), s3 needs both."""
+    return plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan"), step("s3", "gia-su-toan", ["s1", "s2"]))
+
+
+def statuses(events: list[dict]) -> dict[str, str]:
+    """The last status of every plan step."""
+    return {e["key"]: e["status"] for e in events if e["type"] == "step" and e["key"] not in ("analyze", "synthesis")}
+
+
+async def test_steps_of_one_layer_run_at_the_same_time(app, as_user, dify, sessionmaker) -> None:
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=three_steps())
+    note = deltas_sse("Ghi chú song song.", conversation_id="")
+    dify.runner = [Slow(note, 0.3), Slow(note, 0.3), step_note("Ghi chú s3."), deltas_sse("Kết quả.")]
+    events = await chat(student, "Tìm lý thuyết, soạn bài rồi tổng hợp", class_id=room["id"])
+
+    assert dify.max_parallel == 2
+    order = [(e["key"], e["status"]) for e in events if e["type"] == "step" and e["key"].startswith("s")]
+    assert order[:2] == [("s1", "running"), ("s2", "running")]
+    assert order.index(("s3", "running")) > max(order.index(("s1", "done")), order.index(("s2", "done")))
+    # s3 gets the notes of both steps it depends on.
+    s3 = dify.calls("/chat-messages")[2]
+    assert "Kết quả của phần “Việc s1”" in s3["query"] and "Kết quả của phần “Việc s2”" in s3["query"]
+    assert all(e["duration_ms"] >= 0 for e in events if e["type"] == "step" and e["status"] == "done")
+
+    # FR-029: the lead (gia-su-toan) is not listed; on-tap-tai-lieu is.
+    done = events[-1]
+    assert [c["slug"] for c in done["contributors"]] == ["on-tap-tai-lieu"]
+    [reply] = await rows(sessionmaker, ChatMessage, ChatMessage.role == "assistant")
+    assert reply.meta["contributors"] == done["contributors"]
+
+
+async def test_a_slow_step_times_out_and_the_rest_goes_on(app, as_user, dify, sessionmaker, monkeypatch) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("ORCH_STEP_TIMEOUT_S", "0.3")
+    get_settings.cache_clear()
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(
+        plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan"), step("s3", "gia-su-toan", ["s1"]))
+    )
+    dify.runner = [Slow(step_note(), 3), step_note("Ghi chú s2."), step_note("Ghi chú s3."), deltas_sse("Kết quả.")]
+    events = await chat(student, "Làm ba việc", class_id=room["id"])
+
+    assert statuses(events) == {"s1": "error", "s2": "done", "s3": "done"}
+    # A step after a failed one still runs, told that part has no result (FR-026).
+    s3 = [c for c in dify.calls("/chat-messages") if "Làm s3" in c.get("query", "")][0]
+    assert "phần “Việc s1” không có kết quả" in s3["query"]
+    prompt = [c for c in dify.calls("/chat-messages") if "query" in c][-1]["inputs"]["system_prompt"]
+    assert "Phần chưa làm được" in prompt and "Việc s1" in prompt
+    assert events[-1]["status"] == "ok"
+    s1 = [s for s in await rows(sessionmaker, RunStep) if s.key == "s1"][0]
+    assert s1.status == "error" and s1.error == "Phần việc quá thời gian."
+    assert dify.calls("/stop")  # the timed-out Dify task was stopped
+
+
+async def test_past_the_deadline_the_remaining_steps_are_skipped(app, as_user, dify, monkeypatch) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("ORCH_DEADLINE_S", "0.4")
+    get_settings.cache_clear()
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan", ["s1"])))
+    dify.runner = [Slow(step_note(), 0.6), deltas_sse("Kết quả.")]
+    events = await chat(student, "Làm hai việc", class_id=room["id"])
+    assert statuses(events) == {"s1": "done", "s2": "skipped"}
+    assert events[-1]["status"] == "ok"
+
+
+async def test_a_mentioned_agent_leads_the_plan(app, as_user, dify) -> None:
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json", agent="on-tap-tai-lieu", route_reason="mention")
+    dify.planner = planner_body(plan=plan(step("s1", "gia-su-toan"), lead="gia-su-toan"))
+    dify.runner = [step_note("Ghi chú."), deltas_sse("Kết quả.")]
+    events = await chat(student, "@on-tap-tai-lieu tóm tắt rồi cho bài luyện", class_id=room["id"])
+    [plan_event] = [e for e in events if e["type"] == "plan"]
+    assert plan_event["lead"]["slug"] == "on-tap-tai-lieu"
+    assert dify.calls("#planner")[0]["inputs"]["requested_agent"] == "on-tap-tai-lieu"
+    assert events[-1]["agent"] == "on-tap-tai-lieu"
+    assert [c["slug"] for c in events[-1]["contributors"]] == ["gia-su-toan"]
+
+
+async def test_citations_of_every_step_are_merged(app, as_user, dify, sessionmaker, monkeypatch) -> None:
+    from app.orchestrator import steps as steps_module
+
+    original = steps_module.run_step
+
+    async def with_citation(turn, client, agent, agents, row, **kwargs):
+        outcome = await original(turn, client, agent, agents, row, **kwargs)
+        outcome.citations = [{"document_id": f"doc-{row.key}", "title": row.key, "location": "trang 1", "excerpt": "x"}]
+        return outcome
+
+    monkeypatch.setattr(steps_module, "run_step", with_citation)
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan", ["s1"])))
+    dify.runner = [step_note("A."), step_note("B."), deltas_sse("Kết quả.")]
+    events = await chat(student, "Tìm rồi soạn", class_id=room["id"])
+    [citations] = [e for e in events if e["type"] == "citations"]
+    assert [c["document_id"] for c in citations["items"]] == ["doc-s1", "doc-s2"]
+    [reply] = await rows(sessionmaker, ChatMessage, ChatMessage.role == "assistant")
+    assert [c["document_id"] for c in reply.meta["citations"]] == ["doc-s1", "doc-s2"]
+
+
+async def test_leaving_mid_run_cancels_the_steps_and_stops_dify(app, as_user, dify, sessionmaker) -> None:
+    """FR-040: the client goes away while steps run."""
+    from app.chat.router import ChatIn
+    from app.runtime.dify_turn import run_dify_turn
+    from tests.helpers import parse_sse
+
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan")))
+    dify.runner = [Slow(step_note(), 5)]
+    payload = ChatIn(message="Làm hai việc", class_id=room["id"])
+    stream = run_dify_turn(student.user["id"], room["id"], "student", payload)
+    async for chunk in stream:
+        if any(e["type"] == "step" and e["key"] == "s2" and e["status"] == "running" for e in parse_sse(chunk)):
+            break
+    await asyncio.sleep(0.05)  # the steps' Dify streams have started
+    await stream.aclose()
+
+    assert dify.calls("/stop")
+    [run] = await rows(sessionmaker, TurnRun)
+    assert run.status == "cancelled"
+    assert await rows(sessionmaker, ChatMessage, ChatMessage.role == "assistant") == []
+
+
+# --- Phase 9 convergence --------------------------------------------------------------------------------------------
+
+
+async def test_the_synthesis_query_holds_no_working_note(app, as_user, dify) -> None:
+    """T087, FR-031: working notes go only in the system prompt, never into the main Dify conversation."""
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan", ["s1"])))
+    dify.runner = [step_note("GHI-CHU-MOT"), step_note("GHI-CHU-HAI"), deltas_sse("Kết quả.")]
+    await chat(student, "Tìm rồi soạn", class_id=room["id"])
+    synthesis = dify.calls("/chat-messages")[-1]
+    assert synthesis["query"] == "Tìm rồi soạn"
+    prompt = synthesis["inputs"]["system_prompt"]
+    assert "GHI-CHU-MOT" in prompt and "GHI-CHU-HAI" in prompt
+
+
+async def test_a_step_tool_event_carries_its_step_key(app, as_user, dify, sessionmaker) -> None:
+    """T088, FR-032: a tool called inside a step reaches the stream with the step's key and is kept on the step."""
+    _, student, _, room = await class_with_agents(as_user, "gia-su-toan")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=plan(step("s1", "gia-su-toan")))
+    dify.runner = [step_note("Đã kiểm tra."), deltas_sse("Kết quả.")]
+    dify.tool_calls = [("math_check", {"expression": "3**2 + 4**2", "expected": "25"})]
+    events = await chat(student, "Kiểm tra 3² + 4² rồi giải thích", class_id=room["id"])
+    step_tools = [e for e in events if e["type"] == "tool" and e.get("step_key") == "s1"]
+    assert step_tools and step_tools[0]["name"] == "math_check"
+    # The synthesis' own call has no step key.
+    assert any(e["type"] == "tool" and e.get("step_key") is None for e in events)
+    [row] = await rows(sessionmaker, RunStep)
+    assert any(tool["name"] == "math_check" for tool in row.tools)
+
+
+# --- Working notes (User Story 3, research R9) ----------------------------------------------------------------------
+
+
+async def full_answer(as_user, dify, who: str = "student"):
+    """A finished full-path answer with s1 done and s2 failed. Returns (client, other user, final message id)."""
+    teacher, student, parent, room = await class_with_agents(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    dify.triage = triage_body("triage_path_full.json")
+    dify.planner = planner_body(plan=plan(step("s1", "on-tap-tai-lieu"), step("s2", "gia-su-toan", ["s1"])))
+    dify.runner = [step_note("Pytago: a² + b² = c², trang 3."), "down", deltas_sse("Kết quả.")]
+    viewer = student if who == "student" else teacher
+    events = await chat(viewer, "Tìm lý thuyết rồi soạn bài", class_id=room["id"])
+    assert events[-1]["status"] == "ok"
+    other = parent if who == "student" else student
+    return viewer, other, events[-1]["message_id"]
+
+
+def note_url(message_id: str, key: str) -> str:
+    return f"/api/chat/messages/{message_id}/steps/{key}/note"
+
+
+async def test_meta_process_rebuilds_the_panel(app, as_user, dify, sessionmaker) -> None:
+    _, _, message_id = await full_answer(as_user, dify)
+    [reply] = await rows(sessionmaker, ChatMessage, ChatMessage.id == message_id)
+    process = reply.meta["process"]
+    assert process["agents"] == 2 and process["duration_ms"] >= 0
+    assert [(s["key"], s["agent"], s["status"]) for s in process["steps"]] == [
+        ("s1", "on-tap-tai-lieu", "done"),
+        ("s2", "gia-su-toan", "error"),
+    ]
+
+
+async def test_a_note_is_reviewed_once_then_served_from_storage(app, as_user, dify, sessionmaker) -> None:
+    student, _, message_id = await full_answer(as_user, dify)
+    reviews = len(dify.calls("#review"))
+    first = await student.get(note_url(message_id, "s1"))
+    assert first.status_code == 200
+    body = first.json()
+    assert body["visibility"] == "visible" and "a² + b² = c²" in body["note"] and body["agent"] == "on-tap-tai-lieu"
+    assert len(dify.calls("#review")) == reviews + 1
+    review = dify.calls("#review")[-1]["inputs"]
+    assert review["role"] == "student" and review["no_direct_answers"] == "true"
+    second = await student.get(note_url(message_id, "s1"))
+    assert second.json() == body and len(dify.calls("#review")) == reviews + 1
+    [row] = await rows(sessionmaker, RunStep, RunStep.key == "s1")
+    assert row.note_review == "visible"
+    assert any(u.purpose == "note_review" and u.path == "full" for u in await rows(sessionmaker, UsageRecord))
+
+
+async def test_only_the_owner_sees_a_note(app, as_user, dify) -> None:
+    _, other, message_id = await full_answer(as_user, dify)
+    assert (await other.get(note_url(message_id, "s1"))).status_code == 404
+    student, _, _ = await full_answer(as_user, dify)
+    assert (await student.get(note_url(message_id, "s9"))).status_code == 404
+
+
+async def test_a_failed_step_has_no_note(app, as_user, dify) -> None:
+    student, _, message_id = await full_answer(as_user, dify)
+    body = (await student.get(note_url(message_id, "s2"))).json()
+    assert body["visibility"] == "unavailable" and body["note"] is None
+
+
+async def test_a_failed_review_hides_the_note_without_storing(app, as_user, dify, sessionmaker) -> None:
+    student, _, message_id = await full_answer(as_user, dify)
+    dify.review = "down"
+    body = (await student.get(note_url(message_id, "s1"))).json()
+    assert body["visibility"] == "hidden" and body["note"] is None and body["reason_text"] == "Nội dung này đã được ẩn"
+    [row] = await rows(sessionmaker, RunStep, RunStep.key == "s1")
+    assert row.note_review == "unreviewed"
+    dify.review = {"verdict": "allow", "category": "", "reason": ""}
+    assert (await student.get(note_url(message_id, "s1"))).json()["visibility"] == "visible"
+
+
+async def test_a_blocked_note_is_hidden_and_logged_with_its_agent(app, as_user, dify, sessionmaker) -> None:
+    student, _, message_id = await full_answer(as_user, dify)
+    dify.review = {"verdict": "block", "category": "academic_integrity", "reason": "Lời giải hoàn chỉnh"}
+    body = (await student.get(note_url(message_id, "s1"))).json()
+    assert body["visibility"] == "hidden" and body["note"] is None
+    [event] = await rows(sessionmaker, GuardEvent, GuardEvent.stage == "step_note")
+    assert event.detector == "dify_review" and event.agent_slug == "on-tap-tai-lieu" and event.verdict == "block"
+    [row] = await rows(sessionmaker, RunStep, RunStep.key == "s1")
+    assert row.note_review == "hidden"
+
+
+async def test_a_blocked_answer_hides_every_note(app, as_user, dify, sessionmaker) -> None:
+    student, _, message_id = await full_answer(as_user, dify)
+    async with sessionmaker() as db:
+        message = await db.get(ChatMessage, message_id)
+        message.status = "blocked"
+        await db.commit()
+    reviews = len(dify.calls("#review"))
+    assert (await student.get(note_url(message_id, "s1"))).json()["visibility"] == "hidden"
+    assert len(dify.calls("#review")) == reviews
+
+
+async def test_teachers_get_the_keyword_check_only(app, as_user, dify, sessionmaker) -> None:
+    teacher, _, message_id = await full_answer(as_user, dify, who="teacher")
+    reviews = len(dify.calls("#review"))
+    assert (await teacher.get(note_url(message_id, "s1"))).json()["visibility"] == "visible"
+    assert len(dify.calls("#review")) == reviews
+    keyword = dify_rules.keywords()[0]
+    async with sessionmaker() as db:
+        [row] = list(await db.scalars(select(RunStep).where(RunStep.key == "s1")))
+        row.note, row.note_review = f"Có {keyword} ở đây", "unreviewed"
+        await db.commit()
+    assert (await teacher.get(note_url(message_id, "s1"))).json()["visibility"] == "hidden"
+    [event] = await rows(sessionmaker, GuardEvent, GuardEvent.stage == "step_note")
+    assert event.agent_slug == "on-tap-tai-lieu"

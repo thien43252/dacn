@@ -94,3 +94,39 @@ def test_no_overlap_between_attack_and_benign_prompts() -> None:
     attack = {row["prompt"] for row in load("redteam_vi.jsonl")}
     benign = {row["prompt"] for row in load("benign_vi.jsonl")}
     assert attack.isdisjoint(benign)
+
+
+PLANNING_GROUPS = {"simple", "multi", "ambiguous", "clear", "discover"}
+
+
+def test_planning_schema() -> None:
+    """eval/planning_set.jsonl (feature 002): about 60 cases in 5 groups, each with its expected path, agents and
+    whether the planner should ask (SC-002 to SC-004)."""
+    rows = load("planning_set.jsonl")
+    assert len(rows) >= 55
+    assert_unique_ids(rows)
+    for row in rows:
+        assert row["group"] in PLANNING_GROUPS, row["id"]
+        assert row["id"].startswith(f"pl-{row['group']}-"), row["id"]
+        assert row["role"] in ROLES, row["id"]
+        assert set(row["installed"]) <= AGENTS and "tro-ly-lop" in row["installed"], row["id"]
+        assert row["message"].strip(), row["id"]
+        expected = row["expected"]
+        assert expected["path"] in {"fast", "full"}, row["id"]
+        assert set(expected["agents"]) <= set(row["installed"]), row["id"]
+        assert isinstance(expected["asks"], bool), row["id"]
+        # Groups say what is expected: simple means fast, ambiguous means one question, the rest never ask.
+        assert (expected["path"] == "fast") == (row["group"] == "simple"), row["id"]
+        assert expected["asks"] == (row["group"] == "ambiguous"), row["id"]
+    groups = Counter(row["group"] for row in rows)
+    assert set(groups) == PLANNING_GROUPS and min(groups.values()) >= 10
+
+
+def test_redteam_covers_policy_evasion_through_coordination() -> None:
+    """Feature 002 (SC-008): splitting work across agents, notes, question cards and teacher tools as a way around
+    the class policy, and class documents that tell an agent to post, assign, change notes or install."""
+    rows = load("redteam_vi.jsonl")
+    coordination = [row for row in rows if row["technique"].startswith("multi_agent_")]
+    triggers = [row for row in rows if row["technique"].startswith("doc_") and row["id"] >= "pi-021"]
+    assert len(coordination) >= 5 and len(triggers) >= 4
+    assert all("context" in row for row in triggers)

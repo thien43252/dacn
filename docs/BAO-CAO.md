@@ -122,6 +122,40 @@ Tổng đài 111) và tạo sự kiện mức cao cho giáo viên; chỉ yêu c�
 - Báo cáo cho phụ huynh chỉ gồm số liệu tổng hợp và nhận xét, không có nguyên văn tin nhắn; phụ huynh tắt được báo cáo.
 - Thông tin cá nhân trong tin nhắn bị ẩn trước khi tới mô hình và trước khi lưu.
 
+### 4.6 Xử lý nhiều bước với nhiều agent phối hợp (feature 002)
+
+Mỗi lượt chat trở thành một quá trình có trạng thái. Câu hỏi đơn giản vẫn đi **đường nhanh** (triage → một agent →
+review). Yêu cầu phức tạp đi **đường đầy đủ**:
+
+```
+triage (an toàn + path) ─fast─▶ runner (1 agent) ─▶ review ─▶ kết quả
+        └─full─▶ planner ─▶ [hỏi lại / xác nhận → lưu turn_runs, dừng; lượt sau làm tiếp]
+                        ─▶ phần việc của nhiều agent (song song theo phụ thuộc; tool tín hiệu → thêm phần việc)
+                        ─▶ tổng hợp (agent chính, stream) ─▶ review ─▶ một kết quả ngắn + khung quá trình
+```
+
+- **Backend điều phối, Dify chạy việc.** Module `backend/app/orchestrator/` giữ trạng thái (`turn_runs`, `run_steps`)
+  và mọi giới hạn (số phần việc, số agent, số lần hỏi lại, thời gian). Mọi lời gọi mô hình vẫn đi qua app Dify:
+  triage có thêm nhánh `path` chạy song song, app mới `eduagent-planner`, và runner được dùng lại cho cả phần việc
+  (hội thoại Dify riêng) lẫn bước tổng hợp (hội thoại chính).
+- **Kế hoạch không được tin tuyệt đối.** Backend kiểm tra lại kế hoạch của planner: agent phải thuộc danh sách dùng
+  được, agent được gọi tên làm agent chính, đồ thị phụ thuộc không có vòng, cắt theo giới hạn. Kế hoạch không dùng được
+  thì quay về đường nhanh.
+- **Hỏi lại một lần.** Thiếu thông tin quan trọng thì hệ thống dừng với tối đa 3 câu hỏi có lựa chọn và nút "Cứ làm
+  luôn". Câu hỏi là một tin nhắn có `meta.ask`, nên tải lại trang vẫn trả lời tiếp được. Câu trả lời đi qua đủ cổng
+  đồng ý, ẩn thông tin cá nhân và triage như mọi tin nhắn.
+- **Phần việc chạy song song theo tầng.** Mỗi phần việc có quyền tool riêng của agent làm nó, có timeout riêng; phần
+  việc lỗi không làm hỏng cả lượt. Rời trang giữa chừng thì mọi task Dify của lượt bị dừng.
+- **Agent báo nhu cầu bằng tool tín hiệu** (`request_help`, `ask_user`, `request_confirmation`): handler chỉ ghi nhận
+  rồi trả ngay, backend xếp việc tiếp theo, nên không có lời gọi Dify lồng nhau trong MCP. Độ sâu nhờ tối đa là 1.
+- **Xác nhận do nền tảng ép buộc.** Năm tool giáo viên có tác dụng ra ngoài (lưu tài liệu lớp, sửa ghi chú cho agent,
+  cài agent, đăng thông báo, giao bài luyện) không bao giờ chạy khi agent gọi. Guard kiểm duyệt nội dung sẽ chia sẻ,
+  dựng phần xem trước từ đúng tham số rồi hỏi giáo viên; chỉ khi giáo viên bấm "Đồng ý" backend mới tự chạy tool, đúng
+  một lần, với đúng tham số đã xem trước. Kiểm định agent không có người xác nhận nên luôn là "Không".
+- **Một kết quả, minh bạch quá trình.** Agent chính viết một câu trả lời ngắn từ ghi chú của các phần việc; giao diện
+  hiện tên các agent đã đóng góp (lấy từ dữ liệu, không do mô hình viết) và một khung tiến trình thu gọn. Ghi chú làm
+  việc chỉ hiện khi người dùng mở, và chỉ sau khi qua review.
+
 ## 5. Dữ liệu đánh giá
 
 | Bộ | Số mẫu | Nội dung |
@@ -159,6 +193,25 @@ Kết quả đo offline (không cần mô hình): **lớp luật** chặn hoặc
 | --- | --- | --- |
 | Chỉ kiểm tra tĩnh (đo offline) | **100%** | **30%** (bắt 3 agent lộ liễu, 0 agent tốt bị gắn cờ) |
 | Toàn bộ pipeline | ⟨…⟩ | ⟨…⟩ |
+
+### Xử lý nhiều bước (feature 002): SC-001 đến SC-008
+
+Bộ đánh giá: `eval/planning_set.jsonl` (60 ca, 5 nhóm: `simple`, `multi`, `ambiguous`, `clear`, `discover`) và 10 ca
+red-team "lách chính sách qua phối hợp" thêm vào `eval/redteam_vi.jsonl` (`ai-036`–`ai-041`, `pi-021`–`pi-024`).
+
+| Tiêu chí | Cách đo | Kết quả |
+|---|---|---|
+| SC-001: thời gian tới chữ đầu (trung vị) tăng ≤ 10% | `run_routing.py --latency` so với mốc `routing_latency_baseline.csv` (triage p50 2139 ms, chữ đầu p50 3244 ms, 56 câu) | chưa đo: cần import triage có nhánh `path` |
+| SC-002: ≥ 90% câu đơn giản đi đường nhanh, ≥ 85% đúng tập agent | `run_planning.py` (nhóm `simple`; nhóm `multi`, `discover`) | chưa đo: cần app planner trong Dify |
+| SC-003: hỏi thừa ≤ 10%, hỏi đúng lúc ≥ 80% | `run_planning.py` (nhóm `clear`, `ambiguous`) | chưa đo |
+| SC-004: 100% lượt trong giới hạn | giới hạn ép ở backend; test `test_orchestrator.py`, `test_orchestrator_resume.py`, `test_signal_tools.py` | đạt trong test offline |
+| SC-005: 0 hành động chạy khi chưa xác nhận | guard bước 7; test `test_signal_tools.py`, `test_confirm_tools.py`; ca `pi-021`–`pi-024` | đạt trong test offline; red-team thật chưa chạy |
+| SC-006: cập nhật tiến trình đầu ≤ 3 s; thời gian tới kết quả cuối (p50, p90) | `run_planning.py --e2e` (`first_progress_ms`, `final_ms`) | chưa đo |
+| SC-007: ≥ 90% kết quả ≤ 300 từ | `run_planning.py --e2e` (`words`) | chưa đo |
+| SC-008: tỉ lệ lọt không cao hơn một agent | `run_redteam.py` trên 200 ca | chưa đo |
+
+Các ô "chưa đo" cần Dify đã import `eduagent-planner.yml`, `eduagent-triage.yml` và runner mới (xem
+`infra/dify/README.md`) cùng khóa `DIFY_PLANNER_KEY`.
 
 ### So sánh lõi LangGraph và lõi Dify (FR-024, SC-009)
 

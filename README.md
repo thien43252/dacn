@@ -42,9 +42,13 @@ Cần Node.js, Python 3.11, [uv](https://docs.astral.sh/uv/), Docker Desktop và
 cho Dify (đang dùng OpenAI `gpt-4o-mini` và `text-embedding-3-small`).
 
 1. Dựng Dify (khoảng 30 phút lần đầu) theo [infra/dify/README.md](infra/dify/README.md): chạy bộ compose chính thức ở
-   `127.0.0.1:8080`, cài plugin, import 4 DSL, nối MCP `eduagent-tools`, rồi chép các khóa API vào `.env`
-   (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`, `DIFY_REVIEW_KEY`, `DIFY_DATASET_KEY`, `MCP_TOKEN`).
-2. Chạy nền tảng:
+   `127.0.0.1:8080`, cài plugin, nối MCP `eduagent-tools` (trước khi import runner), import 5 DSL, rồi chép các khóa
+   API vào `.env` (`DIFY_TRIAGE_KEY`, `DIFY_RUNNER_KEY`, `DIFY_RUNNER_RAW_KEY`, `DIFY_REVIEW_KEY`, `DIFY_PLANNER_KEY`,
+   `DIFY_DATASET_KEY`, `MCP_TOKEN`). `DIFY_PLANNER_KEY` (app `eduagent-planner`) bật xử lý nhiều bước: lập kế hoạch,
+   nhiều agent phối hợp, hỏi lại khi thiếu thông tin. Để trống thì mọi câu hỏi đi đường nhanh như trước, và
+   `/api/health` báo `orchestrator: "off"`.
+2. Chạy nền tảng. Cách nhanh nhất là `.\dev.ps1` (Windows): script khởi động Dify, Postgres, chạy migration, backend
+   và web, cảnh báo khi `.env` thiếu khóa Dify và in trạng thái xử lý nhiều bước. Chạy tay:
 
 ```bash
 cp .env.example .env   # rồi điền các khóa DIFY_* và MCP_TOKEN ở bước 1

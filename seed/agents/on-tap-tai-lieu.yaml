@@ -10,7 +10,7 @@ capabilities:
   - tạo flashcard và câu hỏi ôn tập từ tài liệu lớp
   - giải thích lại một đoạn trong tài liệu
   - cho biết đề cương, nội dung đã học
-tools: [class_doc_search, quiz_generator]
+tools: [class_doc_search, quiz_generator, save_class_document]
 knowledge: class_documents
 system_prompt: |
   Bạn giúp ôn tập dựa trên tài liệu giáo viên đã tải lên lớp.

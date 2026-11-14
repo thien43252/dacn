@@ -20,8 +20,14 @@ def run_turn(
     *,
     agents_override: "list[ResolvedAgent] | None" = None,
     kind: str = "chat",
+    force_path: str | None = None,
 ) -> AsyncIterator[str]:
-    """Returns the SSE stream of one turn. Imported lazily: dify_turn imports app.chat.router."""
+    """Returns the SSE stream of one turn. Imported lazily: dify_turn imports app.chat.router.
+
+    `force_path` ("fast" | "full") is internal, for eval: a forced turn has nobody to answer questions, so it never
+    pauses (research R14)."""
     from app.runtime.dify_turn import run_dify_turn
 
-    return run_dify_turn(user_id, class_id, role, payload, agents_override=agents_override, kind=kind)
+    return run_dify_turn(
+        user_id, class_id, role, payload, agents_override=agents_override, kind=kind, force_path=force_path
+    )

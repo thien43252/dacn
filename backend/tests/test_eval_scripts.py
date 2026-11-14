@@ -49,3 +49,18 @@ def test_experiment_scripts_run_offline(tmp_path: Path) -> None:
     rows = (tmp_path / "certify_dify.csv").read_text("utf-8")
     # The static stage rejects giai-bai-nhanh before any Dify call.
     assert rows.startswith("engine,") and "dify,giai-bai-nhanh,reject," in rows and ",rejected," in rows
+
+
+
+@pytest.mark.slow
+def test_planning_script_runs_offline(tmp_path: Path) -> None:
+    """eval/run_planning.py (feature 002): both modes survive an unreachable Dify and write their CSV."""
+    env = {**NO_DIFY, "DIFY_PLANNER_KEY": "app-planner"}
+    out = run("run_planning.py", "--limit", "3", out=tmp_path, **env)
+    assert "SC-002" in out and "SC-004" in out
+    rows = (tmp_path / "planning.csv").read_text("utf-8")
+    assert rows.startswith("id,group,") and len(rows.splitlines()) == 4
+    out = run("run_planning.py", "--e2e", "--limit", "2", out=tmp_path, **env)
+    assert "SC-006" in out and "SC-007" in out
+    rows = (tmp_path / "planning_e2e.csv").read_text("utf-8")
+    assert rows.startswith("id,group,status,path,first_progress_ms,final_ms,words,steps,error")

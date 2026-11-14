@@ -4,6 +4,7 @@ import { errorMessage, useResource } from "../../app/useResource";
 import { classesApi, familyApi } from "../../api-client/classes";
 import { subjectLabel } from "../../api-client/types";
 import { Icon } from "../../components/Icon";
+import { ClassFeedList } from "./ClassFeed";
 
 export function StudentClassesPage() {
   const classes = useResource(() => classesApi.list(), []);
@@ -49,6 +50,10 @@ export function StudentClassesPage() {
             <div className="ea-card__meta"><span className="ea-chip">{subjectLabel(room.subject)}</span><span>Lớp {room.grade}</span></div>
             <h3>{room.name}</h3>
             <span className="ea-muted">Giáo viên: {room.teacher_name}</span>
+            <details className="ea-feed-toggle">
+              <summary>Bảng tin của lớp</summary>
+              <ClassFeedList classId={room.id} role="student" />
+            </details>
           </article>
         ))}
       </div>

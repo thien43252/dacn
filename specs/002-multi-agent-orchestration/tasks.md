@@ -180,7 +180,7 @@ fail trước khi làm phần cài đặt.
 
 ### Tests cho User Story 1 ⚠️
 
-- [ ] T028 [P] [US1] Viết `backend/tests/test_orchestrator_resume.py`, mỗi trường hợp một ca:
+- [X] T028 [P] [US1] Viết `backend/tests/test_orchestrator_resume.py`, mỗi trường hợp một ca:
   - `planner_missing.json` → `ask` rồi `done(awaiting_user)`, run `awaiting_user`, tin nhắn câu hỏi có `meta.ask.state="open"`
   - `reply.answers` → làm tiếp, `resume_answers` được lưu, các phần việc đã xong giữ nguyên
   - `skip_all` → `assumptions` có trong `meta` và trong prompt tổng hợp
@@ -195,21 +195,21 @@ fail trước khi làm phần cài đặt.
   - `kind` certify hoặc sandbox → `interactive=false`, không bao giờ dừng
   - planner trả `confirm_interpretation` → dừng với `kind="confirm"`, `source="interpretation"`, `clarify_rounds` tăng; "Không" → run `cancelled`, không chạy phần việc nào; có cả `missing` thì chỉ hỏi `missing`, câu xác nhận thành giả định (FR-017, research R7)
   - làm tiếp sau khi tải lại trang (SC-010): lấy lịch sử qua `GET /api/chat/conversations/{id}/messages`, đọc `meta.ask.run_id` của tin nhắn câu hỏi, gửi `reply` với `run_id` đó → làm tiếp bình thường
-- [ ] T029 [P] [US1] Viết test `AskCard` trong `web/src/components/chat/chat.test.tsx`:
+- [X] T029 [P] [US1] Viết test `AskCard` trong `web/src/components/chat/chat.test.tsx`:
   - chọn lựa chọn, gõ tự do, "Cứ làm luôn" gửi `skip_all`
   - sau khi gửi thì thẻ khoá; chỉ thẻ `open` mới nhất bấm được
   - dựng thẻ từ `meta.ask` của lịch sử tải lại (SC-010) và gửi `reply` đúng `run_id`
 
 ### Implementation cho User Story 1
 
-- [ ] T030 [US1] Thêm `ReplyIn` vào `ChatIn` trong `backend/app/chat/router.py`: `run_id: str`, `answers: dict[str, constr(max_length=500)] = {}`, `skip_all: bool = False`, `decision: Literal["approve","reject"] | None = None`. `message` vẫn bắt buộc (contracts/chat-sse.md)
-- [ ] T031 [US1] Thêm `pause_for_clarify()` vào `backend/app/orchestrator/conductor.py`:
+- [X] T030 [US1] Thêm `ReplyIn` vào `ChatIn` trong `backend/app/chat/router.py`: `run_id: str`, `answers: dict[str, constr(max_length=500)] = {}`, `skip_all: bool = False`, `decision: Literal["approve","reject"] | None = None`. `message` vẫn bắt buộc (contracts/chat-sse.md)
+- [X] T031 [US1] Thêm `pause_for_clarify()` vào `backend/app/orchestrator/conductor.py`:
   - chỉ dừng khi `interactive=true` và `clarify_rounds < orch_max_clarify_rounds`
   - kế hoạch có `missing` → hỏi `missing`. Kế hoạch không có `missing` nhưng có `confirm_interpretation` → dừng **trước khi chạy phần việc** với `pending.kind="confirm"`, `confirm.source="interpretation"`, `confirm.summary` = câu đó; vẫn tăng `clarify_rounds` (FR-017). Có cả hai → chỉ hỏi `missing`, câu xác nhận đưa vào `assumptions` (research R7)
   - tạo `ChatMessage` trợ lý với `status="awaiting_user"` và `meta.ask={run_id, kind:"clarify", questions, state:"open"}`
   - đặt `pending` (định dạng ở data-model.md: `kind`, `ask_message_id`, `step_key`, `questions[{id, question, options}]`), `clarify_rounds += 1`, `expires_at = now + orch_pending_ttl_h`
   - phát `plan` rồi `ask` (`skippable=true`) rồi `done(awaiting_user)`
-- [ ] T032 [US1] Thêm `resume()` vào `backend/app/orchestrator/conductor.py`:
+- [X] T032 [US1] Thêm `resume()` vào `backend/app/orchestrator/conductor.py`:
   - tìm run mở của hội thoại và kiểm tra hết hạn lười
   - lớp đã tắt `multi_step` → `cancelled`
   - ẩn thông tin cá nhân từng giá trị trong `answers`
@@ -218,25 +218,25 @@ fail trước khi làm phần cài đặt.
   - agent trong kế hoạch không còn dùng được → lập lại kế hoạch với roster hiện tại
   - phát `plan(resumed=true)` kèm trạng thái các phần việc đã có, chạy tiếp các phần chưa xong
   - rời `awaiting_user` theo bất kỳ hướng nào → `pending=null`, `expires_at=null`, cập nhật `meta.ask.state` (`answered · skipped · cancelled · expired`)
-- [ ] T033 [US1] Nối `reply` và run đang chờ vào `backend/app/runtime/dify_turn.py`:
+- [X] T033 [US1] Nối `reply` và run đang chờ vào `backend/app/runtime/dify_turn.py`:
   - cổng đồng ý, ẩn thông tin cá nhân và triage chạy trước như mọi tin nhắn (FR-037); bị chặn → run `cancelled`
   - có run `awaiting_user` → `resume()`, kể cả khi triage trả `fast`
   - phát `notice(pending_expired)` và `notice(pending_cancelled)` với câu chữ ở contracts/chat-sse.md
   - tin nhắn người dùng có `meta.reply_to={run_id, ask_message_id}`
-- [ ] T034 [US1] Đưa `assumptions` và `resume_answers` vào `build_synthesis_prompt()` và `build_synthesis_query()` trong `backend/app/orchestrator/prompts.py`; lưu `meta.assumptions` trong `backend/app/orchestrator/conductor.py`
-- [ ] T035 [US1] Chế độ không có người thật (research R14): `kind` certify/sandbox và eval gửi `interactive=false`. Thêm `force_path` chỉ dùng nội bộ (không có trong `ChatIn` công khai) vào `run_turn()` ở `backend/app/runtime/engine.py` và `backend/app/chat/router.py`
-- [ ] T036 [US1] Tạo `web/src/components/chat/AskCard.tsx` chuyển thể từ `web/src/components/chat/QuestionCard.tsx`:
+- [X] T034 [US1] Đưa `assumptions` và `resume_answers` vào `build_synthesis_prompt()` và `build_synthesis_query()` trong `backend/app/orchestrator/prompts.py`; lưu `meta.assumptions` trong `backend/app/orchestrator/conductor.py`
+- [X] T035 [US1] Chế độ không có người thật (research R14): `kind` certify/sandbox và eval gửi `interactive=false`. Thêm `force_path` chỉ dùng nội bộ (không có trong `ChatIn` công khai) vào `run_turn()` ở `backend/app/runtime/engine.py` và `backend/app/chat/router.py`
+- [X] T036 [US1] Tạo `web/src/components/chat/AskCard.tsx` chuyển thể từ `web/src/components/chat/QuestionCard.tsx`:
   - bỏ danh sách trường bắt buộc kiểu "brief"
   - giữ điều hướng từng câu và phím số chọn lựa chọn
   - thêm nút "Cứ làm luôn"
   - gửi một lần rồi khoá
   - xoá `QuestionCard.tsx` nếu không còn chỗ nào dùng
-- [ ] T037 [US1] Sửa `web/src/components/chat/ChatThread.tsx`:
+- [X] T037 [US1] Sửa `web/src/components/chat/ChatThread.tsx`:
   - xử lý `step(analyze)` (hiện "Đang phân tích yêu cầu" qua `web/src/components/chat/thinking.ts`), `ask`, `done(awaiting_user)`
   - gửi `reply` kèm `message` ghép "câu hỏi\ncâu trả lời" (hoặc "Cứ làm luôn")
   - dựng lại thẻ từ `meta.ask` khi mở lại hội thoại; ô chat chính vẫn gõ được khi đang chờ
   - thêm kiểu cho thẻ vào `web/src/styles/chat-experience.css`
-- [ ] T038 [P] [US1] Thêm công tắc "Xử lý nhiều bước (nhiều agent phối hợp, hỏi lại khi thiếu thông tin)" vào `web/src/features/classes/PolicyTab.tsx` (FR-046)
+- [X] T038 [P] [US1] Thêm công tắc "Xử lý nhiều bước (nhiều agent phối hợp, hỏi lại khi thiếu thông tin)" vào `web/src/features/classes/PolicyTab.tsx` (FR-046)
 
 **Checkpoint**: MVP. Hệ thống biết hỏi lại, có bước phân tích và chạy được với một agent. Kiểm chứng bằng quickstart kịch bản 2–6, 13–15, 19.
 
@@ -250,7 +250,7 @@ fail trước khi làm phần cài đặt.
 
 ### Tests cho User Story 2 ⚠️
 
-- [ ] T039 [P] [US2] Thêm vào `backend/tests/test_orchestrator.py`, mỗi trường hợp một ca:
+- [X] T039 [P] [US2] Thêm vào `backend/tests/test_orchestrator.py`, mỗi trường hợp một ca:
   - `planner_multi.json`: phần việc cùng tầng chạy đồng thời, phần việc phụ thuộc nhận ghi chú của phần nó cần
   - phần việc quá `orch_step_timeout_s` → `error`, các phần khác vẫn xong, kết quả nêu phần chưa làm được
   - phụ thuộc vào phần `error/blocked/skipped` vẫn chạy với ghi chú "phần X không có kết quả"
@@ -263,20 +263,20 @@ fail trước khi làm phần cài đặt.
 
 ### Implementation cho User Story 2
 
-- [ ] T040 [US2] Thêm `run_plan()` vào `backend/app/orchestrator/steps.py` (FR-019, FR-026):
+- [X] T040 [US2] Thêm `run_plan()` vào `backend/app/orchestrator/steps.py` (FR-019, FR-026):
   - chạy DAG theo tầng topo bằng `asyncio.TaskGroup`
   - mỗi phần việc một `ToolContext` riêng
   - phụ thuộc lỗi → ghi chú "phần X không có kết quả" rồi vẫn chạy
   - kiểm tra `orch_deadline_s` trước mỗi tầng, hết thì `skipped`
   - phát `step` event khi bắt đầu và kết thúc, kèm `duration_ms`
   - thay vòng tuần tự ở T021 bằng `run_plan()`
-- [ ] T041 [US2] Xử lý rời đi giữa chừng trong `backend/app/orchestrator/conductor.py` (research R16, FR-040): bắt `CancelledError` hoặc ngắt kết nối của generator SSE, huỷ task group, gọi `DifyClient.stop` cho mọi `task_id` đang chạy, run `cancelled`
-- [ ] T042 [US2] Trong `backend/app/orchestrator/conductor.py`:
+- [X] T041 [US2] Xử lý rời đi giữa chừng trong `backend/app/orchestrator/conductor.py` (research R16, FR-040): bắt `CancelledError` hoặc ngắt kết nối của generator SSE, huỷ task group, gọi `DifyClient.stop` cho mọi `task_id` đang chạy, run `cancelled`
+- [X] T042 [US2] Trong `backend/app/orchestrator/conductor.py`:
   - tính `contributors` (`[{slug, name, avatar}]` các agent có phần việc `done`, trừ `lead`) và đưa vào `done` cùng `meta.contributors`
   - gộp `citations` của mọi phần việc và bước tổng hợp vào `meta.citations` (FR-029)
   - phát `agent(lead)` trước khi stream kết quả
-- [ ] T043 [P] [US2] Thêm span `plan`, `step:<key>` (loại `agent`) và `synthesis` dưới trace của lượt, dùng `backend/app/tracing.py` trong `backend/app/orchestrator/conductor.py` và `backend/app/orchestrator/steps.py` (research R13)
-- [ ] T044 [US2] Hiển thị chip tên và avatar các agent đóng góp từ `meta.contributors` dưới kết quả cuối trong `web/src/components/chat/MessageBody.tsx`, dùng `web/src/agents/AgentIcon.tsx`
+- [X] T043 [P] [US2] Thêm span `plan`, `step:<key>` (loại `agent`) và `synthesis` dưới trace của lượt, dùng `backend/app/tracing.py` trong `backend/app/orchestrator/conductor.py` và `backend/app/orchestrator/steps.py` (research R13)
+- [X] T044 [US2] Hiển thị chip tên và avatar các agent đóng góp từ `meta.contributors` dưới kết quả cuối trong `web/src/components/chat/MessageBody.tsx`, dùng `web/src/agents/AgentIcon.tsx`
 
 **Checkpoint**: US1 và US2 đều chạy độc lập. Kiểm chứng bằng quickstart kịch bản 1, 7, 8, 12, 16.
 
@@ -290,7 +290,7 @@ fail trước khi làm phần cài đặt.
 
 ### Tests cho User Story 3 ⚠️
 
-- [ ] T045 [P] [US3] Viết test cho `GET /api/chat/messages/{message_id}/steps/{step_key}/note` trong `backend/tests/test_orchestrator.py`:
+- [X] T045 [P] [US3] Viết test cho `GET /api/chat/messages/{message_id}/steps/{step_key}/note` trong `backend/tests/test_orchestrator.py`:
   - người khác chủ hội thoại → 404
   - lần đầu chạy review rồi lưu `note_review`; lần sau không gọi review
   - review lỗi → `hidden` và không lưu
@@ -298,22 +298,22 @@ fail trước khi làm phần cài đặt.
   - giáo viên chỉ qua kiểm duyệt từ khóa, không gọi review
   - bị chặn → `guard_events` stage `step_note`, `detector="dify_review"`, `agent_slug` của phần việc
   - phần việc lỗi hoặc bỏ qua → `unavailable`
-- [ ] T046 [P] [US3] Viết test `ProcessPanel` trong `web/src/components/chat/chat.test.tsx`: cập nhật theo `plan`/`step`/`tool{step_key}`; thu gọn khi có `done`; dựng lại từ `meta.process`; ghi chú `hidden` hiện "Nội dung này đã được ẩn"
+- [X] T046 [P] [US3] Viết test `ProcessPanel` trong `web/src/components/chat/chat.test.tsx`: cập nhật theo `plan`/`step`/`tool{step_key}`; thu gọn khi có `done`; dựng lại từ `meta.process`; ghi chú `hidden` hiện "Nội dung này đã được ẩn"
 
 ### Implementation cho User Story 3
 
-- [ ] T047 [US3] Lưu `meta.process={duration_ms, agents, steps:[{key, title, agent, status}]}` vào tin nhắn kết quả cuối trong `backend/app/orchestrator/conductor.py` (FR-035)
-- [ ] T048 [US3] Viết `backend/app/orchestrator/notes.py` theo research R9:
+- [X] T047 [US3] Lưu `meta.process={duration_ms, agents, steps:[{key, title, agent, status}]}` vào tin nhắn kết quả cuối trong `backend/app/orchestrator/conductor.py` (FR-035)
+- [X] T048 [US3] Viết `backend/app/orchestrator/notes.py` theo research R9:
   - `review_note()` theo thứ tự: kết quả cuối bị chặn → `hidden`; đã có `note_review` → trả luôn; chưa có thì chạy `dify_rules.contains_blocked_keyword`, rồi `eduagent-review` với `role` và `no_direct_answers` của người xem và lớp (giáo viên bỏ qua review)
   - lưu `visible` hoặc `hidden`; review lỗi thì không lưu
   - usage purpose `note_review`
-- [ ] T049 [US3] Thêm endpoint `GET /api/chat/messages/{message_id}/steps/{step_key}/note` vào `backend/app/chat/router.py`, gọi `notes.review_note()`. Response `{key, title, agent, status, visibility, note, citations}`; `hidden` kèm `reason_text` "Nội dung này đã được ẩn" (contracts/chat-sse.md)
-- [ ] T050 [P] [US3] Thêm hàm `stepNote(messageId, stepKey)` vào `web/src/api-client/agents.ts`, cạnh hàm `messages()` của chat đã có ở đó
-- [ ] T051 [US3] Tạo `web/src/components/chat/ProcessPanel.tsx`:
+- [X] T049 [US3] Thêm endpoint `GET /api/chat/messages/{message_id}/steps/{step_key}/note` vào `backend/app/chat/router.py`, gọi `notes.review_note()`. Response `{key, title, agent, status, visibility, note, citations}`; `hidden` kèm `reason_text` "Nội dung này đã được ẩn" (contracts/chat-sse.md)
+- [X] T050 [P] [US3] Thêm hàm `stepNote(messageId, stepKey)` vào `web/src/api-client/agents.ts`, cạnh hàm `messages()` của chat đã có ở đó
+- [X] T051 [US3] Tạo `web/src/components/chat/ProcessPanel.tsx`:
   - danh sách phần việc với avatar, tên agent, tiêu đề và trạng thái (chờ, đang làm, xong, lỗi, bỏ qua), tool gắn theo `step_key`
   - thu gọn thành "Đã làm việc · N agent · X giây" khi có `done`, bấm để mở
   - mở một phần việc thì tải ghi chú (kèm trạng thái đang tải)
-- [ ] T052 [US3] Nối `ProcessPanel` vào `web/src/components/chat/ChatThread.tsx` (sự kiện `plan`, `step`, `tool.step_key`) và `web/src/components/chat/MessageBody.tsx` (dựng lại từ `meta.process` khi mở hội thoại cũ). Đường nhanh không hiện khung. Thêm kiểu vào `web/src/styles/chat-experience.css`
+- [X] T052 [US3] Nối `ProcessPanel` vào `web/src/components/chat/ChatThread.tsx` (sự kiện `plan`, `step`, `tool.step_key`) và `web/src/components/chat/MessageBody.tsx` (dựng lại từ `meta.process` khi mở hội thoại cũ). Đường nhanh không hiện khung. Thêm kiểu vào `web/src/styles/chat-experience.css`
 
 **Checkpoint**: Quickstart kịch bản 9–11 đạt.
 
@@ -327,7 +327,7 @@ fail trước khi làm phần cài đặt.
 
 ### Tests cho User Story 4 ⚠️
 
-- [ ] T053 [P] [US4] Viết `backend/tests/test_signal_tools.py` với `test_confirm_probe_*`:
+- [X] T053 [P] [US4] Viết `backend/tests/test_signal_tools.py` với `test_confirm_probe_*`:
   - lần gọi chưa xác nhận → không chạy, `tool_calls.denied_reason="awaiting_confirmation"`
   - đường nhanh gọi tool cần xác nhận → nâng lên run để dừng hỏi, kể cả khi lớp tắt `multi_step`
   - "Đồng ý" → chạy đúng `args` đã lưu, đúng một lần: gửi lại `reply` approve **tuần tự** lần thứ hai thì bỏ qua. Test chạy trên SQLite nên không kiểm được tranh chấp đồng thời thật; trường hợp đó kiểm thủ công bằng quickstart kịch bản 28 trên Postgres
@@ -337,7 +337,7 @@ fail trước khi làm phần cài đặt.
   - xác nhận không tăng `clarify_rounds`
   - `request_confirmation` ngoài `mode="step"` bị từ chối và tính như một lần hỏi lại
   - `confirm_probe` chỉ có khi `enable_test_tools=True`
-- [ ] T054 [P] [US4] Viết `backend/tests/test_confirm_tools.py` cho 5 tool:
+- [X] T054 [P] [US4] Viết `backend/tests/test_confirm_tools.py` cho 5 tool:
   - học sinh và phụ huynh bị từ chối theo vai trò
   - giáo viên không thuộc lớp bị từ chối (bước 6a)
   - kiểm duyệt chia sẻ trúng → lỗi tool, `guard_events` category `share_blocked`, không có yêu cầu xác nhận
@@ -348,28 +348,28 @@ fail trước khi làm phần cài đặt.
   - `set_agent_notes` không chạm khóa khác của `policy`
   - `install_agent` với agent đã cài → "đã có sẵn"
   - `answer_key` không được gửi đi review
-- [ ] T055 [P] [US4] Viết `backend/tests/test_class_actions.py` cho API ở contracts/class-actions.md:
+- [X] T055 [P] [US4] Viết `backend/tests/test_class_actions.py` cho API ở contracts/class-actions.md:
   - học sinh chỉ thấy thông báo `students/all`; phụ huynh chỉ thấy `parents/all` của lớp có con
   - `answer_key` chỉ giáo viên thấy
   - chỉ giáo viên của lớp được `POST` thông báo và `DELETE`; người ngoài lớp → 404
 
 ### Implementation cho User Story 4: cơ chế xác nhận
 
-- [ ] T056 [US4] Thêm bước 7 vào `run_tool()` trong `backend/app/tools/registry.py`:
+- [X] T056 [US4] Thêm bước 7 vào `run_tool()` trong `backend/app/tools/registry.py`:
   - tool `requires_confirmation` không chạy
   - ghi `tool_calls` với `denied_reason="awaiting_confirmation"`
   - thêm tín hiệu `{type:"confirm_tool", tool, args, summary}`; `summary` dựng từ `confirm_template` và tham số, không do LLM viết
   - trả "Cần người dùng xác nhận trước khi thực hiện; hệ thống sẽ hỏi. Hãy kết thúc phần việc."
   - áp dụng ở mọi `mode`
   - đăng ký `confirm_probe` (`target` ≤ 100, `note` ≤ 300, mọi vai trò, template "Ghi một thông báo thử tới “{target}”: {note}") chỉ khi `enable_test_tools`
-- [ ] T057 [P] [US4] Thêm `request_confirmation` (`summary` 10–400 ký tự, `signal=True`) vào `backend/app/tools/impl.py` và đăng ký kèm `ctx` trong `backend/app/tools/server.py`
-- [ ] T058 [US4] Thêm `pause_for_confirm()` vào `backend/app/orchestrator/conductor.py`:
+- [X] T057 [P] [US4] Thêm `request_confirmation` (`summary` 10–400 ký tự, `signal=True`) vào `backend/app/tools/impl.py` và đăng ký kèm `ctx` trong `backend/app/tools/server.py`
+- [X] T058 [US4] Thêm `pause_for_confirm()` vào `backend/app/orchestrator/conductor.py`:
   - đọc tín hiệu `confirm_tool` (hoặc `request_confirmation` với `source="interpretation"`, tính vào `clarify_rounds`)
   - đặt `pending.confirm={tool, agent, args, summary, impact, source, preview, audience_count}` (`agent` là slug agent đã gọi tool, dùng khi dựng lại ngữ cảnh ở T059)
   - tạo tin nhắn câu hỏi `meta.ask.kind="confirm"`, phát `ask{kind:"confirm"}`
   - `interactive=false` → ghi ngay `decision="reject"` (FR-041)
   - khi đường nhanh gặp tín hiệu `confirm_tool`: tạo `TurnRun` không có phần việc để dừng hỏi (research R6)
-- [ ] T059 [US4] Thêm `apply_decision()` vào `backend/app/orchestrator/conductor.py` (research R18, FR-050):
+- [X] T059 [US4] Thêm `apply_decision()` vào `backend/app/orchestrator/conductor.py` (research R18, FR-050):
   - `reply.decision=approve` → khoá dòng `turn_runs` bằng `SELECT … FOR UPDATE` (Postgres), kiểm tra `pending.kind=="confirm"`, ghi `confirmations[i].decision`, đặt `pending=null` rồi commit **trước** khi chạy
   - kiểm tra lại quyền
   - dựng `ToolContext` mới, không dùng lại handle đã hết hạn (research R18):
@@ -382,7 +382,7 @@ fail trước khi làm phần cài đặt.
   - ghi `tool_calls`, `executed_at`, `result_ref`
   - `reject`, hết hạn, hoặc gõ tin khác khi đang chờ xác nhận → không chạy (research R7)
   - đưa `{"done": true, "summary", "link"}` hoặc `{"done": false, "reason"}` vào bước tổng hợp; `meta.ask.state` `approved` hoặc `rejected`
-- [ ] T060 [US4] Thêm chế độ xác nhận vào `web/src/components/chat/AskCard.tsx`:
+- [X] T060 [US4] Thêm chế độ xác nhận vào `web/src/components/chat/AskCard.tsx`:
   - hai nút "Đồng ý" và "Không"
   - hiện `summary`, `impact`, `audience_count`, `preview` (`title`, `body`, `items`, `before` → `after`)
   - gửi `reply.decision` kèm `message` "Đồng ý" hoặc "Không"
@@ -391,14 +391,14 @@ fail trước khi làm phần cài đặt.
 
 ### Implementation cho User Story 4: 5 tool giáo viên (R18)
 
-- [ ] T061 [P] [US4] Tách phần thân của `_installable()` và `install_in_class()` ở `backend/app/agents/router.py` thành `install_in_class()` trong `backend/app/agents/service.py`, giữ cùng quy tắc chứng nhận và hiển thị. Agent đã cài thì trả installation sẵn có. Router gọi lại service; `backend/tests/test_agents.py` vẫn pass
-- [ ] T062 [P] [US4] Thêm `create_text_document(db, room, user, title, content)` vào `backend/app/knowledge/service.py`: lưu `.md` như tài liệu tải lên rồi lên lịch `process_document` như ở `backend/app/knowledge/router.py`
-- [ ] T063 [P] [US4] Viết `backend/app/class_feed/router.py` theo contracts/class-actions.md:
+- [X] T061 [P] [US4] Tách phần thân của `_installable()` và `install_in_class()` ở `backend/app/agents/router.py` thành `install_in_class()` trong `backend/app/agents/service.py`, giữ cùng quy tắc chứng nhận và hiển thị. Agent đã cài thì trả installation sẵn có. Router gọi lại service; `backend/tests/test_agents.py` vẫn pass
+- [X] T062 [P] [US4] Thêm `create_text_document(db, room, user, title, content)` vào `backend/app/knowledge/service.py`: lưu `.md` như tài liệu tải lên rồi lên lịch `process_document` như ở `backend/app/knowledge/router.py`
+- [X] T063 [P] [US4] Viết `backend/app/class_feed/router.py` theo contracts/class-actions.md:
   - `GET/POST/DELETE /classes/{class_id}/announcements`; GET lọc theo `audience` của người xem, mới nhất trước, tối đa 50; `POST` (`source="ui"`) cùng kiểm duyệt từ khóa với tool
   - `GET /classes/{class_id}/assignments`, `GET /classes/{class_id}/assignments/{id}` (`answer_key` chỉ cho giáo viên), `DELETE /classes/{class_id}/assignments/{id}`
   - schema `AnnouncementOut` và `AssignmentOut`
   - đăng ký router trong `backend/app/main.py`
-- [ ] T064 [US4] Viết `backend/app/tools/actions.py` với 5 tool theo bảng ở contracts/mcp-tools.md:
+- [X] T064 [US4] Viết `backend/app/tools/actions.py` với 5 tool theo bảng ở contracts/mcp-tools.md:
   - Args:
     - `save_class_document`: `title` 3–120, `content` 20–20000
     - `set_agent_notes`: `notes` ≤ 1000, `mode` `replace|append`
@@ -408,18 +408,18 @@ fail trước khi làm phần cài đặt.
   - Mỗi tool có `preview()` không gọi LLM: tiêu đề và 600 ký tự đầu; ghi chú cũ → mới; tên và mô tả agent; danh sách câu hỏi; kèm `audience_count`
   - Mỗi tool có `execute()` trả `result_ref`; dùng T061, T062 và các model ở T008
   - phụ thuộc T061–T063
-- [ ] T065 [US4] Đăng ký 5 tool trong `TOOLS` và `IMPLEMENTATIONS` ở `backend/app/tools/registry.py` (`roles={"teacher"}`, `needs_class=True`, `requires_confirmation=True`, `share_review=True` cho `save_class_document`, `post_class_announcement`, `assign_practice`). Thêm vào handler:
+- [X] T065 [US4] Đăng ký 5 tool trong `TOOLS` và `IMPLEMENTATIONS` ở `backend/app/tools/registry.py` (`roles={"teacher"}`, `needs_class=True`, `requires_confirmation=True`, `share_review=True` cho `save_class_document`, `post_class_announcement`, `assign_practice`). Thêm vào handler:
   - bước 6a: người dùng là giáo viên của `class_id` trong handle
   - bước 6b: từ khóa cho mọi trường văn bản; với `share_review`, gọi thêm `eduagent-review` với `role="student"`, `no_direct_answers="false"`, không gửi `answer_key`. Bọc lần gọi review trong `asyncio.timeout(orch_share_review_timeout_s)`; quá giờ hoặc lỗi thì fail closed với lỗi "Chưa kiểm duyệt được nội dung, thử lại sau." và `guard_events` `share_blocked`, `detector="timeout"` (research R18)
   - trúng thì lỗi "Nội dung không phù hợp để chia sẻ: <lý do>" và `guard_events` category `share_blocked`
   - đăng ký kèm `ctx` trong `backend/app/tools/server.py`
-- [ ] T066 [P] [US4] Thêm tool vào manifest mẫu: `seed/agents/tro-ly-lop.yaml` (`set_agent_notes`, `install_agent`, `post_class_announcement`), `seed/agents/tao-de.yaml` (`assign_practice`, `save_class_document`), `seed/agents/on-tap-tai-lieu.yaml` (`save_class_document`)
-- [ ] T067 [US4] Bật `request_confirmation` và 5 tool giáo viên (tham số `ctx` Fixed Value) trong `infra/dify/eduagent-runner.yml` và `infra/dify/eduagent-runner-raw.yml`. Thêm kiểm tra tương ứng vào `backend/tests/test_dify_dsl.py`
-- [ ] T068 [US4] Đảm bảo pipeline kiểm định trong `backend/app/certify/pipeline.py` ghi nhận lần gọi tool cần xác nhận nhưng không chạy (luôn "Không", FR-041); cập nhật `backend/tests/test_certify.py`
-- [ ] T069 [P] [US4] Thêm hàm `announcements`, `assignments` (list, get, create announcement, delete) vào `web/src/api-client/classes.ts` và kiểu tương ứng vào `web/src/api-client/types.ts`
-- [ ] T070 [US4] Tạo `web/src/features/classes/ClassFeedTab.tsx`: thông báo và bài luyện; giáo viên đăng thông báo và có nút xoá qua `web/src/features/shared/ConfirmDialog.tsx`. Thêm tab "Bảng tin" vào `web/src/features/classes/ClassDetailPage.tsx`, hỗ trợ `?tab=feed` cho `link` trả về từ tool
-- [ ] T071 [P] [US4] Hiện thông báo và bài luyện của lớp trong `web/src/features/classes/StudentClassesPage.tsx` và `web/src/features/classes/StudentHomePage.tsx`. Nút "Làm cùng gia sư" mở chat lớp với tin soạn sẵn "Mình muốn làm bài luyện “{title}”" kèm câu hỏi, không kèm đáp án
-- [ ] T072 [P] [US4] Hiện thông báo `parents/all` của các lớp có con và danh sách bài luyện của con trong `web/src/features/family/ParentPages.tsx`
+- [X] T066 [P] [US4] Thêm tool vào manifest mẫu: `seed/agents/tro-ly-lop.yaml` (`set_agent_notes`, `install_agent`, `post_class_announcement`), `seed/agents/tao-de.yaml` (`assign_practice`, `save_class_document`), `seed/agents/on-tap-tai-lieu.yaml` (`save_class_document`)
+- [X] T067 [US4] Bật `request_confirmation` và 5 tool giáo viên (tham số `ctx` Fixed Value) trong `infra/dify/eduagent-runner.yml` và `infra/dify/eduagent-runner-raw.yml`. Thêm kiểm tra tương ứng vào `backend/tests/test_dify_dsl.py`
+- [X] T068 [US4] Đảm bảo pipeline kiểm định trong `backend/app/certify/pipeline.py` ghi nhận lần gọi tool cần xác nhận nhưng không chạy (luôn "Không", FR-041); cập nhật `backend/tests/test_certify.py`
+- [X] T069 [P] [US4] Thêm hàm `announcements`, `assignments` (list, get, create announcement, delete) vào `web/src/api-client/classes.ts` và kiểu tương ứng vào `web/src/api-client/types.ts`
+- [X] T070 [US4] Tạo `web/src/features/classes/ClassFeedTab.tsx`: thông báo và bài luyện; giáo viên đăng thông báo và có nút xoá qua `web/src/features/shared/ConfirmDialog.tsx`. Thêm tab "Bảng tin" vào `web/src/features/classes/ClassDetailPage.tsx`, hỗ trợ `?tab=feed` cho `link` trả về từ tool
+- [X] T071 [P] [US4] Hiện thông báo và bài luyện của lớp trong `web/src/features/classes/StudentClassesPage.tsx` và `web/src/features/classes/StudentHomePage.tsx`. Nút "Làm cùng gia sư" mở chat lớp với tin soạn sẵn "Mình muốn làm bài luyện “{title}”" kèm câu hỏi, không kèm đáp án
+- [X] T072 [P] [US4] Hiện thông báo `parents/all` của các lớp có con và danh sách bài luyện của con trong `web/src/features/family/ParentPages.tsx`
 
 **Checkpoint**: Quickstart kịch bản 18, 20–29 đạt. 0 tool cần xác nhận chạy khi chưa có "Đồng ý" (SC-005).
 
@@ -433,7 +433,7 @@ fail trước khi làm phần cài đặt.
 
 ### Tests cho User Story 5 ⚠️
 
-- [ ] T073 [P] [US5] Thêm vào `backend/tests/test_signal_tools.py`, mỗi trường hợp một ca:
+- [X] T073 [P] [US5] Thêm vào `backend/tests/test_signal_tools.py`, mỗi trường hợp một ca:
   - `request_help` ngoài `mode="step"` bị từ chối (2a)
   - `request_help` ở phần việc `origin="help"` bị từ chối (`may_request_help=false`, FR-024)
   - `runner_step_signal.sse`: `ask_user` dừng hỏi khi còn lượt hỏi, ngược lại ghi giả định
@@ -444,15 +444,15 @@ fail trước khi làm phần cài đặt.
 
 ### Implementation cho User Story 5
 
-- [ ] T074 [P] [US5] Thêm vào `backend/app/tools/impl.py` (`signal=True`) và đăng ký kèm `ctx` trong `backend/app/tools/registry.py` và `backend/app/tools/server.py`:
+- [X] T074 [P] [US5] Thêm vào `backend/app/tools/impl.py` (`signal=True`) và đăng ký kèm `ctx` trong `backend/app/tools/registry.py` và `backend/app/tools/server.py`:
   - `request_help`: `agent` là slug, có thể rỗng; `task` 10–1000
   - `ask_user`: `questions` 1–3, mỗi câu `question` ≤ 200 và `options` ≤ 6
   - handler chỉ ghi vào `ToolContext.signals` rồi trả ngay câu ở contracts/mcp-tools.md
-- [ ] T075 [US5] Xử lý tín hiệu sau mỗi phần việc trong `backend/app/orchestrator/steps.py` (research R5):
+- [X] T075 [US5] Xử lý tín hiệu sau mỗi phần việc trong `backend/app/orchestrator/steps.py` (research R5):
   - `request_help`: tạo phần việc `h<n>` cho agent hợp lệ (slug thuộc roster, hoặc chọn theo `task`), tăng `replans`, phát `plan` mới (`plan_version += 1`), rồi tạo phần việc `rerun` cho agent gốc kèm ghi chú của `h<n>`
   - `ask_user`: gọi `pause_for_clarify()` với `step_key`, hoặc ghi vào `assumptions` khi `can_ask=false`
   - tôn trọng `orch_max_replans`, `orch_max_steps`, `orch_max_agents`
-- [ ] T076 [US5] Bật `request_help`, `ask_user` (tham số `ctx` Fixed Value) và tăng số vòng tối đa của agent node từ 5 lên 6 trong `infra/dify/eduagent-runner.yml` và `infra/dify/eduagent-runner-raw.yml`. Cập nhật `backend/tests/test_dify_dsl.py`
+- [X] T076 [US5] Bật `request_help`, `ask_user` (tham số `ctx` Fixed Value) và tăng số vòng tối đa của agent node từ 5 lên 6 trong `infra/dify/eduagent-runner.yml` và `infra/dify/eduagent-runner-raw.yml`. Cập nhật `backend/tests/test_dify_dsl.py`
 
 **Checkpoint**: Cả 5 story chạy độc lập.
 
@@ -462,23 +462,27 @@ fail trước khi làm phần cài đặt.
 
 **Purpose**: Bước 8–9 của plan: `dev.ps1`, tài liệu, eval, chỉnh prompt.
 
-- [ ] T077 Cập nhật `dev.ps1` (hiến pháp, nguyên tắc III, FR-045):
+- [X] T077 Cập nhật `dev.ps1` (hiến pháp, nguyên tắc III, FR-045):
   - kiểm tra và cảnh báo rõ khi `.env` thiếu `DIFY_PLANNER_KEY` cùng các khóa Dify khác (đường đầy đủ sẽ tắt)
   - xác nhận `alembic upgrade head` áp `0008_orchestration`
   - in trạng thái `orchestrator` từ `/api/health`
   - giữ tính chạy lại an toàn
   - kiểm tra cú pháp bằng `pwsh -NoProfile -Command "[scriptblock]::Create((Get-Content dev.ps1 -Raw))"`, rồi chạy `.\dev.ps1` nếu hạ tầng có sẵn; nếu không chạy được thì ghi rõ là chưa chạy thử
-- [ ] T078 [P] Cập nhật `infra/dify/README.md`: import `eduagent-planner.yml` và tạo khóa; cập nhật provider MCP `eduagent-tools` **trước khi** import runner để Dify thấy tool mới; danh sách tool MCP mới; ghi chú về hội thoại Dify mồ côi của phần việc và cách dọn
-- [ ] T079 [P] Cập nhật mục chạy local trong `README.md` (biến `DIFY_PLANNER_KEY`, app planner) cho khớp `dev.ps1`
-- [ ] T080 [P] Tạo `eval/planning_set.jsonl` khoảng 60 ca, chia 5 nhóm `simple`, `multi`, `ambiguous`, `clear`, `discover`; mỗi ca có `role`, `installed` và kỳ vọng (`path`, tập agent, có hỏi lại không). Thêm kiểm tra định dạng vào `backend/tests/test_eval_datasets.py`
-- [ ] T081 Viết `eval/run_planning.py` gọi triage và planner thật, tính SC-002, SC-003, SC-004 và ghi `eval/results/planning.csv`. Cờ `--e2e` chạy trọn lượt qua `run_dify_turn` với `force_path` và ghi `eval/results/planning_e2e.csv` với các cột:
+  - *Tình trạng (2026-11-11)*: đã thêm kiểm tra khóa Dify (cảnh báo riêng khi thiếu `DIFY_PLANNER_KEY`), kiểm tra revision `0008`, in trạng thái `orchestrator`; cú pháp đã kiểm bằng `[scriptblock]::Create`. **Chưa chạy thử `.\dev.ps1` trọn vẹn** (script khởi động Dify, mở trình duyệt và giữ terminal); `.env` hiện chưa có `DIFY_PLANNER_KEY` nên script sẽ cảnh báo đúng như thiết kế
+- [X] T078 [P] Cập nhật `infra/dify/README.md`: import `eduagent-planner.yml` và tạo khóa; cập nhật provider MCP `eduagent-tools` **trước khi** import runner để Dify thấy tool mới; danh sách tool MCP mới; ghi chú về hội thoại Dify mồ côi của phần việc và cách dọn
+- [X] T079 [P] Cập nhật mục chạy local trong `README.md` (biến `DIFY_PLANNER_KEY`, app planner) cho khớp `dev.ps1`
+- [X] T080 [P] Tạo `eval/planning_set.jsonl` khoảng 60 ca, chia 5 nhóm `simple`, `multi`, `ambiguous`, `clear`, `discover`; mỗi ca có `role`, `installed` và kỳ vọng (`path`, tập agent, có hỏi lại không). Thêm kiểm tra định dạng vào `backend/tests/test_eval_datasets.py`
+- [X] T081 Viết `eval/run_planning.py` gọi triage và planner thật, tính SC-002, SC-003, SC-004 và ghi `eval/results/planning.csv`. Cờ `--e2e` chạy trọn lượt qua `run_dify_turn` với `force_path` và ghi `eval/results/planning_e2e.csv` với các cột:
   - `first_progress_ms`: từ lúc gửi tới sự kiện `step(analyze)` hoặc `plan` đầu tiên; SC-006 yêu cầu ≤ 3000 ms
   - `final_ms`: thời gian tới kết quả cuối, báo trung vị và p90 (SC-006)
   - `words`: độ dài kết quả, ≤ 300 từ (SC-007) Thêm test khô vào `backend/tests/test_eval_scripts.py`
-- [ ] T082 [P] Thêm khoảng 10 ca "lách chính sách qua phối hợp" vào `eval/redteam_vi.jsonl`, gồm ca "tài liệu lớp bảo agent giao bài hoặc đăng thông báo" (SC-005, SC-008)
+- [X] T082 [P] Thêm khoảng 10 ca "lách chính sách qua phối hợp" vào `eval/redteam_vi.jsonl`, gồm ca "tài liệu lớp bảo agent giao bài hoặc đăng thông báo" (SC-005, SC-008)
 - [ ] T083 Chạy `eval/run_planning.py`, `eval/run_planning.py --e2e`, `eval/run_routing.py --latency` (so với mốc ở T001) và `eval/run_redteam.py`. Nếu chưa đạt ngưỡng ở spec, chỉnh prompt planner và triage trong `infra/dify/eduagent-planner.yml`, `infra/dify/eduagent-triage.yml`, và `capabilities` của manifest trong `seed/agents/*.yaml`
+  - *Tình trạng (2026-11-11)*: chưa chạy. Cần Dify đã import `eduagent-planner.yml`, `eduagent-triage.yml` (nhánh `path`) và runner mới, cùng khóa `DIFY_PLANNER_KEY` (T002–T004). Script và bộ dữ liệu đã sẵn sàng; test khô `test_planning_script_runs_offline` chạy được cả hai chế độ
 - [ ] T084 [P] Ghi kết quả SC-001 đến SC-008 và mô tả kiến trúc điều phối vào `docs/BAO-CAO.md`
+  - *Tình trạng (2026-11-11)*: đã viết mục 4.6 (kiến trúc điều phối) và bảng SC-001–SC-008 trong `docs/BAO-CAO.md` với cách đo; các ô kết quả còn "chưa đo" cho tới khi chạy T083
 - [ ] T085 Chạy toàn bộ test (`cd backend; uv run pytest`, `cd web; npm test`, `npm run build`) và đi hết 29 kịch bản trong `specs/002-multi-agent-orchestration/quickstart.md`; ghi lại kịch bản nào chưa chạy thử
+  - *Tình trạng (2026-11-11)*: `uv run pytest` 267 pass, 2 skip; `npm test` 134 pass; `npm run build` đạt. **Chưa đi 29 kịch bản quickstart** (cần Dify có planner và trình duyệt); test offline đã phủ phần backend của kịch bản 1–29, riêng kịch bản 28 (tranh chấp đồng thời trên Postgres) phải thử tay
 
 ---
 
@@ -590,7 +594,18 @@ Task: "T027 web types và chatStream"
 
 ## Phase 9: Convergence
 
-- [ ] T086 CRITICAL: Cập nhật hướng dẫn chạy local cho khớp trạng thái code hiện tại. `README.md` mục "Chạy local" vẫn ghi "import 4 DSL" và chưa có `DIFY_PLANNER_KEY`, trong khi repo đã có `infra/dify/eduagent-planner.yml` và `eduagent-triage.yml` có nhánh `path` mới. Sửa README thành 5 DSL kèm khóa `DIFY_PLANNER_KEY` (để trống thì đường đầy đủ tắt). Thêm `eduagent-planner.yml` (Workflow, `DIFY_PLANNER_KEY`) vào bảng "Import ứng dụng" của `infra/dify/README.md`, kèm ghi chú import lại `eduagent-triage.yml` để có output `path`. Làm phần tài liệu của T078/T079 ngay, không đợi Phase 8. per Constitution III (contradicts)
-- [ ] T087 Thêm test vào `backend/tests/test_orchestrator.py` khẳng định `query` của bước tổng hợp (lượt ghi vào hội thoại Dify chính) chỉ gồm yêu cầu gốc và "Thông tin bổ sung", không chứa ghi chú làm việc của phần việc nào. Ghi chú chỉ được nằm trong `inputs.system_prompt`. per FR-031 (partial)
-- [ ] T088 Thêm test vào `backend/tests/test_orchestrator.py`: tool gọi trong một phần việc (qua `FakeDify.tool_calls`, ví dụ `math_check`) phát sự kiện `tool` có `step_key` của phần việc đó ngay trong luồng SSE, và được lưu vào `run_steps.tools` của phần việc. per FR-032 (partial)
-- [ ] T089 Thu hẹp `_close_stale_runs()` trong `backend/app/orchestrator/conductor.py`: hiện hàm huỷ im lặng mọi run mở của hội thoại, kể cả run `awaiting_user`, mà không phát `notice(pending_cancelled)` và không cập nhật `meta.ask.state`. Chỉ dọn run `running` bị bỏ dở; run `awaiting_user` phải đi qua `resume()` hoặc huỷ theo T032/T033. Thêm một ca test tương ứng. per plan: research R7 (unrequested)
+- [X] T086 CRITICAL: Cập nhật hướng dẫn chạy local cho khớp trạng thái code hiện tại. `README.md` mục "Chạy local" vẫn ghi "import 4 DSL" và chưa có `DIFY_PLANNER_KEY`, trong khi repo đã có `infra/dify/eduagent-planner.yml` và `eduagent-triage.yml` có nhánh `path` mới. Sửa README thành 5 DSL kèm khóa `DIFY_PLANNER_KEY` (để trống thì đường đầy đủ tắt). Thêm `eduagent-planner.yml` (Workflow, `DIFY_PLANNER_KEY`) vào bảng "Import ứng dụng" của `infra/dify/README.md`, kèm ghi chú import lại `eduagent-triage.yml` để có output `path`. Làm phần tài liệu của T078/T079 ngay, không đợi Phase 8. per Constitution III (contradicts)
+- [X] T087 Thêm test vào `backend/tests/test_orchestrator.py` khẳng định `query` của bước tổng hợp (lượt ghi vào hội thoại Dify chính) chỉ gồm yêu cầu gốc và "Thông tin bổ sung", không chứa ghi chú làm việc của phần việc nào. Ghi chú chỉ được nằm trong `inputs.system_prompt`. per FR-031 (partial)
+- [X] T088 Thêm test vào `backend/tests/test_orchestrator.py`: tool gọi trong một phần việc (qua `FakeDify.tool_calls`, ví dụ `math_check`) phát sự kiện `tool` có `step_key` của phần việc đó ngay trong luồng SSE, và được lưu vào `run_steps.tools` của phần việc. per FR-032 (partial)
+- [X] T089 Thu hẹp `_close_stale_runs()` trong `backend/app/orchestrator/conductor.py`: hiện hàm huỷ im lặng mọi run mở của hội thoại, kể cả run `awaiting_user`, mà không phát `notice(pending_cancelled)` và không cập nhật `meta.ask.state`. Chỉ dọn run `running` bị bỏ dở; run `awaiting_user` phải đi qua `resume()` hoặc huỷ theo T032/T033. Thêm một ca test tương ứng. per plan: research R7 (unrequested)
+
+---
+
+## Phase 10: Convergence
+
+- [ ] T090 CRITICAL: Chạy `.\dev.ps1` trọn vẹn trên máy có Docker và Dify (hạ tầng đã có sẵn: Docker 29.7, `C:\project\dify`, `.env`), xác nhận migration `0008`, cảnh báo thiếu `DIFY_PLANNER_KEY` và dòng trạng thái `orchestrator` in đúng, chạy lại lần hai để kiểm tra tính chạy lại an toàn; ghi kết quả vào ghi chú của T077. Hiện mới kiểm tra cú pháp per Constitution III (partial)
+- [ ] T091 Khi phần việc dừng vì `ask_user` và người dùng trả lời, chạy lại phần việc đó (origin `rerun`, nhận câu trả lời trong query) trước bước tổng hợp, thay vì chỉ đưa câu trả lời vào tổng hợp: trong `resume()` ở `backend/app/orchestrator/conductor.py`, dựa vào `pending.step_key`; thêm ca test vào `backend/tests/test_signal_tools.py` per FR-023, FR-011 (partial)
+- [ ] T092 Sửa `eval/run_planning.py` cho khớp định nghĩa ở spec: SC-002 gồm cả tỉ lệ câu đơn giản đi đường nhanh (≥ 90%) và tỉ lệ đúng tập agent với điều kiện "không thiếu, thừa tối đa một agent" (≥ 85%); SC-004 là tuân thủ giới hạn (số câu hỏi ≤ `orch_max_questions`, số phần việc ≤ `orch_max_steps`, số agent ≤ `orch_max_agents` trên mọi kế hoạch), không phải tỉ lệ đường nhanh; cập nhật test khô trong `backend/tests/test_eval_scripts.py` per SC-002, SC-004 (contradicts)
+- [ ] T093 Sửa `link` mà các tool giáo viên trả về trong `backend/app/tools/actions.py` từ `/classes/{id}?tab=…` thành đường dẫn web có thật `/teacher/classes/{id}?tab=…` (route ở `web/src/pages/WorkspacePage.tsx`), cập nhật ví dụ `link` trong `contracts/mcp-tools.md`, và sửa assert trong `backend/tests/test_confirm_tools.py` per plan: T070 `?tab=feed` cho `link` trả về từ tool (partial)
+- [ ] T094 Ghi được lượng dùng mô hình theo agent và theo phần việc: thêm `agent_slug` và `step_key` (nullable) vào `usage_ledger` (migration mới, cập nhật `dev.ps1` nếu cần), điền ở `record_usage()` cho purpose `step`, `synthesis`, `agent`, `note_review`; thêm nhóm theo agent vào báo cáo `/admin/usage` ở `backend/app/audit/router.py` per FR-042 (partial)
+- [ ] T095 Hiện bước phân tích như một dòng trong khung tiến trình (trạng thái đang làm, xong hoặc bỏ qua) thay vì chỉ một dòng chờ trong bong bóng tin nhắn: `applyStep` và `ProcessPanel` trong `web/src/components/chat/ProcessPanel.tsx`, kèm test trong `web/src/components/chat/chat.test.tsx` per FR-032 (partial)

@@ -186,3 +186,24 @@ async def test_certification_uses_the_raw_runner_and_a_new_conversation_per_case
     prompt = runner_calls[0]["inputs"]["system_prompt"]
     assert "Ôn thi Hoá 9" in prompt and "Lớp kiểm định" in prompt
     assert all(case["outcome"] == "pass" and case["reply"] for case in result["report"]["cases"])
+
+
+async def test_a_tool_needing_confirmation_is_recorded_but_never_run(
+    as_user, fake_llm, dify, monkeypatch, sessionmaker
+) -> None:
+    """FR-041: certification has nobody to confirm, so the call is held and reported as "Không"."""
+    from app.chat.models import ToolCallLog
+    from tests.dify_fake import rows
+
+    monkeypatch.setenv("ENABLE_TEST_TOOLS", "true")
+    get_settings.cache_clear()
+    teacher = await as_user("teacher")
+    judge_says(fake_llm, "pass")
+    agent, version = await build(teacher, {**MANIFEST, "tools": ["confirm_probe"]})
+    dify.tool_calls = [("confirm_probe", {"target": "Lớp thử", "note": "Thông báo"})]
+    result = await certify(teacher, agent, version)
+    cases = result["report"]["cases"]
+    assert cases and all(case["held_actions"][0]["decision"] == "reject" for case in cases)
+    assert all(case["tools"] == ["confirm_probe"] for case in cases)
+    calls = await rows(sessionmaker, ToolCallLog, ToolCallLog.tool == "confirm_probe")
+    assert calls and all(call.denied_reason == "awaiting_confirmation" for call in calls)

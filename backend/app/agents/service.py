@@ -119,3 +119,76 @@ async def available_agents(db: AsyncSession, user: User, room: ClassRoom | None,
 
 async def installed_count(db: AsyncSession, agent_id: str) -> int:
     return await db.scalar(select(func.count()).where(Installation.agent_id == agent_id)) or 0
+
+
+# --- Installing in a class (shared by the API and the install_agent tool, feature 002 R18) ---------------------------
+
+
+class InstallError(Exception):
+    """Why an agent cannot be installed; `status` is the HTTP status the API answers with."""
+
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
+async def certified_version(db: AsyncSession, agent_id: str) -> AgentVersion | None:
+    return await db.scalar(
+        select(AgentVersion)
+        .where(AgentVersion.agent_id == agent_id, AgentVersion.certification_status == "certified")
+        .order_by(AgentVersion.version.desc())
+        .limit(1)
+    )
+
+
+async def installable(
+    db: AsyncSession, user: User, agent_id: str, version_id: str | None = None
+) -> tuple[Agent, AgentVersion]:
+    """The agent and version `user` may install: their own agent (any version), or someone else's public agent in a
+    certified version. Raises InstallError otherwise."""
+    agent = await db.get(Agent, agent_id)
+    if agent is None:
+        raise InstallError(404, "Không tìm thấy agent.")
+    own = agent.owner_id == user.id
+    if version_id:
+        version = await db.get(AgentVersion, version_id)
+        if version is None or version.agent_id != agent.id:
+            raise InstallError(404, "Không tìm thấy phiên bản.")
+        if not own and version.certification_status != "certified":
+            raise InstallError(403, "Chỉ cài được phiên bản đã kiểm định của agent người khác.")
+    else:
+        version = await latest_version(db, agent.id) if own else await certified_version(db, agent.id)
+    if version is None:
+        raise InstallError(400, "Agent chưa có phiên bản để cài. Hãy “Tạo phiên bản” trong trình tạo agent.")
+    if not own and agent.visibility != "public":
+        raise InstallError(404, "Không tìm thấy agent.")
+    return agent, version
+
+
+async def install_in_class(
+    db: AsyncSession, room: ClassRoom, user: User, agent_id: str, version_id: str | None = None, *, move: bool = True
+) -> tuple[Installation, bool]:
+    """Installs an agent in a class; returns (installation, already_installed). Re-installing moves the class to the
+    chosen version unless `move` is false (the install_agent tool leaves an existing installation as it is).
+    Commits."""
+    agent, version = await installable(db, user, agent_id, version_id)
+    if agent.slug == FALLBACK_SLUG:
+        raise InstallError(400, "Trợ lý lớp luôn có sẵn trong mọi lớp.")
+    existing = await db.scalar(
+        select(Installation).where(
+            Installation.scope == "class", Installation.class_id == room.id, Installation.agent_id == agent.id
+        )
+    )
+    if existing:
+        if move:
+            existing.agent_version_id, existing.enabled = version.id, True
+        installation = existing
+    else:
+        installation = Installation(
+            agent_id=agent.id, agent_version_id=version.id, scope="class", class_id=room.id, installed_by=user.id
+        )
+        db.add(installation)
+    await db.commit()
+    await db.refresh(installation)
+    return installation, existing is not None

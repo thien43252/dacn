@@ -4,6 +4,7 @@ import { errorMessage, useResource } from "../../app/useResource";
 import { familyApi } from "../../api-client/classes";
 import { type Child, subjectLabel } from "../../api-client/types";
 import { Icon } from "../../components/Icon";
+import { ClassFeedList } from "../classes/ClassFeed";
 
 function useChildren() {
   return useResource(() => familyApi.children(), []);
@@ -68,6 +69,12 @@ function ChildCard({ child }: { child: Child }) {
           <li key={room.id}>{room.name} · {subjectLabel(room.subject)} lớp {room.grade} · {room.teacher_name}</li>
         ))}
       </ul>
+      {child.classes.map((room) => (
+        <details key={room.id} className="ea-feed-toggle">
+          <summary>Thông báo và bài luyện · {room.name}</summary>
+          <ClassFeedList classId={room.id} role="parent" />
+        </details>
+      ))}
     </article>
   );
 }

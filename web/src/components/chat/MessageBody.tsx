@@ -1,6 +1,24 @@
 import { memo } from "react";
 
-import type { Citation } from "../../api-client/types";
+import type { AgentRef, Citation } from "../../api-client/types";
+import { Mascot, MASCOTS, type MascotName } from "../Mascot";
+
+/** The agents that did a part of a full-path answer, other than the one that wrote it (FR-029). Names come from the
+ *  platform, never from the model's text. */
+export function MessageContributors({ items }: { items?: AgentRef[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <ul className="ea-contributors" aria-label="Các agent đã đóng góp">
+      <li className="ea-muted">Cùng làm:</li>
+      {items.map((agent) => (
+        <li key={agent.slug} className="ea-contributor" title={`@${agent.slug}`}>
+          <Mascot character={(agent.avatar in MASCOTS ? agent.avatar : "owl") as MascotName} mood="still" />
+          <span>{agent.name}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** Agent mentions are slugs such as @gia-su-toan. */
 const MENTION = String.raw`(?<![\w@])@[a-z0-9]+(?:-[a-z0-9]+)*\b`;

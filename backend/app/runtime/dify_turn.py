@@ -171,6 +171,12 @@ async def run_dify_turn(
 
         # Consent gate (FR-015): without a guardian's consent nothing is sent to Dify and nothing is stored.
         if role == "student" and class_id and not await classes.student_can_use_agents(db, room, user.id):
+            if payload.conversation_id:
+                from app.orchestrator import conductor  # the orchestrator imports this module
+
+                # A run waiting for this student's answer ends with the consent (FR-037).
+                await conductor.cancel_open_runs(db, payload.conversation_id)
+                await db.commit()
             yield sse(
                 {"type": "notice", "message_id": operation_id, "kind": "consent_required", "text": CONSENT_REQUIRED}
             )
@@ -244,6 +250,8 @@ async def _answer(
     user_message: ChatMessage,
     force_path: str | None = None,
 ) -> AsyncIterator[str]:
+    from app.orchestrator import conductor  # the orchestrator imports this module
+
     message_id = turn.message_id
     started = time.perf_counter()
 
@@ -281,7 +289,11 @@ async def _answer(
         return
 
     route_reason = triage.route_reason
+    # A run waiting for the user (feature 002): the message goes through the same gates first (FR-037).
+    waiting = await conductor.waiting_run(turn.db, turn.conversation.id)
     if triage.verdict == "block":
+        if waiting is not None:
+            await conductor.close_pending(turn.db, waiting, "cancelled", "cancelled")
         turn.log("input", "block", triage.category, "dify_classifier", triage.reason, text)
         presets = dify_rules.presets()
         reply = presets["self_harm_support" if triage.category == "self_harm_method" else "input_blocked"]
@@ -294,14 +306,44 @@ async def _answer(
     if support:
         turn.log("input", "support", triage.category, "dify_classifier", triage.reason, text)
 
+    if waiting is not None:
+        if conductor.is_expired(waiting):
+            # Checked lazily: the question is gone and the message is a new request (FR-013).
+            await conductor.close_pending(turn.db, waiting, "expired", "expired")
+            await turn.db.commit()
+            yield conductor.notice_event(message_id, "pending_expired", conductor.PENDING_EXPIRED)
+        elif support or not multi_step_allowed(turn):
+            # Self-harm signals keep the usual flow (FR-038); a class that switched multi-step off cancels the run.
+            await conductor.close_pending(turn.db, waiting, "cancelled", "cancelled")
+            await turn.db.commit()
+            yield conductor.notice_event(message_id, "pending_cancelled", conductor.PENDING_CANCELLED)
+        else:
+            resumed = conductor.Resumed()
+            async with aclosing(
+                conductor.resume(turn, client, agents, waiting, text, payload.reply, user_message, started, resumed)
+            ) as stream:
+                async for event in stream:
+                    yield event
+            if not resumed.new_request:
+                return
+            turn.path = "fast"
+    elif payload.reply is not None:
+        stale = await turn.db.get(conductor.TurnRun, payload.reply.run_id)
+        if stale is not None and stale.conversation_id == turn.conversation.id and stale.status == "expired":
+            yield conductor.notice_event(message_id, "pending_expired", conductor.PENDING_EXPIRED)
+
     if takes_full_path(turn, triage, force_path):
         from app.orchestrator import conductor  # the orchestrator imports this module
 
         # The agent the user picked or @mentioned leads the plan (FR-005); triage reports it as ui / mention.
         chosen = triage.agent if triage.route_reason in ("ui", "mention") else ""
         outcome = conductor.FullPath()
+        # Certification, the sandbox and eval have nobody to answer a question (research R14).
+        interactive = turn.kind == "chat" and force_path is None
         async with aclosing(
-            conductor.run_full(turn, client, agents, text, chosen, user_message, started, outcome)
+            conductor.run_full(
+                turn, client, agents, text, chosen, user_message, started, outcome, interactive=interactive
+            )
         ) as full:
             async for event in full:
                 yield event
@@ -322,6 +364,16 @@ async def _answer(
     ) as stream:
         async for event in stream:
             yield event
+    confirm = next((signal for signal in context.signals if signal.get("type") == "confirm_tool"), None)
+    if confirm is not None and not result.error_text and result.blocked_stage is None:
+        # The agent called a tool that needs the user's confirmation: the turn becomes a run that stops to ask, even
+        # where multi-step is off (FR-014, research R6). Without a person to ask, it is a no (FR-041).
+        run = await conductor.confirmation_run(turn, agent, text, user_message, confirm, interactive=turn.kind == "chat")
+        if run.interactive:
+            async with aclosing(conductor.pause_for_confirm(turn, run, agent, started, confirm)) as paused:
+                async for event in paused:
+                    yield event
+            return
     async with aclosing(
         _finish(turn, client, agent, text, result, context, started, user_message, {"route_reason": route_reason})
     ) as finish:
@@ -341,9 +393,14 @@ def takes_full_path(turn: Turn, triage, force_path: str | None = None) -> bool:
         return force_path == "full"
     if turn.kind != "chat" or triage.path != "full":
         return False
-    if turn.room is not None and (turn.room.policy or {}).get("multi_step", True) is False:
+    return multi_step_allowed(turn)
+
+
+def multi_step_allowed(turn: Turn) -> bool:
+    """The class switch (FR-046) and the planner key; personal space is always on."""
+    if not get_settings().dify_planner_key:
         return False
-    return True
+    return turn.room is None or (turn.room.policy or {}).get("multi_step", True) is not False
 
 
 def agent_event(message_id: str, agent: ResolvedAgent, reason: str) -> str:

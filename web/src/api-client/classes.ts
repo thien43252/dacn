@@ -1,5 +1,5 @@
 import { apiRequest } from "./http";
-import type { Child, ClassInput, ClassPolicy, ClassRoom, Consent, LearningReport, LinkCode, Member, ProgressRow } from "./types";
+import type { Announcement, AnnouncementInput, Assignment, Child, ClassInput, ClassPolicy, ClassRoom, Consent, LearningReport, LinkCode, Member, ProgressRow } from "./types";
 
 const enc = encodeURIComponent;
 
@@ -42,4 +42,17 @@ export const reportsApi = {
   classProgress: (classId: string, days: number) => apiRequest<ProgressRow[]>(`/api/classes/${enc(classId)}/progress?days=${days}`),
   student: (classId: string, studentId: string, days: number) =>
     apiRequest<LearningReport>(`/api/classes/${enc(classId)}/students/${enc(studentId)}/report?days=${days}`),
+};
+
+/** Class announcements and assigned practice (feature 002). */
+export const feedApi = {
+  announcements: (classId: string) => apiRequest<Announcement[]>(`/api/classes/${enc(classId)}/announcements`),
+  postAnnouncement: (classId: string, input: AnnouncementInput) =>
+    apiRequest<Announcement>(`/api/classes/${enc(classId)}/announcements`, { method: "POST", body: input }),
+  deleteAnnouncement: (classId: string, id: string) =>
+    apiRequest<void>(`/api/classes/${enc(classId)}/announcements/${enc(id)}`, { method: "DELETE" }),
+  assignments: (classId: string) => apiRequest<Assignment[]>(`/api/classes/${enc(classId)}/assignments`),
+  assignment: (classId: string, id: string) => apiRequest<Assignment>(`/api/classes/${enc(classId)}/assignments/${enc(id)}`),
+  deleteAssignment: (classId: string, id: string) =>
+    apiRequest<void>(`/api/classes/${enc(classId)}/assignments/${enc(id)}`, { method: "DELETE" }),
 };

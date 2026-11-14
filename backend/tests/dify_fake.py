@@ -4,6 +4,7 @@ The `dify` fixture (registered in conftest.py) is autouse: every test talks to t
 repo-root .env, except tests marked `dify`, which need a real one. `knowledge` is its fake Knowledge API.
 """
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -57,6 +58,15 @@ def deltas_sse(*chunks: str, conversation_id: str = "dify-conv-1") -> str:
         },
         {"event": "workflow_finished", **ids, "data": {"status": "succeeded"}},
     )
+
+
+class Slow:
+    """A runner stream that sends its first event (with the Dify task id), waits `seconds`, then sends the rest: a
+    step that is still running, for parallelism, timeouts and a client that goes away."""
+
+    def __init__(self, text: str, seconds: float) -> None:
+        self.text = text
+        self.seconds = seconds
 
 
 class FakeKnowledge:
@@ -135,10 +145,15 @@ class FakeDify:
         self.triage: dict | int = triage_body()
         # eduagent-review outputs, or "down" to fail; recorded under the path "/workflows/run#review".
         self.review: dict | str = {"verdict": "allow", "category": "", "reason": ""}
+        # Seconds eduagent-review takes to answer (share review timeout, feature 002).
+        self.review_delay = 0.0
         # eduagent-planner response body (feature 002), an HTTP status, or "down"; recorded as "#planner".
         self.planner: dict | int | str = planner_body("planner_multi.json")
         # One entry per runner call: SSE text, or (status, json body) for a refused request.
-        self.runner: list[str | tuple[int, dict]] = [fixture_text("runner_plain.sse")]
+        self.runner: list[str | tuple[int, dict] | Slow] = [fixture_text("runner_plain.sse")]
+        # Runner streams open at the same time, and the most seen (Slow streams only).
+        self.in_flight = 0
+        self.max_parallel = 0
         # Follow-up questions for GET /messages/{id}/suggested, or an HTTP status to fail with.
         self.suggested: list[str] | int = json.loads(fixture_text("suggested.json"))["data"]
         self.tool_calls: list[tuple[str, dict]] = []  # made through the MCP handler before the runner answers
@@ -166,6 +181,8 @@ class FakeDify:
         if path.endswith("/workflows/run") and key == "app-review":
             self.requests.append((path + "#review", body))
             self.keys.append((path + "#review", key))
+            if self.review_delay:
+                await asyncio.sleep(self.review_delay)
             if self.review == "down":
                 raise httpx.ConnectError("Dify is down", request=request)
             outputs = self.review
@@ -185,6 +202,10 @@ class FakeDify:
                 raise httpx.ConnectError("Dify is down", request=request)
             if isinstance(answer, tuple):
                 return httpx.Response(answer[0], json=answer[1])
+            if isinstance(answer, Slow):
+                return httpx.Response(
+                    200, content=self._slow(answer), headers={"content-type": "text/event-stream"}
+                )
             for name, arguments in self.tool_calls:
                 try:
                     await registry.run_tool(body["inputs"]["ctx"], name, arguments)
@@ -198,6 +219,18 @@ class FakeDify:
                 return httpx.Response(self.suggested, json={"code": "error", "message": "boom"})
             return httpx.Response(200, json={"result": "success", "data": self.suggested})
         return httpx.Response(404, json={"code": "not_found", "message": "unknown"})
+
+
+    async def _slow(self, answer: Slow):
+        first, _, rest = answer.text.partition("\n\n")
+        self.in_flight += 1
+        self.max_parallel = max(self.max_parallel, self.in_flight)
+        try:
+            yield (first + "\n\n").encode()
+            await asyncio.sleep(answer.seconds)
+            yield rest.encode()
+        finally:
+            self.in_flight -= 1
 
 
 @pytest.fixture(autouse=True)

@@ -271,6 +271,201 @@ workflow:
               settings: {}
               extra:
                 description: Tổng hợp tình hình học tập của con hoặc học sinh trong lớp, không trích nguyên văn tin nhắn.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: request_help
+              tool_label: request_help
+              tool_description: Nhờ một agent khác làm việc ngoài chuyên môn của bạn; ghi nhận rồi kết thúc phần việc.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                task:
+                  auto: 1
+                  value: null
+                agent:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Nhờ một agent khác làm việc ngoài chuyên môn của bạn; ghi nhận rồi kết thúc phần việc.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: ask_user
+              tool_label: ask_user
+              tool_description: Hỏi người dùng thông tin chỉ họ mới biết (1–3 câu); ghi nhận rồi kết thúc phần việc.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                questions:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Hỏi người dùng thông tin chỉ họ mới biết (1–3 câu); ghi nhận rồi kết thúc phần việc.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: request_confirmation
+              tool_label: request_confirmation
+              tool_description: Xin người dùng xác nhận cách hiểu yêu cầu trước khi làm tiếp; ghi nhận rồi kết thúc phần việc.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                summary:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Xin người dùng xác nhận cách hiểu yêu cầu trước khi làm tiếp; ghi nhận rồi kết thúc phần việc.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: save_class_document
+              tool_label: save_class_document
+              tool_description: Lưu nội dung Markdown thành tài liệu lớp. Giáo viên sẽ được hỏi xác nhận trước.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                title:
+                  auto: 1
+                  value: null
+                content:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Lưu nội dung Markdown thành tài liệu lớp. Giáo viên sẽ được hỏi xác nhận trước.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: set_agent_notes
+              tool_label: set_agent_notes
+              tool_description: Thay hoặc thêm ghi chú cho mọi agent của lớp. Giáo viên sẽ được hỏi xác nhận trước.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                notes:
+                  auto: 1
+                  value: null
+                mode:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Thay hoặc thêm ghi chú cho mọi agent của lớp. Giáo viên sẽ được hỏi xác nhận trước.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: install_agent
+              tool_label: install_agent
+              tool_description: Cài một agent từ Hub vào lớp. Giáo viên sẽ được hỏi xác nhận trước.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                agent:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Cài một agent từ Hub vào lớp. Giáo viên sẽ được hỏi xác nhận trước.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: post_class_announcement
+              tool_label: post_class_announcement
+              tool_description: Đăng thông báo tới học sinh, phụ huynh hoặc cả hai. Giáo viên sẽ được hỏi xác nhận trước.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                title:
+                  auto: 1
+                  value: null
+                body:
+                  auto: 1
+                  value: null
+                audience:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Đăng thông báo tới học sinh, phụ huynh hoặc cả hai. Giáo viên sẽ được hỏi xác nhận trước.
+            - enabled: true
+              type: mcp
+              provider_name: eduagent-tools
+              provider_show_name: eduagent-tools
+              tool_name: assign_practice
+              tool_label: assign_practice
+              tool_description: Giao bài luyện cho học sinh của lớp. Giáo viên sẽ được hỏi xác nhận trước.
+              parameters:
+                ctx:
+                  auto: 0
+                  value:
+                    type: variable
+                    value:
+                    - start
+                    - ctx
+                title:
+                  auto: 1
+                  value: null
+                questions:
+                  auto: 1
+                  value: null
+                instructions:
+                  auto: 1
+                  value: null
+                answer_key:
+                  auto: 1
+                  value: null
+                due_at:
+                  auto: 1
+                  value: null
+              settings: {}
+              extra:
+                description: Giao bài luyện cho học sinh của lớp. Giáo viên sẽ được hỏi xác nhận trước.
           instruction:
             type: constant
             value: '{{#start.system_prompt#}}
@@ -286,7 +481,7 @@ workflow:
             value: '{{#sys.query#}}'
           maximum_iterations:
             type: constant
-            value: 5
+            value: 6
       position:
         x: 330
         y: 280

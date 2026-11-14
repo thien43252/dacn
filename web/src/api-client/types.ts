@@ -233,6 +233,9 @@ export type AskState = "open" | "answered" | "skipped" | "approved" | "rejected"
 export interface StoredAsk {
   run_id: string;
   kind: "clarify" | "confirm";
+  agent?: AgentRef;
+  intro?: string;
+  skippable?: boolean;
   questions?: AskQuestion[];
   confirm?: AskConfirm;
   state: AskState;
@@ -243,6 +246,18 @@ export interface ProcessSummary {
   duration_ms: number;
   agents: number;
   steps: { key: string; title: string; agent: string; status: StepStatus }[];
+}
+
+/** GET /api/chat/messages/{id}/steps/{key}/note */
+export interface StepNote {
+  key: string;
+  title: string;
+  agent: string;
+  status: StepStatus;
+  visibility: "visible" | "hidden" | "unavailable";
+  note: string | null;
+  citations: Citation[];
+  reason_text?: string | null;
 }
 
 /** `reply` of POST /api/chat/stream: an answer to the pending question of `run_id`. */
@@ -504,4 +519,43 @@ export interface ProgressRow {
   student_id: string;
   student_name: string;
   activity: Activity;
+}
+
+// ---- Class feed (specs/002-multi-agent-orchestration/contracts/class-actions.md) ----
+
+export type AnnouncementAudience = "students" | "parents" | "all";
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+  author_name: string | null;
+  /** `agent`: posted through a confirmed tool; `ui`: posted on the class page. */
+  source: "agent" | "ui";
+  created_at: string;
+}
+
+export interface AnnouncementInput {
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+}
+
+export interface PracticeQuestion {
+  question: string;
+  options?: string[];
+}
+
+export interface Assignment {
+  id: string;
+  title: string;
+  instructions: string;
+  questions: PracticeQuestion[];
+  due_at: string | null;
+  author_name: string | null;
+  source: "agent" | "ui";
+  created_at: string;
+  /** Only for the class's teachers. */
+  answer_key?: { index: number; answer: string; explanation?: string }[] | null;
 }

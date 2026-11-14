@@ -86,6 +86,21 @@ if (-not (Test-Path (Join-Path $Root '.env'))) {
     Fail '.env not found. Copy .env.example to .env and fill DIFY_* and MCP_TOKEN (see README).'
 }
 
+# ---- .env: Dify keys ----------------------------------------------------------
+# Missing keys do not stop the run, but say clearly what will not work.
+$envValues = @{}
+foreach ($line in Get-Content (Join-Path $Root '.env')) {
+    if ($line -match '^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$') { $envValues[$Matches[1]] = $Matches[2].Trim('"', "'") }
+}
+$missing = @('DIFY_TRIAGE_KEY', 'DIFY_RUNNER_KEY', 'DIFY_RUNNER_RAW_KEY', 'DIFY_DATASET_KEY', 'DIFY_REVIEW_KEY', 'MCP_TOKEN') |
+    Where-Object { -not $envValues[$_] }
+if ($missing) {
+    Write-Host "! .env is missing: $($missing -join ', '). Chat, documents or certification will fail until they are set (infra/dify/README.md)." -ForegroundColor Yellow
+}
+if (-not $envValues['DIFY_PLANNER_KEY']) {
+    Write-Host '! .env has no DIFY_PLANNER_KEY: multi-step handling is off and every turn takes the fast path. Import infra/dify/eduagent-planner.yml and set the key to turn it on.' -ForegroundColor Yellow
+}
+
 # ---- Dify -------------------------------------------------------------------
 if (-not $NoDify) {
     if (-not (Test-Path $DifyDocker)) {
@@ -111,6 +126,11 @@ try {
     Step 'Syncing Python deps and running migrations'
     Invoke-Checked 'uv sync' { uv sync --quiet }
     Invoke-Checked 'alembic upgrade' { uv run alembic upgrade head }
+    # Feature 002 needs 0008_orchestration (turn_runs, run_steps, class feed); head must be at or past it.
+    $revision = (uv run alembic current 2>$null) -join ' '
+    if ($revision -notmatch '\b(0008|0009|00[1-9]\d)\w*') {
+        Write-Host "! Database revision is '$revision'; expected 0008_orchestration or later." -ForegroundColor Yellow
+    }
     if ($Seed) {
         Step 'Seeding demo data'
         Invoke-Checked 'seed_demo' { uv run python -m scripts.seed_demo }
@@ -152,6 +172,11 @@ try {
         try {
             $health = Invoke-RestMethod 'http://127.0.0.1:8001/api/health' -TimeoutSec 5
             Write-Host ($health | ConvertTo-Json -Compress)
+            if ($health.orchestrator -eq 'on') {
+                Write-Host '  Multi-step handling: on' -ForegroundColor Green
+            } else {
+                Write-Host '  Multi-step handling: off (no DIFY_PLANNER_KEY)' -ForegroundColor Yellow
+            }
         } catch { }
     } else {
         Write-Host '! Backend did not answer in 60 s; see the log above.' -ForegroundColor Yellow

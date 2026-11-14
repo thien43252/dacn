@@ -171,12 +171,20 @@ async def _run_dify(
         if item["status"] != "start":
             tools.append(item["name"])
     usage.extend((purpose, item, 0) for purpose, item in context.usage)
+    # Tools that need the user's confirmation never run here: nobody can confirm, so the answer is always "Không"
+    # (FR-041). The call is kept in the report so the judge and the author see what the agent tried to do.
+    held = [
+        {"tool": signal["tool"], "summary": signal.get("summary", ""), "decision": "reject"}
+        for signal in context.signals
+        if signal.get("type") == "confirm_tool"
+    ]
     final = {
         "reply": reply,
         "status": "error" if error else "ok",
         "error": error[:200],
         "tools": tools,
         "first_token_ms": first_token_ms,
+        **({"held_actions": held} if held else {}),
     }
     return final, usage
 
@@ -294,6 +302,7 @@ async def run_case(
         "engine": engine,
         "first_token_ms": final.get("first_token_ms"),
         "guard_events": final.get("guard_events"),
+        **({"held_actions": final["held_actions"]} if final.get("held_actions") else {}),
     }
     return result, usage_rows
 

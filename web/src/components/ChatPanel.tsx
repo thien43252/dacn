@@ -37,10 +37,12 @@ interface ChatPanelProps {
   contextClassId?: string;
   /** Renders inside the page (student home) instead of as the slide-out panel. */
   inline?: boolean;
+  /** Text put in the chat box of the first conversation (a practice set to work on). */
+  draft?: string;
 }
 
 /** Slide-out chat with the agents of one class (or the user's personal agents). */
-export function ChatPanel({ open, onClose, onBusyChange, userId, role, contextClassId, inline = false }: ChatPanelProps) {
+export function ChatPanel({ open, onClose, onBusyChange, userId, role, contextClassId, inline = false, draft }: ChatPanelProps) {
   const classes = useResource(() => classesApi.list(), [userId]);
   const [classId, setClassId] = useState<string>(() => contextClassId ?? readStoredClass(userId) ?? "");
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -149,6 +151,7 @@ export function ChatPanel({ open, onClose, onBusyChange, userId, role, contextCl
           onConversation={onConversation}
           onBusyChange={onBusyChange}
           disabled={!classId}
+          initialInput={threadKey === 0 ? draft : undefined}
           emptyHint={
             roomless && role === "student" ? "Bạn chưa tham gia lớp nào. Vào “Lớp của tôi” để nhập mã lớp, hoặc trò chuyện với agent cá nhân."
               : role === "teacher" ? "Hỏi các agent của lớp: tạo đề, chấm bài, tóm tắt tài liệu… Gõ @ để gọi đích danh."

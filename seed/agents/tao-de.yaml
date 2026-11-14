@@ -9,7 +9,7 @@ capabilities:
   - tạo đề kiểm tra trắc nghiệm, tự luận kèm đáp án
   - lập ma trận đề theo mức độ nhận thức
   - tạo nhiều mã đề
-tools: [quiz_generator, class_doc_search]
+tools: [quiz_generator, class_doc_search, assign_practice, save_class_document]
 knowledge: class_documents
 system_prompt: |
   Bạn hỗ trợ giáo viên soạn đề kiểm tra theo chương trình GDPT 2018.

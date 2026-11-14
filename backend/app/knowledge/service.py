@@ -153,3 +153,38 @@ async def search(db: AsyncSession, dataset_id: str | None, query: str, top_k: in
             )
         )
     return hits
+
+
+# Background jobs started outside a request (the save_class_document tool); kept so they are not garbage-collected.
+_jobs: set[asyncio.Task[None]] = set()
+
+
+async def create_text_document(
+    db: AsyncSession, room: ClassRoom, user_id: str, title: str, content: str, *, process: bool = True
+) -> Document:
+    """Saves Markdown text as a class document (`.md`), stored like an upload, then sends it to the class's knowledge
+    base in the background (feature 002, save_class_document). Commits."""
+    data = content.encode("utf-8")
+    slug = "".join(ch if ch.isalnum() else "-" for ch in title.lower()).strip("-")[:60] or "tai-lieu"
+    document = Document(
+        class_id=room.id,
+        uploaded_by=user_id,
+        title=title.strip()[:200],
+        filename=f"{slug}.md",
+        content_type="text/markdown",
+        size_bytes=len(data),
+        storage_path="",
+    )
+    db.add(document)
+    await db.flush()
+    target = storage_root() / room.id / f"{document.id}{ALLOWED_TYPES['text/markdown']}"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(target.write_bytes, data)
+    document.storage_path = str(target)
+    await db.commit()
+    await db.refresh(document)
+    if process:
+        job = asyncio.create_task(process_document(document.id))
+        _jobs.add(job)
+        job.add_done_callback(_jobs.discard)
+    return document
