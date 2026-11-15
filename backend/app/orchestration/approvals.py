@@ -47,6 +47,9 @@ class Decision:
     effect: str  # allow | deny | ask
     choices: list[str] = field(default_factory=list)
     reason: str = ""
+    # The rule that decided (deny, broken or a card's allowance) and the mode, for the activity log (FR-056).
+    rule_id: str | None = None
+    mode: str | None = None
 
 
 @dataclass
@@ -71,25 +74,49 @@ def decide(action: Action, rules: list[ApprovalRule], mode: str, extra_vigilant:
     if action.kind == "none":
         return Decision("allow", reason="not an action")
     matching = [rule for rule in rules if _matches(rule, action)]
-    if any(rule.effect not in VALID_EFFECTS for rule in matching):
-        return Decision("deny", reason="broken rule")
-    if any(rule.effect == "deny" for rule in matching):
-        return Decision("deny", reason="deny rule")
-    asks = any(rule.effect == "ask" for rule in matching)
+    broken = next((rule for rule in matching if rule.effect not in VALID_EFFECTS), None)
+    if broken is not None:
+        return Decision("deny", reason="broken rule", rule_id=broken.id, mode=mode)
+    denying = next((rule for rule in matching if rule.effect == "deny"), None)
+    if denying is not None:
+        return Decision("deny", reason="deny rule", rule_id=denying.id, mode=mode)
+    asking = next((rule for rule in matching if rule.effect == "ask"), None)
     choices = CHOICES_BY_MODE.get(mode, CHOICES_BY_MODE["members_choose"])
     if action.kind in ALWAYS_ASK:
         if mode == "do_it_yourself":
-            return Decision("ask", CHOICES_BY_MODE["do_it_yourself"], "members do it themselves")
+            return Decision("ask", CHOICES_BY_MODE["do_it_yourself"], "members do it themselves", mode=mode)
         # Typed, class and admin rules can only tighten an always-ask kind; only a card answer opens it.
-        opened = any(rule.effect == "allow" and rule.source == "card" for rule in matching)
-        if opened and not asks:
-            return Decision("allow", reason="allowed on a card")
-        return Decision("ask", choices, "always asks")
-    if asks:
-        return Decision("ask", choices, "ask rule")
+        opened = next((rule for rule in matching if rule.effect == "allow" and rule.source == "card"), None)
+        if opened is not None and asking is None:
+            return Decision("allow", reason="allowed on a card", rule_id=opened.id, mode=mode)
+        return Decision("ask", choices, "always asks", rule_id=asking.id if asking else None, mode=mode)
+    if asking is not None:
+        return Decision("ask", choices, "ask rule", rule_id=asking.id, mode=mode)
     if extra_vigilant:
-        return Decision("ask", choices, "extra vigilant")
-    return Decision("allow", reason="ordinary change")
+        return Decision("ask", choices, "extra vigilant", mode=mode)
+    return Decision("allow", reason="ordinary change", mode=mode)
+
+
+def log_decision(ctx, action: Action, decision: Decision) -> None:
+    """Records an approval decided without a card (by a rule, or because no person can answer) and what decided it
+    (FR-056). A decision taken on a card is the card itself; ordinary changes are not approvals."""
+    from app.guard.rules import Verdict
+
+    if decision.effect == "ask" or action.kind == "none" or decision.reason == "ordinary change":
+        return
+    by = f"quy tắc {decision.rule_id}" if decision.rule_id else f"chế độ {decision.mode or 'mặc định'}"
+    denied = decision.effect == "deny"
+    ctx.log(
+        "approval",
+        Verdict(
+            "block" if denied else "allow",
+            "approval_denied" if denied else "approval_allowed",
+            f"{action.tool} ({action.kind}): {decision.reason}, do {by}",
+            "policy",
+        ),
+        ctx.user_text or "",
+        action.agent_slug,
+    )
 
 
 async def rules_in_scope(

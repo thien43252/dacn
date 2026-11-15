@@ -158,3 +158,39 @@ async def test_only_the_origin_user_answers_and_choices_are_checked(as_user, fak
 
 def test_choice_labels_cover_every_choice() -> None:
     assert set(approvals.CHOICE_LABELS) >= {"once", "conversation", "always", "deny", "did_it", "dont"}
+
+
+async def test_rule_decisions_are_logged_with_the_rule(as_user, fake_llm, sessionmaker) -> None:
+    """FR-056: an approval decided by a rule (no card) is recorded with the rule that decided it."""
+    from sqlalchemy import select
+
+    from app.audit.models import GuardEvent
+    from tests.helpers import chat, class_with_student
+    from tests.test_people import script_ask
+
+    admin = await as_user("admin")
+    rule = (await admin.post("/api/admin/approvals/rules", json={"action_kind": "send", "effect": "deny"})).json()
+    _, student, _, room = await class_with_student(as_user)
+    script_ask(fake_llm)
+    await chat(student, "Em xin nộp muộn", class_id=room["id"], agent="tro-ly-lop")
+    async with sessionmaker() as db:
+        [event] = (await db.scalars(select(GuardEvent).where(GuardEvent.stage == "approval"))).all()
+        assert event.verdict == "block" and rule["id"] in event.reason
+    rows = [row for row in (await student.get("/api/me/activity")).json() if row["type"] == "approval"]
+    assert rows and rows[0]["decided_by"] == "rule" and rule["id"] in rows[0]["reason"]
+
+
+async def test_admin_sees_approval_activity_without_content(as_user, fake_llm) -> None:
+    """FR-057: the admin sees what was allowed and refused platform-wide, never the private text."""
+    from tests.helpers import chat, class_with_student
+    from tests.test_people import script_ask
+
+    admin = await as_user("admin")
+    await admin.post("/api/admin/approvals/rules", json={"action_kind": "send", "effect": "deny"})
+    _, student, _, room = await class_with_student(as_user)
+    script_ask(fake_llm)
+    await chat(student, "Em xin nộp muộn", class_id=room["id"], agent="tro-ly-lop")
+    rows = (await admin.get("/api/admin/approvals/activity")).json()
+    assert {row["type"] for row in rows} >= {"approval", "person_request"}
+    assert all(row.get("conversation_id") is None and "body" not in row for row in rows)
+    assert (await student.get("/api/admin/approvals/activity")).status_code == 403

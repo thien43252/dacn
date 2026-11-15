@@ -270,6 +270,18 @@ async def delete_admin_rule(rule_id: str, _: Admin, db: DbSession) -> None:
     await db.commit()
 
 
+@router.get("/admin/approvals/activity")
+async def admin_activity(
+    _: Admin, db: DbSession, limit: int = Query(default=200, ge=1, le=500)
+) -> list[dict[str, Any]]:
+    """Platform-wide: what was handed over, asked, allowed, refused (with the rule or cap) and what failed, without
+    conversation text (FR-057)."""
+    from app.chat.models import Conversation
+    from app.orchestration.activity import scope_activity
+
+    return await scope_activity(db, select(Conversation.id), limit, with_content=False)
+
+
 @router.get("/me/activity")
 async def my_activity(
     user: CurrentUser, db: DbSession, conversation_id: str | None = Query(default=None)

@@ -250,7 +250,7 @@ async def run_agent(state: ChatState) -> ChatState:
     support = bool(state.get("support"))
     ctx.support = support
     offers = await meta.offers(ctx, agent)
-    targets = await handoffs.handoff_targets(ctx, agent) if offers.get("message_agent") else []
+    targets = await handoffs.handoff_targets(ctx, agent) if offers.get("message_agent") and not support else []
     system = build_system_prompt(
         agent,
         ctx.room,
@@ -374,6 +374,28 @@ def _replace(ctx: RunContext, text: str) -> None:
     write({"type": "text_delta", "message_id": ctx.message_id, "generation": 1, "text_offset": 0, "delta": text})
 
 
+STRICTNESS = {"student": 0, "parent": 1, "teacher": 2}
+
+
+async def _review_role(ctx: RunContext) -> str:
+    """The role a reply is reviewed for: the caller's, or in a group the strictest role of any current member."""
+    if ctx.conversation_kind != "group" or ctx.role not in STRICTNESS:
+        return ctx.role
+    from sqlalchemy import select
+
+    from app.chat.models import ConversationMember
+
+    roles = set(
+        await ctx.db.scalars(
+            select(User.role)
+            .join(ConversationMember, ConversationMember.user_id == User.id)
+            .where(ConversationMember.conversation_id == ctx.conversation.id, ConversationMember.left_at.is_(None))
+        )
+    )
+    roles = {str(role) for role in roles if str(role) in STRICTNESS} | {ctx.role}
+    return min(roles, key=STRICTNESS.__getitem__)
+
+
 async def review(state: ChatState) -> ChatState:
     ctx = state["ctx"]
     reply = state.get("reply", "")
@@ -390,12 +412,14 @@ async def review(state: ChatState) -> ChatState:
         ctx.log("output", verdict, verdict.text, agent.slug)
         _replace(ctx, verdict.text)
         reply = verdict.text
-    # Teachers get answer keys and full solutions by design; the model review protects students and parents.
-    if ctx.role == "teacher":
+    # Teachers get answer keys and full solutions by design; the model review protects students and parents. In a
+    # group everyone reads the reply, so it is reviewed for the strictest role among the viewers (FR-052).
+    role = await _review_role(ctx)
+    if role == "teacher":
         return {"reply": reply}
     no_answers = bool((ctx.room.policy or {}).get("no_direct_answers", True)) if ctx.room else False
     started = time.perf_counter()
-    verdict, usage = await classifier.review_output(ctx.chat_model, reply, user_text, ctx.role, no_answers)
+    verdict, usage = await classifier.review_output(ctx.chat_model, reply, user_text, role, no_answers)
     ctx.timed("output_guard", usage, started)
     if verdict.blocks:
         ctx.log("output", verdict, reply, agent.slug)

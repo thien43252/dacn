@@ -382,8 +382,8 @@ export interface GuardEvent {
   user_name: string | null;
   role: string;
   agent_slug: string | null;
-  stage: "input" | "tool" | "output";
-  verdict: "block" | "support" | "redact" | "flag";
+  stage: "input" | "tool" | "output" | "handoff" | "approval";
+  verdict: "block" | "support" | "redact" | "flag" | "allow";
   category: string;
   detector: "rule" | "policy" | "llm";
   severity: "low" | "medium" | "high";
@@ -401,6 +401,42 @@ export interface AuditLog {
     high_severity: number;
   };
   events: GuardEvent[];
+  /** Handoffs, questions to people and approval decisions (class log; FR-055, FR-056). */
+  activity?: ActivityRow[];
+  /** What the log covers, e.g. only the groups the teacher is a member of. */
+  scope_note?: string;
+}
+
+/** One line of an activity log (backend app/orchestration/activity.py). */
+export interface ActivityRow {
+  type: "handoff" | "person_request" | "approval" | "tool";
+  id: string;
+  at: string;
+  conversation_id?: string | null;
+  status: string;
+  reason?: string | null;
+  // handoff
+  from_agent?: string;
+  to_agent?: string;
+  depth?: number;
+  attempts?: number;
+  task?: string;
+  // person_request / approval
+  agent?: string | null;
+  kind?: string;
+  body?: string;
+  answered_at?: string | null;
+  tool?: string;
+  action_kind?: string;
+  answer?: string | null;
+  decided_by?: "card" | "rule";
+  latency_ms?: number;
+}
+
+export interface ApprovalModeRow {
+  action_kind: string;
+  role: "student" | "teacher" | "parent";
+  mode: "members_choose" | "ask_every_time" | "do_it_yourself";
 }
 
 export interface UsageRow {

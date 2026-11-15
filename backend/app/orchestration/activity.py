@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy import or_, select
 
+from app.audit.models import GuardEvent
 from app.chat.models import ToolCallLog
 from app.orchestration.handoffs import client_status
 from app.orchestration.models import ApprovalCard, Handoff, PersonRequest
@@ -50,17 +51,32 @@ def _request_row(request: PersonRequest, with_content: bool) -> dict[str, Any]:
     return row
 
 
-def _card_row(card: ApprovalCard) -> dict[str, Any]:
+def _card_row(card: ApprovalCard, with_content: bool = True) -> dict[str, Any]:
     return {
         "type": "approval",
         "id": card.id,
         "at": card.created_at,
-        "conversation_id": card.conversation_id,
+        "conversation_id": card.conversation_id if with_content else None,
         "agent": card.agent_slug,
         "tool": card.tool,
         "action_kind": card.action_kind,
         "status": card.status,
         "answer": card.answer,
+        "decided_by": "card",
+    }
+
+
+def _decision_row(event: GuardEvent, with_content: bool = True) -> dict[str, Any]:
+    """An approval decided by a rule (or because no person could answer), without a card (FR-056)."""
+    return {
+        "type": "approval",
+        "id": event.id,
+        "at": event.created_at,
+        "conversation_id": event.conversation_id if with_content else None,
+        "agent": event.agent_slug,
+        "status": "denied" if event.verdict == "block" else "allowed",
+        "decided_by": "rule",
+        "reason": event.reason,
     }
 
 
@@ -68,8 +84,9 @@ def _sorted(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: row["at"] or 0, reverse=True)[:limit]
 
 
-async def scope_activity(db, conversation_ids, limit: int = 100) -> list[dict[str, Any]]:
-    """Handoffs, questions and approvals in the given conversations (a subquery of ids), with content."""
+async def scope_activity(db, conversation_ids, limit: int = 100, *, with_content: bool = True) -> list[dict[str, Any]]:
+    """Handoffs, questions and approvals in the given conversations (a subquery of ids), with content unless an
+    operator looks (admins see what was allowed, refused and failed, never private text: FR-057)."""
     handoffs = await db.scalars(select(Handoff).where(Handoff.conversation_id.in_(conversation_ids)).limit(limit))
     requests = await db.scalars(
         select(PersonRequest).where(PersonRequest.conversation_id.in_(conversation_ids)).limit(limit)
@@ -77,10 +94,16 @@ async def scope_activity(db, conversation_ids, limit: int = 100) -> list[dict[st
     cards = await db.scalars(
         select(ApprovalCard).where(ApprovalCard.conversation_id.in_(conversation_ids)).limit(limit)
     )
+    decisions = await db.scalars(
+        select(GuardEvent)
+        .where(GuardEvent.stage == "approval", GuardEvent.conversation_id.in_(conversation_ids))
+        .limit(limit)
+    )
     return _sorted(
-        [_handoff_row(h, True) for h in handoffs]
-        + [_request_row(r, True) for r in requests]
-        + [_card_row(c) for c in cards],
+        [_handoff_row(h, with_content) for h in handoffs]
+        + [_request_row(r, with_content) for r in requests]
+        + [_card_row(c, with_content) for c in cards]
+        + [_decision_row(e, with_content) for e in decisions],
         limit,
     )
 

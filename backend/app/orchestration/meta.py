@@ -15,7 +15,8 @@ MENTION = re.compile(r"(?<![\w@])@([a-z0-9]+(?:-[a-z0-9]+)*)")
 async def offers(ctx, agent: ResolvedAgent) -> dict[str, dict[str, Any] | None]:
     """message_agent only with a valid target (granted nobody → offered nothing), ask_person always (except on the
     safety-support path), reply_privately in groups."""
-    targets = await handoffs.handoff_targets(ctx, agent)
+    # FR-053: on the safety-support path nothing is handed to another agent and nobody else is asked.
+    targets = [] if ctx.support else await handoffs.handoff_targets(ctx, agent)
     return {
         "message_agent": {"agent": {"enum": [target.slug for target in targets]}} if targets else None,
         "ask_person": None if ctx.support else {},
@@ -27,7 +28,11 @@ async def handle(ctx, agent: ResolvedAgent, call: ToolCall, offered: dict[str, A
     if offered.get(call.name) is None:
         if call.name == "message_agent":
             # Not offered (no grants, disabled, depth): a forced call still gets the same refusal and is logged.
-            reason = await handoffs.refusal_reason(ctx, agent, str(call.arguments.get("agent", ""))) or "not_granted"
+            reason = (
+                "disabled"
+                if ctx.support
+                else await handoffs.refusal_reason(ctx, agent, str(call.arguments.get("agent", ""))) or "not_granted"
+            )
             handoffs._log_refusal(ctx, agent, str(call.arguments.get("agent", "")), reason)
             return json.dumps({"status": "refused", "reason": handoffs._refusal_text(reason)}, ensure_ascii=False)
         return json.dumps({"status": "refused", "reason": "Công cụ này không dùng được ở đây."}, ensure_ascii=False)
@@ -49,6 +54,7 @@ async def gate_action(ctx, agent: ResolvedAgent, call: ToolCall):
         return None
     action = approvals.Action(tool.action_kind, agent.slug, tool.name, None)
     if ctx.source in ("sandbox", "certify"):
+        approvals.log_decision(ctx, action, approvals.Decision("deny", reason="no person in this mode"))
         return tools.ToolOutcome(approvals.result_text_denied(), denied="không có người duyệt trong chế độ này")
     decision = await approvals.decide_for(
         ctx.db,
@@ -58,10 +64,12 @@ async def gate_action(ctx, agent: ResolvedAgent, call: ToolCall):
         class_id=ctx.room.id if ctx.room else None,
         conversation_id=ctx.conversation.id,
     )
+    approvals.log_decision(ctx, action, decision)
     if decision.effect == "allow":
         return None
     if decision.effect == "deny":
-        return tools.ToolOutcome(approvals.result_text_denied(), denied="bị chặn bởi quy tắc duyệt")
+        rule = f" ({decision.rule_id})" if decision.rule_id else ""
+        return tools.ToolOutcome(approvals.result_text_denied(), denied=f"bị chặn bởi quy tắc duyệt{rule}")
     from app.orchestration import runs
 
     run = await runs.ensure_run(ctx, agent)
@@ -115,6 +123,8 @@ async def execute_card_action(db, card) -> None:
 
 async def mentions_to_handoffs(ctx, agent: ResolvedAgent, text: str, targets: list[ResolvedAgent]) -> None:
     """In a group, an agent naming a peer as @slug hands off under the same grants, caps and audit (FR-044)."""
+    if ctx.support:
+        return
     allowed = {target.slug for target in targets}
     for slug in dict.fromkeys(MENTION.findall(text)):
         if slug not in allowed:

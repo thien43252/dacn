@@ -17,6 +17,8 @@ import { ParentReportsPage } from "../features/reports/ReportPages";
 import { ChatHomePage } from "../features/chat/ChatHomePage";
 import { InboxPage } from "../features/inbox/InboxPage";
 import { ApprovalSettingsPage } from "../features/settings/ApprovalSettings";
+import { AdminApprovalsPage } from "../features/settings/AdminApprovalsPage";
+import { AgentActivityPage, MyActivityPage } from "../features/agents/AgentActivityPage";
 import { NotFoundPage } from "./NotFoundPage";
 import { PlaceholderPage } from "./PlaceholderPage";
 
@@ -45,10 +47,17 @@ const screens: Record<string, (route: MatchedRoute) => ReactNode> = {
       [`/${role}/chat`, () => <ChatHomePage />],
       [`/${role}/inbox`, () => <InboxPage />],
       [`/${role}/settings/approvals`, () => <ApprovalSettingsPage />],
+      [
+        `/${role}/builder/activity/:agentId`,
+        ({ params }: MatchedRoute) => <AgentActivityPage key={params.agentId} agentId={params.agentId} backTo={`/${role}/builder?agent=${encodeURIComponent(params.agentId)}`} />,
+      ],
     ]),
   ),
   "/student/builder": () => <BuilderPage />,
   "/parent/builder": () => <BuilderPage />,
+  "/student/activity": () => <MyActivityPage />,
+  "/parent/activity": () => <MyActivityPage />,
+  "/admin/approvals": () => <AdminApprovalsPage />,
 };
 
 export function WorkspacePage({ pathname }: { pathname: string }) {

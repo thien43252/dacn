@@ -262,3 +262,42 @@ async def test_teacher_narrows_grants_in_the_class(as_user, fake_llm) -> None:
     fake_llm.script("ok")
     await chat(student, "Lý thuyết?", class_id=room["id"], agent="gia-su-toan")
     assert "message_agent" not in {tool.name for tool in fake_llm.main_calls[-1]["tools"] or []}
+
+
+async def test_safety_support_path_never_hands_off(as_user, fake_llm, sessionmaker) -> None:
+    """FR-053: a wellbeing signal goes straight to the supportive reply; no agent and nobody else is asked."""
+    _, student, _, room = await setup(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    script_tutor_asks_review(fake_llm)  # the model tries to hand off anyway
+    events = await chat(student, "Mình mệt mỏi lắm, không muốn sống nữa.", class_id=room["id"], agent="gia-su-toan")
+    assert events[-1]["waiting"] is False
+    offered = {tool.name for tool in fake_llm.main_calls[0]["tools"] or []}
+    assert "message_agent" not in offered and "ask_person" not in offered
+    async with sessionmaker() as db:
+        assert [h.status for h in (await db.scalars(select(Handoff))).all()] == []
+
+
+async def test_lease_expiry_without_tries_left_ends_as_no_answer(as_user, fake_llm, drain, sessionmaker) -> None:
+    """FR-016: a handoff whose runner died (lease expired) is retried only while tries remain, then is "no answer"."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    _, student, _, room = await setup(as_user, "gia-su-toan", "on-tap-tai-lieu")
+    script_tutor_asks_review(fake_llm)
+    events = await chat(student, "Lý thuyết Pytago?", class_id=room["id"], agent="gia-su-toan")
+    async with sessionmaker() as db:
+        # As if every allowed try had started and died mid-run.
+        await db.execute(
+            update(Handoff).values(
+                status="running",
+                attempts=get_settings().handoff_max_attempts,
+                lease_until=datetime.now(UTC) - timedelta(seconds=1),
+            )
+        )
+        await db.commit()
+    await drain()
+    async with sessionmaker() as db:
+        assert (await db.scalar(select(Handoff))).status == "failed"
+    messages = await conversation_messages(student, conversation_id_of(events))
+    assert messages[1]["handoffs"][0]["status"] == "no_answer"
+    assert not [c for c in fake_llm.main_calls if agent_of(c["system"]) == "on-tap-tai-lieu"]

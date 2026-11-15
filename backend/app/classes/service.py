@@ -197,6 +197,16 @@ async def student_can_use_agents(db: AsyncSession, room: ClassRoom, student_id: 
     )
 
 
+async def student_may_use_agents(db: AsyncSession, student_id: str, room: ClassRoom | None) -> bool:
+    """FR-005 everywhere a student's message reaches an agent: in a class, the class's consent gate; in the personal
+    space (own agents, the builder's sandbox), a linked guardian must have allowed agents."""
+    if room is not None:
+        return await student_can_use_agents(db, room, student_id)
+    return bool(
+        await db.scalar(select(func.count()).where(Consent.student_id == student_id, Consent.allow_agents.is_(True)))
+    )
+
+
 async def set_consent(
     db: AsyncSession, parent: User, student_id: str, allow_agents: bool, allow_reports: bool
 ) -> Consent:
@@ -208,6 +218,12 @@ async def set_consent(
         db.add(consent)
     consent.allow_agents = allow_agents
     consent.allow_progress_reports = allow_reports
+    await db.flush()
+    if not allow_agents and not await student_may_use_agents(db, student_id, None):
+        # Edge case: consent withdrawn. Questions the student's agents are waiting on are cancelled.
+        from app.orchestration import people
+
+        await people.cancel_for_student(db, student_id)
     await db.commit()
     await db.refresh(consent)
     return consent

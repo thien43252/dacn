@@ -1,6 +1,9 @@
 import { apiRequest } from "./http";
 import type {
+  ActivityRow,
   AgentDetail,
+  ApprovalModeRow,
+  ApprovalRule,
   AuditLog,
   Certification,
   CertificationDetail,
@@ -124,4 +127,19 @@ export const auditApi = {
   forClass: (classId: string, filters: AuditFilters = {}) => apiRequest<AuditLog>(`/api/classes/${enc(classId)}/audit${query({ ...filters })}`),
   events: (filters: AuditFilters = {}) => apiRequest<AuditLog>(`/api/audit/events${query({ ...filters })}`),
   usage: (days: number) => apiRequest<UsageReport>(`/api/admin/usage${query({ days })}`),
+  /** The signed-in user's own activity (their conversations only; FR-057). */
+  mine: () => apiRequest<ActivityRow[]>("/api/me/activity"),
+  /** An agent's activity for its owner: metadata only. */
+  agent: (agentId: string) => apiRequest<ActivityRow[]>(`/api/agents/${enc(agentId)}/activity`),
+};
+
+/** Admin: approval modes per kind and role, admin rules, and platform-wide decisions (FR-035, FR-057). */
+export const adminApprovalsApi = {
+  modes: () => apiRequest<ApprovalModeRow[]>("/api/admin/approvals/modes"),
+  setMode: (row: ApprovalModeRow) => apiRequest<ApprovalModeRow[]>("/api/admin/approvals/modes", { method: "PUT", body: row }),
+  rules: () => apiRequest<ApprovalRule[]>("/api/admin/approvals/rules"),
+  addRule: (rule: { action_kind: string; effect: "deny" | "ask" | "allow"; agent_slug?: string | null; tool?: string | null }) =>
+    apiRequest<ApprovalRule>("/api/admin/approvals/rules", { method: "POST", body: rule }),
+  removeRule: (ruleId: string) => apiRequest<void>(`/api/admin/approvals/rules/${enc(ruleId)}`, { method: "DELETE" }),
+  activity: () => apiRequest<ActivityRow[]>("/api/admin/approvals/activity"),
 };

@@ -233,6 +233,10 @@ async def execute(handoff_id: str) -> None:
         parent = await db.get(AgentRun, handoff.run_id) if handoff else None
         if handoff is None or parent is None:
             return
+        if handoff.attempts > get_settings().handoff_max_attempts:
+            # Reclaimed after its lease ran out (the process died mid-run) with no tries left: "no answer" (FR-016).
+            await fail(db, handoff, final=True)
+            return
         asked = AgentRun(
             conversation_id=parent.conversation_id,
             user_id=parent.user_id,

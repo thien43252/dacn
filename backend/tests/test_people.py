@@ -192,3 +192,90 @@ async def test_cancel_and_outsiders(as_user, fake_llm) -> None:
     assert (await teacher.post(f"/api/person-requests/{item['id']}/cancel")).status_code == 404
     assert (await student.post(f"/api/person-requests/{item['id']}/cancel")).status_code == 200
     assert (await teacher.post(f"/api/person-requests/{item['id']}/answer", json={"text": "x"})).status_code == 409
+
+
+async def test_unsuitable_answer_is_hidden_after_the_model_review(as_user, fake_llm, drain) -> None:
+    """FR-031: an adult's answer passes the model review for the student before the agent and the student see it."""
+    teacher, student, _, room = await class_with_student(as_user)
+    script_ask(fake_llm)
+
+    def reviewer(messages, system, tools, tier):
+        if "lớp kiểm tra đầu ra" in (system or "") and "LỜI-KHÔNG-PHÙ-HỢP" in messages[-1].content:
+            return Scripted(text='{"verdict": "block", "category": "abuse", "reason": "Lời lẽ không phù hợp"}')
+        return None
+
+    fake_llm.respond_with(reviewer)
+    events = await chat(student, "Xin nghỉ", class_id=room["id"], agent="tro-ly-lop")
+    conversation_id = conversation_id_of(events)
+    card = card_of(await conversation_messages(student, conversation_id))
+    await student.post(f"/api/approvals/{card['id']}/answer", json={"choice": "once"})
+    [item] = (await teacher.get("/api/inbox")).json()
+    await teacher.post(f"/api/person-requests/{item['id']}/answer", json={"text": "LỜI-KHÔNG-PHÙ-HỢP"})
+    await drain()
+    messages = await conversation_messages(student, conversation_id)
+    reply = next(m for m in messages if m["role"] == "user" and m["sender"]["id"] == teacher.user["id"])
+    assert reply["content"] == "Nội dung đã được ẩn"
+    resumed = [c for c in fake_llm.main_calls if c["messages"][-1].content.startswith(NOTE_HEADER)]
+    assert "LỜI-KHÔNG-PHÙ-HỢP" not in resumed[0]["messages"][-1].content
+    assert "bị ẩn" in resumed[0]["messages"][-1].content
+
+
+async def test_recipient_leaving_the_class_makes_the_question_undeliverable(as_user, fake_llm, drain, sessionmaker):
+    """Edge case: the recipient leaves the class before answering; the question is closed and the agent tells the
+    student."""
+    from app.classes.models import ClassMember
+
+    homeroom, student, _, room = await class_with_student(as_user)
+    maths = await as_user("teacher")
+    async with sessionmaker() as db:
+        db.add(ClassMember(class_id=room["id"], user_id=maths.user["id"], role="teacher", subject="anh"))
+        await db.commit()
+    script_ask(fake_llm, subject="anh")
+    events = await chat(student, "Em xin nộp muộn", class_id=room["id"], agent="tro-ly-lop")
+    card = card_of(await conversation_messages(student, conversation_id_of(events)))
+    assert card["preview"]["targets"][0]["id"] == maths.user["id"]
+    await student.post(f"/api/approvals/{card['id']}/answer", json={"choice": "once"})
+    [item] = (await maths.get("/api/inbox")).json()
+
+    gone = await homeroom.delete(f"/api/classes/{room['id']}/members/{maths.user['id']}")
+    assert gone.status_code == 204
+    async with sessionmaker() as db:
+        assert (await db.get(PersonRequest, item["id"])).status == "undeliverable"
+    late = await maths.post(f"/api/person-requests/{item['id']}/answer", json={"text": "Đồng ý"})
+    assert late.status_code in (404, 409)
+    await drain()
+    resumed = [c for c in fake_llm.main_calls if c["messages"][-1].content.startswith(NOTE_HEADER)]
+    assert resumed and '"undeliverable"' in resumed[0]["messages"][-1].content
+
+
+async def test_withdrawn_consent_cancels_waiting_questions_but_not_group_talk(as_user, fake_llm, sessionmaker):
+    """Edge case: a guardian withdraws consent. Questions waiting for an answer are cancelled; in a group the student
+    still talks with the people there, only no agent answers."""
+    teacher, student, parent, room = await class_with_student(as_user)
+    script_ask(fake_llm)
+    events = await chat(student, "Em xin nộp muộn", class_id=room["id"], agent="tro-ly-lop")
+    card = card_of(await conversation_messages(student, conversation_id_of(events)))
+    await student.post(f"/api/approvals/{card['id']}/answer", json={"choice": "once"})
+    [item] = (await teacher.get("/api/inbox")).json()
+
+    group = (
+        await teacher.post(
+            "/api/chat/groups",
+            json={"class_id": room["id"], "title": "Lớp", "members": [student.user["id"]], "agents": ["tro-ly-lop"]},
+        )
+    ).json()
+    await parent.put(f"/api/parent/children/{student.user['id']}/consent", json={"allow_agents": False})
+    async with sessionmaker() as db:
+        assert (await db.get(PersonRequest, item["id"])).status == "cancelled"
+
+    calls = len(fake_llm.main_calls)
+    sent = await chat(
+        student, "@tro-ly-lop cô ơi mai kiểm tra không ạ?", class_id=room["id"], conversation_id=group["id"]
+    )
+    assert sent[-1]["status"] == "ok" and sent[-1]["agent"] is None
+    assert len(fake_llm.main_calls) == calls
+    seen = await conversation_messages(teacher, group["id"])
+    assert [m["content"] for m in seen] == ["@tro-ly-lop cô ơi mai kiểm tra không ạ?"]
+    # Outside the group the gate still stops the message before any agent.
+    blocked = await chat(student, "Xin chào", class_id=room["id"], agent="tro-ly-lop")
+    assert blocked[-1]["status"] == "consent_required"

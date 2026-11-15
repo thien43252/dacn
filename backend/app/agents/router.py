@@ -449,11 +449,7 @@ async def _maker_checks(db, user: User, manifest: AgentManifest) -> None:
 
 
 async def _student_consented(db, student_id: str) -> bool:
-    from app.classes.models import Consent
-
-    return bool(
-        await db.scalar(select(func.count()).where(Consent.student_id == student_id, Consent.allow_agents.is_(True)))
-    )
+    return await classes.student_may_use_agents(db, student_id, None)
 
 
 async def _handoff_candidates(db, user: User, exclude_slug: str | None = None) -> list[dict[str, Any]]:
@@ -574,6 +570,9 @@ async def try_draft(agent_id: str, payload: TryIn, user: Maker, db: DbSession) -
     from app.agents.sandbox import run_sandbox
 
     agent = await _own_agent(db, user, agent_id)
+    if user.role == Role.STUDENT and not await _student_consented(db, user.id):
+        # FR-005: the sandbox is still an agent reading the student's messages.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Em cần phụ huynh đồng ý trước khi dùng agent.")
     manifest = validate_manifest(agent.draft_manifest)
     resolved = ResolvedAgent(
         agent_id=agent.id,

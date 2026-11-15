@@ -124,9 +124,23 @@ async def moderate(ctx, text: str) -> tuple[str, bool]:
     return redacted, True
 
 
-async def card_visibility(db: AsyncSession, conversation: Conversation, requester_id: str, recipient_id: str):
-    """Who sees the question card in the origin conversation."""
-    if conversation.kind != "group":
+async def _student_request(db: AsyncSession, request: PersonRequest) -> bool:
+    from app.orchestration.models import AgentRun
+
+    run = await db.get(AgentRun, request.run_id) if request.run_id else None
+    if run is not None:
+        return run.role == "student"
+    requester = await db.get(User, request.requester_id)
+    return requester is not None and requester.role == "student"
+
+
+async def card_visibility(
+    db: AsyncSession, conversation: Conversation, requester_id: str, recipient_id: str, *, private: bool = False
+):
+    """Who sees the question card in the origin conversation. In a group, a question a student's turn sends to someone
+    else carries that student's own matters (a request, a grade, a permission): it is shown only to the student, and
+    the recipient answers it from their inbox (FR-046)."""
+    if conversation.kind != "group" or private:
         return [requester_id]
     member = await db.scalar(
         select(ConversationMember).where(
@@ -145,7 +159,8 @@ async def open_request(db: AsyncSession, request: PersonRequest) -> ChatMessage:
     conversation = await db.get(Conversation, request.conversation_id)
     request.status = "open"
     request.expires_at = datetime.now(UTC) + timedelta(hours=get_settings().person_request_hours)
-    visible = await card_visibility(db, conversation, request.requester_id, request.recipient_id)
+    private = conversation.kind == "group" and await _student_request(db, request)
+    visible = await card_visibility(db, conversation, request.requester_id, request.recipient_id, private=private)
     if request.recipient_id == request.requester_id:
         visible = None if conversation.kind != "group" else [request.requester_id]
     request.private_to_recipient = visible is not None and request.recipient_id not in visible
@@ -244,6 +259,7 @@ async def request_person(ctx, agent, call) -> str:
             conversation_id=ctx.conversation.id,
         )
     )
+    approvals.log_decision(ctx, action, decision)
     if decision.effect == "deny":
         request.status = "cancelled"
         await db.flush()
@@ -319,6 +335,11 @@ async def answer(db: AsyncSession, request_id: str, user: User, choice: str | No
         raise RequestError(404, "Không tìm thấy câu hỏi.")
     if request.status != "open":
         raise RequestError(409, "Câu hỏi đã được trả lời hoặc không còn mở.")
+    if not await still_reachable(db, request):
+        request.status = "undeliverable"
+        await runs.try_mark_resumable(db, request.run_id)
+        await db.flush()
+        raise RequestError(409, "Bạn không còn là người nhận của câu hỏi này.")
     expires = request.expires_at if request.expires_at.tzinfo else request.expires_at.replace(tzinfo=UTC)
     if expires < datetime.now(UTC):
         request.status = "expired"
@@ -333,6 +354,8 @@ async def answer(db: AsyncSession, request_id: str, user: User, choice: str | No
     if screened.action == "redact" and screened.text:
         reply = screened.text
     hidden = screened.blocks or rules.screen_output(reply, request.body).blocks
+    if not hidden:
+        hidden = await _review_blocks(db, request, reply)
     result = await db.execute(
         update(PersonRequest)
         .where(PersonRequest.id == request.id, PersonRequest.status == "open")
@@ -344,7 +367,9 @@ async def answer(db: AsyncSession, request_id: str, user: User, choice: str | No
         raise RequestError(409, "Câu hỏi đã được trả lời.")
     await db.refresh(request)
     conversation = await db.get(Conversation, request.conversation_id)
-    visible = await card_visibility(db, conversation, request.requester_id, request.recipient_id)
+    visible = await card_visibility(
+        db, conversation, request.requester_id, request.recipient_id, private=bool(request.private_to_recipient)
+    )
     if request.recipient_id == request.requester_id:
         visible = None if conversation.kind != "group" else [request.requester_id]
     message = await add_message(
@@ -363,6 +388,26 @@ async def answer(db: AsyncSession, request_id: str, user: User, choice: str | No
     await runs.try_mark_resumable(db, request.run_id)
     await db.flush()
     return request, message
+
+
+async def _review_blocks(db: AsyncSession, request: PersonRequest, reply: str) -> bool:
+    """FR-031: an adult's answer reaches the agent and the student only after the model review, for the origin user's
+    role and class policy. The question's own requester (answering themselves) needs no review."""
+    from app.guard import classifier
+    from app.llm.registry import get_chat_model
+    from app.orchestration.models import AgentRun
+
+    if request.recipient_id == request.requester_id or get_settings().guard_mode != "full":
+        return False
+    run = await db.get(AgentRun, request.run_id) if request.run_id else None
+    requester = await db.get(User, request.requester_id)
+    role = run.role if run else (requester.role if requester else "student")
+    if role == "teacher":
+        return False
+    # The "no direct answers" policy is about agents; what a teacher or parent decides to tell the student is theirs to
+    # decide, so only unsuitable content is held back.
+    verdict, _usage = await classifier.review_output(get_chat_model(), reply, request.body, role, False)
+    return verdict.blocks
 
 
 async def install_from_request(db: AsyncSession, request: PersonRequest, teacher: User) -> None:
@@ -403,6 +448,22 @@ async def cancel(db: AsyncSession, request_id: str, user: User) -> PersonRequest
     return request
 
 
+async def cancel_for_student(db: AsyncSession, student_id: str) -> list[PersonRequest]:
+    """A guardian withdrew consent: every question still open or in draft for this student is cancelled."""
+    rows = list(
+        await db.scalars(
+            select(PersonRequest).where(
+                PersonRequest.requester_id == student_id, PersonRequest.status.in_(("open", "draft"))
+            )
+        )
+    )
+    for request in rows:
+        request.status = "cancelled"
+        await runs.try_mark_resumable(db, request.run_id)
+    await db.flush()
+    return rows
+
+
 async def expire_due(db: AsyncSession) -> list[PersonRequest]:
     now = datetime.now(UTC)
     rows = list(
@@ -415,13 +476,29 @@ async def expire_due(db: AsyncSession) -> list[PersonRequest]:
     return rows
 
 
-async def undeliver_for_member_loss(db: AsyncSession, user_id: str) -> None:
-    """A recipient who left the class (or lost a parent link) can no longer answer open questions."""
-    rows = list(
-        await db.scalars(
-            select(PersonRequest).where(PersonRequest.recipient_id == user_id, PersonRequest.status == "open")
-        )
-    )
+async def still_reachable(db: AsyncSession, request: PersonRequest) -> bool:
+    """The recipient is still someone the platform allows for the origin user (still in the class, still the linked
+    parent, account active)."""
+    from app.orchestration.models import AgentRun
+
+    if request.recipient_id == request.requester_id:
+        return True
+    requester = await db.get(User, request.requester_id)
+    if requester is None:
+        return False
+    run = await db.get(AgentRun, request.run_id) if request.run_id else None
+    room = await db.get(ClassRoom, request.class_id) if request.class_id else None
+    role = run.role if run else requester.role
+    return request.recipient_id in {r.user.id for r in await allowed_recipients(db, requester, role, room)}
+
+
+async def undeliver_for_member_loss(db: AsyncSession, user_id: str, class_id: str | None = None) -> None:
+    """A recipient who left the class (or lost a parent link) can no longer answer open questions; the agent that
+    asked is woken up and tells the origin user."""
+    query = select(PersonRequest).where(PersonRequest.recipient_id == user_id, PersonRequest.status == "open")
+    if class_id:
+        query = query.where(PersonRequest.class_id == class_id)
+    rows = list(await db.scalars(query))
     for request in rows:
         request.status = "undeliverable"
         await runs.try_mark_resumable(db, request.run_id)

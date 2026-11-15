@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -153,7 +154,22 @@ async def remove_member(class_id: str, member_id: str, user: CurrentUser, db: Db
         select(ClassMember).where(ClassMember.class_id == room.id, ClassMember.user_id == member_id)
     )
     if member:
+        from app.chat.models import Conversation, ConversationMember
+        from app.orchestration import people
+
         await db.delete(member)
+        await db.flush()
+        # Open questions to this person can no longer be answered, and they leave the class's groups (FR-039).
+        await people.undeliver_for_member_loss(db, member_id, room.id)
+        groups = select(Conversation.id).where(Conversation.class_id == room.id, Conversation.kind == "group")
+        for row in await db.scalars(
+            select(ConversationMember).where(
+                ConversationMember.user_id == member_id,
+                ConversationMember.left_at.is_(None),
+                ConversationMember.conversation_id.in_(groups),
+            )
+        ):
+            row.left_at = datetime.now(UTC)
         await db.commit()
 
 

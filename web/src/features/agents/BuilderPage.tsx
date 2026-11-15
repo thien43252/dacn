@@ -77,6 +77,14 @@ export function BuilderPage() {
       </aside>
       <section className="ea-builder__main">
         {creating && <AgentEditor key="new" onSaved={(agent) => { mine.reload(); select(agent.id); }} />}
+        {current && (
+          <div className="ea-toolbar">
+            <span className="ea-muted">Agent đã chạy, giao việc, hỏi người và bị từ chối những gì.</span>
+            <button type="button" className="button button--ghost" onClick={() => navigate(`${base}/activity/${encodeURIComponent(current.id)}`)}>
+              <Icon name="history" /> Xem hoạt động
+            </button>
+          </div>
+        )}
         {current && <AgentEditor key={current.id} agent={current} onSaved={() => mine.reload()} />}
         {!creating && !current && (
           <div className="ea-empty">

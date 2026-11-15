@@ -85,6 +85,10 @@ async def addable_agents(db, actor: User, actor_role: str, room: ClassRoom):
     found = {}
     for role in roles:
         for agent in await available_agents(db, actor, room, role):
+            # FR-003: only agents installed in the class (or the platform's own) join a group; a member's personal or
+            # self-made agent needs certification and the teacher's approval to enter the class first.
+            if agent.source not in ("class", "platform"):
+                continue
             found.setdefault(agent.slug, agent)
     return list(found.values())
 

@@ -243,15 +243,26 @@ async def run_turn(
         room = await db.get(ClassRoom, class_id) if class_id else None
         assert user is not None
 
-        # Consent gate: without a guardian's consent no agent sees the student's message, and it is not stored.
-        if role == "student" and room is not None and not await classes.student_can_use_agents(db, room, user.id):
+        # Consent gate (FR-005): without a guardian's consent no agent sees the student's message. Outside a group the
+        # message is not stored either; in a group the student still talks with the people there (edge case: consent
+        # withdrawn), only no agent answers.
+        # The account's role, not the one a teacher previews in the sandbox ("as_role": "student").
+        consented = user.role != Role.STUDENT or await classes.student_may_use_agents(db, user.id, room)
+        existing = await db.get(Conversation, payload.conversation_id) if payload.conversation_id else None
+        if not consented and not (existing is not None and existing.kind == "group"):
+            text = (
+                "Lớp này cần phụ huynh đồng ý trước khi em dùng agent. Hãy đưa mã liên kết trong mục "
+                "“Lớp của tôi” cho bố mẹ và nhờ bố mẹ bật đồng ý nhé."
+                if room is not None
+                else "Em cần phụ huynh đồng ý trước khi dùng agent. Hãy đưa mã liên kết cho bố mẹ và nhờ bố mẹ bật "
+                "đồng ý trong mục “Đồng ý & quyền riêng tư” nhé."
+            )
             yield sse(
                 {
                     "type": "notice",
                     "message_id": message_id,
                     "kind": "consent_required",
-                    "text": "Lớp này cần phụ huynh đồng ý trước khi em dùng agent. Hãy đưa mã liên kết trong mục "
-                    "“Lớp của tôi” cho bố mẹ và nhờ bố mẹ bật đồng ý nhé.",
+                    "text": text,
                 }
             )
             yield sse({"type": "done", "message_id": message_id, "status": "consent_required"})
@@ -280,7 +291,9 @@ async def run_turn(
 
         if conversation.kind == "group":
             async with _group_locks[conversation.id]:
-                async for chunk in _group_turn(db, user, role, room, conversation, payload, message_id):
+                async for chunk in _group_turn(
+                    db, user, role, room, conversation, payload, message_id, agents_allowed=consented
+                ):
                     yield chunk
             return
 
@@ -462,7 +475,15 @@ async def group_agents(db, conversation: Conversation, user: User, room: ClassRo
 
 
 async def _group_turn(
-    db, user: User, role: str, room: ClassRoom | None, conversation: Conversation, payload: ChatIn, message_id: str
+    db,
+    user: User,
+    role: str,
+    room: ClassRoom | None,
+    conversation: Conversation,
+    payload: ChatIn,
+    message_id: str,
+    *,
+    agents_allowed: bool = True,
 ) -> AsyncIterator[str]:
     """A message in a group: stored and shown to every member; an agent answers only when routed to (FR-043)."""
     from app.audit.models import GuardEvent
@@ -508,6 +529,16 @@ async def _group_turn(
     await db.commit()
     await chat_service.announce(db, user_message)
 
+    if not agents_allowed:
+        if verdict.action == "support":
+            # Without consent no agent answers, but a wellbeing signal still gets the support line, privately.
+            support = await chat_service.add_message(
+                db, conversation.id, role="assistant", content=rules.SELF_HARM_REPLY, visible_to=[user.id]
+            )
+            await db.commit()
+            await chat_service.announce(db, support)
+        yield sse({"type": "done", "message_id": message_id, "status": "ok", "agent": None, "seq": user_message.seq})
+        return
     agents = await group_agents(db, conversation, user, room, role)
     chosen = await route_group(
         text,

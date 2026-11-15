@@ -219,3 +219,23 @@ async def test_class_request_needs_certification_then_teacher(as_user, sessionma
     await teacher.post(f"/api/person-requests/{item['id']}/answer", json={"choice": "Đồng ý"})
     installed = {i["agent"]["slug"] for i in (await teacher.get(f"/api/classes/{room['id']}/agents")).json()}
     assert MANIFEST["slug"] in installed
+
+
+async def test_consent_gate_covers_the_personal_space_and_the_sandbox(as_user, fake_llm) -> None:
+    """FR-005, US5/AC5: outside a class too, a student uses agents only with a guardian's consent."""
+    _, student, parent, _ = await class_with_student(as_user)
+    agent = (await student.post("/api/agents", json={"manifest": MANIFEST})).json()
+    await student.post(f"/api/agents/{agent['id']}/versions")
+    await student.post("/api/me/agents", json={"agent_id": agent["id"]})
+    await parent.put(f"/api/parent/children/{student.user['id']}/consent", json={"allow_agents": False})
+
+    fake_llm.script("Không được tới đây.")
+    events = await chat(student, "Ôn chương 1", agent=MANIFEST["slug"])
+    assert events[-1]["status"] == "consent_required"
+    assert fake_llm.main_calls == []
+    tried = await student.post(f"/api/agents/{agent['id']}/try", json={"message": "Thử", "as_role": "student"})
+    assert tried.status_code == 403
+
+    loner = await as_user("student")  # no linked guardian at all
+    events = await chat(loner, "Xin chào")
+    assert events[-1]["status"] == "consent_required"

@@ -172,3 +172,73 @@ async def test_outsiders_cannot_join_or_post(as_user) -> None:
     )
     assert response.status_code == 404
     assert (await student.post(f"/api/chat/groups/{group['id']}/members", json={"users": []})).status_code == 403
+
+
+async def test_teacher_turn_in_a_group_is_reviewed_for_its_students(as_user, fake_llm) -> None:
+    """FR-052: everyone in a group reads the reply, so a teacher's turn is reviewed for the student members."""
+    teacher, student, _, room = await class_with_student(as_user)
+    group = (await make_group(teacher, room, [student.user["id"]])).json()
+
+    def respond(messages, system, tools, tier):
+        if tier == "main":
+            return Scripted(text="Đáp án bài 3: x = 2, lời giải đầy đủ như sau…")
+        if "lớp kiểm tra đầu ra" in system:
+            return Scripted(text='{"verdict": "block", "category": "academic_integrity", "reason": "Đáp án"}')
+        return None
+
+    fake_llm.respond_with(respond)
+    events = await chat(
+        teacher, "@tro-ly-lop cho cả lớp đáp án bài 3", class_id=room["id"], conversation_id=group["id"]
+    )
+    assert events[-1]["status"] == "blocked"
+    reviews = [c["system"] for c in fake_llm.calls if "lớp kiểm tra đầu ra" in (c["system"] or "")]
+    assert reviews and "học sinh vị thành niên" in reviews[-1]
+    seen = await conversation_messages(student, group["id"])
+    assert all("x = 2" not in m["content"] for m in seen)
+
+
+async def test_teacher_turn_in_a_teachers_only_group_keeps_answer_keys(as_user, fake_llm) -> None:
+    teacher, _, _, room = await class_with_student(as_user)
+    group = (await make_group(teacher, room, [])).json()
+    fake_llm.script("Đáp án bài 3: x = 2.")
+    events = await chat(teacher, "@tro-ly-lop đáp án bài 3", class_id=room["id"], conversation_id=group["id"])
+    assert events[-1]["status"] == "ok"
+    assert not [c for c in fake_llm.calls if "lớp kiểm tra đầu ra" in (c["system"] or "")]
+
+
+async def test_self_made_agent_cannot_join_a_group_without_the_class(as_user) -> None:
+    """FR-003: a student's own (uncertified, personal) agent is not a group candidate and cannot be added."""
+    from tests.test_agents import MANIFEST
+
+    teacher, student, _, room = await class_with_student(as_user)
+    agent = (await student.post("/api/agents", json={"manifest": MANIFEST})).json()
+    await student.post(f"/api/agents/{agent['id']}/versions")
+    assert (await student.post("/api/me/agents", json={"agent_id": agent["id"]})).status_code == 201
+    candidates = (await student.get("/api/chat/groups/candidates", params={"class_id": room["id"]})).json()
+    assert MANIFEST["slug"] not in {a["slug"] for a in candidates["agents"]}
+    assert "tro-ly-lop" in {a["slug"] for a in candidates["agents"]}
+    bad = await make_group(student, room, [teacher.user["id"]], agents=("tro-ly-lop", MANIFEST["slug"]))
+    assert bad.status_code == 422
+
+
+async def test_a_students_request_from_a_group_stays_out_of_the_group(as_user, fake_llm, drain) -> None:
+    """FR-046: a student's request sent to the teacher from a group is shown to the student and in the teacher's inbox,
+    not as a card for the whole group."""
+    from tests.test_people import card_of, script_ask
+
+    teacher, student, _, other, _, room = await family(as_user)
+    group = (await make_group(teacher, room, [student.user["id"], other.user["id"]])).json()
+    script_ask(fake_llm)
+    await chat(student, "@tro-ly-lop em xin cô cho nộp muộn", class_id=room["id"], conversation_id=group["id"])
+    card = card_of(await conversation_messages(student, group["id"]))
+    assert (await student.post(f"/api/approvals/{card['id']}/answer", json={"choice": "once"})).status_code == 200
+
+    [item] = (await teacher.get("/api/inbox")).json()
+    for viewer in (teacher, other):
+        assert not [m for m in await conversation_messages(viewer, group["id"]) if m.get("person_request")]
+    assert [m for m in await conversation_messages(student, group["id"]) if m.get("person_request")]
+
+    await teacher.post(f"/api/person-requests/{item['id']}/answer", json={"choice": "Đồng ý"})
+    await drain()
+    assert all("Đồng ý" != m["content"] for m in await conversation_messages(other, group["id"]))
+    assert any(m["content"] == "Đồng ý" for m in await conversation_messages(student, group["id"]))

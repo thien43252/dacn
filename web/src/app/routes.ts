@@ -36,6 +36,7 @@ export const navigation: Record<Role, NavigationItem[]> = {
     { label: "Agent Hub", path: "/student/hub", icon: "layers" },
     { label: "Agent của tôi", path: "/student/agents", icon: "sparkles" },
     { label: "Tạo agent", path: "/student/builder", icon: "edit" },
+    { label: "Hoạt động của tôi", path: "/student/activity", icon: "history" },
   ],
   parent: [
     { label: "Con của tôi", path: "/parent/home", icon: "team" },
@@ -45,12 +46,14 @@ export const navigation: Record<Role, NavigationItem[]> = {
     { label: "Agent Hub", path: "/parent/hub", icon: "layers" },
     { label: "Đồng ý & quyền riêng tư", path: "/parent/consent", icon: "lock" },
     { label: "Tạo agent", path: "/parent/builder", icon: "edit" },
+    { label: "Hoạt động của tôi", path: "/parent/activity", icon: "history" },
   ],
   admin: [
     { label: "Kiểm định agent", path: "/admin/certification", icon: "shield" },
     { label: "Agent nền tảng", path: "/admin/agents", icon: "layers" },
     { label: "Tool & MCP", path: "/admin/tools", icon: "layout" },
     { label: "Nhật ký hệ thống", path: "/admin/audit", icon: "history" },
+    { label: "Duyệt hành động", path: "/admin/approvals", icon: "check" },
   ],
 };
 
@@ -58,6 +61,7 @@ const messenger = (role: string): RouteMeta[] => [
   { pattern: `/${role}/chat`, title: "Tin nhắn", description: "Chat riêng với từng agent hoặc tạo nhóm với bạn bè, thầy cô, phụ huynh. Chỉ thành viên đọc được.", week: 13 },
   { pattern: `/${role}/inbox`, title: "Hộp yêu cầu", description: "Câu hỏi và yêu cầu duyệt mà agent gửi cho bạn thay mặt người khác.", week: 13 },
   { pattern: `/${role}/settings/approvals`, title: "Cài đặt duyệt", description: "Những gì agent được làm mà không hỏi lại bạn.", week: 13 },
+  { pattern: `/${role}/builder/activity/:agentId`, title: "Hoạt động của agent", description: "Agent đã chạy, giao việc, hỏi người và bị từ chối những gì, kèm kết quả.", week: 13 },
 ];
 
 export const routes: RouteMeta[] = [
@@ -83,6 +87,9 @@ export const routes: RouteMeta[] = [
   { pattern: "/admin/agents", title: "Agent nền tảng", description: "Agent mẫu do nền tảng xây dựng và duy trì.", week: 10 },
   { pattern: "/admin/tools", title: "Tool & MCP", description: "Các tool đã kiểm chứng mà agent được phép dùng.", week: 5 },
   { pattern: "/admin/audit", title: "Nhật ký hệ thống", description: "Sự kiện an toàn và chi phí gọi model toàn hệ thống.", week: 8 },
+  { pattern: "/admin/approvals", title: "Duyệt hành động", description: "Chế độ duyệt theo loại hành động và vai trò, quy tắc của admin và các quyết định duyệt.", week: 13 },
+  { pattern: "/student/activity", title: "Hoạt động của tôi", description: "Giao việc, câu hỏi gửi người và quyết định duyệt trong các cuộc trò chuyện của bạn.", week: 13 },
+  { pattern: "/parent/activity", title: "Hoạt động của tôi", description: "Giao việc, câu hỏi gửi người và quyết định duyệt trong các cuộc trò chuyện của bạn.", week: 13 },
 ];
 
 export interface MatchedRoute {

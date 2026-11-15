@@ -210,6 +210,12 @@ async def build_context(db: AsyncSession, run: AgentRun, agent_slug: str | None 
     conversation = await db.get(Conversation, run.conversation_id)
     if user is None or conversation is None:
         return None, None
+    if run.role == "student" and run.source == "chat":
+        from app.classes.service import student_may_use_agents
+
+        if not await student_may_use_agents(db, user.id, room):
+            # FR-005: consent withdrawn while the work waited; no agent runs for this student any more.
+            return None, None
     agents = await available_agents(db, user, room, run.role)
     slug = agent_slug or run.agent_slug
     agent = next((candidate for candidate in agents if candidate.slug == slug), None)

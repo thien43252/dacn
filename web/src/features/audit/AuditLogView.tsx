@@ -4,9 +4,22 @@ import { useResource } from "../../app/useResource";
 import type { AuditFilters } from "../../api-client/agents";
 import { type AgentRole, type AuditLog, categoryLabel, type GuardEvent, ROLE_LABELS } from "../../api-client/types";
 import { Icon } from "../../components/Icon";
+import { ActivityList } from "./ActivityList";
 
-const STAGE_LABELS: Record<string, string> = { input: "Đầu vào", tool: "Công cụ", output: "Đầu ra" };
-const VERDICT_LABELS: Record<string, string> = { block: "Đã chặn", support: "Hỗ trợ an toàn", redact: "Ẩn thông tin", flag: "Gắn cờ" };
+const STAGE_LABELS: Record<string, string> = {
+  input: "Đầu vào",
+  tool: "Công cụ",
+  output: "Đầu ra",
+  handoff: "Giao việc",
+  approval: "Duyệt hành động",
+};
+const VERDICT_LABELS: Record<string, string> = {
+  block: "Đã chặn",
+  support: "Hỗ trợ an toàn",
+  redact: "Ẩn thông tin",
+  flag: "Gắn cờ",
+  allow: "Cho phép",
+};
 const DETECTOR_LABELS: Record<string, string> = { rule: "Luật", policy: "Chính sách", llm: "Mô hình" };
 const SOURCE_LABELS: Record<string, string> = { chat: "Lớp học", sandbox: "Phòng thử", certify: "Kiểm định" };
 
@@ -38,6 +51,7 @@ export function AuditLogView({ load, scope, showClass = false, showSource = fals
 
   return (
     <div className="ea-page">
+      {log.data?.scope_note && <div className="ea-notice">{log.data.scope_note}</div>}
       {summary && (
         <div className="ea-stats">
           <div className="ea-stat"><span>Sự kiện {summary.days} ngày</span><strong>{summary.total}</strong></div>
@@ -122,6 +136,12 @@ export function AuditLogView({ load, scope, showClass = false, showSource = fals
             </tbody>
           </table>
         </div>
+      )}
+      {log.data?.activity && (
+        <section className="ea-page">
+          <h3>Giao việc, hỏi người và duyệt hành động</h3>
+          <ActivityList rows={log.data.activity} empty="Chưa có lần giao việc, câu hỏi gửi người hay quyết định duyệt nào." />
+        </section>
       )}
     </div>
   );
