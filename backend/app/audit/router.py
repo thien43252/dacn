@@ -143,7 +143,11 @@ async def class_audit(
     room, _ = await classes.load_class(db, class_id, user, {"teacher"})
     groups = member_group_ids(user.id)
     condition = (
-        (GuardEvent.class_id == room.id) & (GuardEvent.source == "chat") & GuardEvent.conversation_id.in_(groups)
+        (GuardEvent.class_id == room.id)
+        & (GuardEvent.source == "chat")
+        & GuardEvent.conversation_id.in_(groups)
+        # Feature 004 (FR-028): answers withheld during an exam are never shown to teachers, even in their groups.
+        & (GuardEvent.category != "exam_integrity")
     )
     query = _filters(select(GuardEvent).where(condition), stage, verdict)
     return AuditOut(

@@ -10,4 +10,5 @@ from app.certify import models as certify_models  # noqa: F401,E402
 from app.chat import models as chat_models  # noqa: F401,E402
 from app.classes import models as classes_models  # noqa: F401,E402
 from app.knowledge import models as knowledge_models  # noqa: F401,E402
+from app.lms import models as lms_models  # noqa: F401,E402
 from app.orchestration import models as orchestration_models  # noqa: F401,E402

@@ -35,7 +35,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const data = (await response.json().catch(() => ({}))) as { detail?: string } & T;
   if (!response.ok) {
-    throw new ApiError(data.detail || "Không kết nối được máy chủ. Vui lòng thử lại.", response.status);
+    const message = typeof data.detail === "string" ? data.detail : undefined;
+    throw new ApiError(message || (response.status === 422 ? "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường." : "Không kết nối được máy chủ. Vui lòng thử lại."), response.status);
   }
   return data;
 }

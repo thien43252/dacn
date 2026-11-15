@@ -193,16 +193,21 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / norm if norm else 0.0
 
 
-async def search(db: AsyncSession, class_id: str, query: str, top_k: int = 4) -> tuple[list[SearchHit], Usage]:
+async def search(
+    db: AsyncSession, class_id: str, query: str, top_k: int = 4, document_ids: list[str] | None = None
+) -> tuple[list[SearchHit], Usage]:
     embedder = get_embedder()
     [vector] = await embedder.embed([query])
     usage = Usage(provider=embedder.provider, model=embedder.model, input_tokens=max(1, len(query) // 4))
+    filters = [DocumentChunk.class_id == class_id, Document.status == "ready"]
+    if document_ids is not None:
+        filters.append(DocumentChunk.document_id.in_(document_ids))
     if db.bind.dialect.name == "postgresql":
         distance = DocumentChunk.embedding.cosine_distance(vector)  # type: ignore[attr-defined]
         rows = await db.execute(
             select(DocumentChunk, Document.title, distance.label("distance"))
             .join(Document, Document.id == DocumentChunk.document_id)
-            .where(DocumentChunk.class_id == class_id, Document.status == "ready")
+            .where(*filters)
             .order_by(distance)
             .limit(top_k)
         )
@@ -214,7 +219,7 @@ async def search(db: AsyncSession, class_id: str, query: str, top_k: int = 4) ->
         rows = await db.execute(
             select(DocumentChunk, Document.title)
             .join(Document, Document.id == DocumentChunk.document_id)
-            .where(DocumentChunk.class_id == class_id, Document.status == "ready")
+            .where(*filters)
         )
         scored = [
             SearchHit(

@@ -31,6 +31,8 @@ uv sync
 uv run alembic upgrade head
 uv run python -m scripts.seed_demo --ensure   # tài khoản demo (mật khẩu Demo123!), lũy đẳng: chạy lại an toàn
 # Tài khoản: teacher@, student@, parent@, admin@ và (feature 003) toan@ (GV Toán), student2@, parent2@demo.edu.vn
+# Feature 004: lớp demo có sẵn buổi học, quiz, bài tập, bài nộp mẫu và agent Trợ giảng LMS (tro-giang-lms).
+# Tệp của buổi học lưu ở backend/data/uploads/lms; giới hạn tùy chọn LMS_MAX_FILE_MB=25, LMS_MAX_VIDEO_MB=200 trong .env.
 uv run uvicorn app.main:app --reload --port 8001   # kèm worker chạy giao việc giữa agent (WORKER_ENABLED)
 
 # Frontend (http://127.0.0.1:5173, proxy /api -> 8001)
@@ -48,6 +50,8 @@ TEST_DATABASE_URL=postgresql+asyncpg://eduagent:eduagent@127.0.0.1:5433/eduagent
 cd web && npm test && npm run build
 # Feature 003: hàng rào giao việc giữa agent và hỏi người (mô hình fake, 7 kịch bản)
 cd backend && uv run python ../eval/run_delegation.py
+# Feature 004: chặn đưa đáp án khi học sinh đang làm bài kiểm tra (SC-006), qua 3 kênh chat
+cd backend && uv run python ../eval/run_exam_integrity.py
 ```
 
 Test backend không cần database hay API key (LLM adapter `fake`).
@@ -85,6 +89,12 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
   (`ask_person`: chính người dùng, giáo viên bộ môn, chủ nhiệm, phụ huynh) qua hộp yêu cầu; duyệt hành động kiểu OpenBot
   (4 lựa chọn, chế độ theo vai trò, "Cực kỳ cẩn thận"); học sinh và phụ huynh tự tạo agent. Kiểm tra bằng
   `eval/run_delegation.py`.
+- Feature 004 (spec `specs/004-lms-lessons`): LMS trong lớp: buổi học (tài liệu, video tải lên hoặc link, liên kết,
+  văn bản, hẹn giờ mở, "cho agent đọc"), quiz/bài kiểm tra 5 loại câu (đồng hồ phía server, lưu nháp, tự nộp, chấm
+  tự động, chấm lại, bí mật đáp án), bài tập (nhiều phiên bản, nộp muộn và trừ điểm, gia hạn riêng, trả bài), sổ điểm
+  có trọng số và xuất CSV, việc cần làm, thông báo trong ứng dụng, trang theo dõi của phụ huynh. Mọi agent từ chối đưa
+  đáp án cho học sinh đang làm bài kiểm tra (không báo cho giáo viên); agent Hub Trợ giảng LMS gợi ý câu hỏi và gợi ý
+  chấm, chỉ có hiệu lực khi giáo viên duyệt.
 - Tuần 11: script thực nghiệm `eval/run_redteam.py`, `run_routing.py`, `run_certify.py` và bộ 20 agent có nhãn
   (`eval/certify_agents.yaml`); xem [eval/README.md](eval/README.md).
 - Tuần 12: kịch bản demo [docs/DEMO.md](docs/DEMO.md), bản nháp báo cáo [docs/BAO-CAO.md](docs/BAO-CAO.md), test e2e

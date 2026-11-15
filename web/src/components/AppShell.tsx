@@ -12,6 +12,7 @@ import { ChatPanel } from "./ChatPanel";
 import { Icon } from "./Icon";
 import { Logo } from "./Logo";
 import { ScreenBanner, toneOf } from "./ScreenBanner";
+import { NotificationBell } from "../features/lms/NotificationBell";
 import "../styles/workspace-readability.css";
 import "../styles/studio-screens.css";
 import "../features/chat/messenger.css";
@@ -122,6 +123,7 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
             <span className="profile-avatar" aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
             {!collapsed && <div><strong>{user.name}</strong><small>{roleLabels[user.role]}</small></div>}
           </button>
+          <NotificationBell />
           <button className="icon-button" type="button" onClick={signOut} aria-label="Đăng xuất"><Icon name="logout" /></button>
         </div>
       </aside>

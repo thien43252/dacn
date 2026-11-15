@@ -23,6 +23,13 @@ from app.classes.router import router as classes_router
 from app.config import get_settings
 from app.db import dispose_engine, ping_database, session_factory
 from app.knowledge.router import router as documents_router
+from app.lms import assignments as lms_assignments
+from app.lms import assist as lms_assist
+from app.lms import files as lms_files
+from app.lms import gradebook as lms_gradebook
+from app.lms import lessons as lms_lessons
+from app.lms import notify as lms_notify
+from app.lms import quizzes as lms_quizzes
 from app.orchestration import worker
 from app.orchestration.router import router as orchestration_router
 from app.reports.router import router as reports_router
@@ -113,6 +120,9 @@ def create_app() -> FastAPI:
     api.include_router(certify_router)
     api.include_router(reports_router)
     api.include_router(tools_router)
+    # Feature 004 (LMS)
+    for module in (lms_files, lms_notify, lms_lessons, lms_quizzes, lms_assignments, lms_gradebook, lms_assist):
+        api.include_router(module.router)
     app.include_router(api)
     return app
 

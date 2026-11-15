@@ -24,6 +24,10 @@ from app.classes.models import ClassMember, ClassRoom
 from app.db import dispose_engine, get_session
 from app.knowledge import service as knowledge
 from app.knowledge.models import Document
+from app.lms import aware, now
+from app.lms.grading import late_penalty
+from app.lms.lessons import embed_for
+from app.lms.models import Assignment, Lesson, LessonItem, LmsFile, Quiz, QuizQuestion, Submission, SubmissionVersion
 from app.orchestration.models import ALWAYS_ASK, ApprovalKindMode
 
 SEED_DIR = Path(__file__).resolve().parents[2] / "seed"
@@ -305,6 +309,248 @@ async def seed_teacher_agents(db, teacher: User) -> None:
     await db.commit()
 
 
+async def ensure_lms(db) -> None:
+    """Add missing LMS demo content without replacing teachers' edits or students' work."""
+    teacher = await get_user_by_email(db, "teacher@demo.edu.vn")
+    if teacher is None:
+        return
+    room = await db.scalar(
+        select(ClassRoom).where(ClassRoom.owner_id == teacher.id, ClassRoom.name == DEMO_CLASS["name"])
+    )
+    if room is None:
+        return
+    await install(db, "tro-giang-lms", installed_by=teacher, class_id=room.id)
+    at = now()
+
+    async def lesson(title, status, position):
+        row = await db.scalar(select(Lesson).where(Lesson.class_id == room.id, Lesson.title == title))
+        if row is None:
+            row = Lesson(class_id=room.id, title=title, status=status, position=position, created_by=teacher.id)
+            db.add(row)
+            await db.flush()
+        return row
+
+    async def item(parent, title, kind, position, **values):
+        row = await db.scalar(
+            select(LessonItem).where(
+                LessonItem.class_id == room.id, LessonItem.lesson_id == parent.id, LessonItem.title == title
+            )
+        )
+        if row is None:
+            row = LessonItem(class_id=room.id, lesson_id=parent.id, title=title, kind=kind, position=position, **values)
+            db.add(row)
+            await db.flush()
+        return row
+
+    first = await lesson("Buổi 1 - Phương trình bậc nhất", "published", 0)
+    content = await item(first, "Tài liệu - Phương trình bậc nhất một ẩn", "file", 0)
+    if content.file_id is None:
+        source = SEED_DIR / "documents" / "chuong-3-phuong-trinh-bac-nhat.md"
+        file = await db.scalar(
+            select(LmsFile).where(
+                LmsFile.class_id == room.id,
+                LmsFile.owner_id == teacher.id,
+                LmsFile.purpose == "content",
+                LmsFile.filename == source.name,
+            )
+        )
+        if file is None:
+            file = LmsFile(
+                class_id=room.id,
+                owner_id=teacher.id,
+                purpose="content",
+                filename=source.name,
+                content_type="text/markdown",
+                size_bytes=source.stat().st_size,
+            )
+            db.add(file)
+            await db.flush()
+            target = knowledge.storage_root() / "lms" / room.id / f"{file.id}{source.suffix}"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            file.storage_path = str(target)
+        content.file_id = file.id
+        # document_id stays null: "cho agent đọc" is off.
+    video_url = "https://www.youtube.com/watch?v=NybHckSEQBI"
+    await item(first, "Video - Ôn tập phương trình", "video", 1, url=video_url, embed_url=embed_for(video_url)[1])
+    await item(
+        first,
+        "Hướng dẫn học tập",
+        "text",
+        2,
+        body="Đọc tài liệu, ôn quy tắc chuyển vế và quy tắc nhân. Giải 2x + 3 = 17 rồi thử lại nghiệm trước khi làm bài kiểm tra.",
+    )
+    quiz_item = await item(first, "Kiểm tra 15 phút", "quiz", 3)
+    if await db.get(Quiz, quiz_item.id) is None:
+        db.add(
+            Quiz(
+                item_id=quiz_item.id,
+                class_id=room.id,
+                duration_minutes=15,
+                max_attempts=1,
+                show_answers="after_close",
+                close_at=at + timedelta(days=7),
+                block_agents=True,
+            )
+        )
+        await db.flush()
+    questions = [
+        {
+            "kind": "single",
+            "prompt": "Nghiệm của phương trình 3x - 6 = 0 là bao nhiêu?",
+            "options": [{"id": "a", "text": "2"}, {"id": "b", "text": "-2"}, {"id": "c", "text": "6"}],
+            "answer_key": "a",
+            "points": 2,
+            "explanation": "3x = 6 nên x = 2.",
+        },
+        {
+            "kind": "multi",
+            "prompt": "Chọn các phương trình có nghiệm x = 2.",
+            "options": [
+                {"id": "a", "text": "x + 3 = 5"},
+                {"id": "b", "text": "2x = 4"},
+                {"id": "c", "text": "x - 1 = 3"},
+            ],
+            "answer_key": ["a", "b"],
+            "multi_scoring": "partial",
+            "points": 2,
+            "explanation": "Thay x = 2 vào từng phương trình để kiểm tra hai vế.",
+        },
+        {
+            "kind": "true_false",
+            "prompt": "Khi chuyển một hạng tử sang vế kia của phương trình, ta phải đổi dấu hạng tử đó.",
+            "answer_key": True,
+            "points": 1,
+        },
+        {
+            "kind": "short",
+            "prompt": "Giải phương trình 2x + 3 = 17.",
+            "answer_key": ["7", "x = 7"],
+            "points": 2,
+        },
+        {
+            "kind": "essay",
+            "prompt": "Giải phương trình 3(x - 2) = 2x + 1 và giải thích từng bước biến đổi.",
+            "points": 3,
+            "rubric": {
+                "criteria": [
+                    {
+                        "name": "Lập luận",
+                        "max_points": 2,
+                        "description": "Khai triển và chuyển vế đúng, tìm được nghiệm.",
+                    },
+                    {"name": "Trình bày", "max_points": 1, "description": "Ghi rõ các bước và thử lại nghiệm."},
+                ],
+                "model_answer": "3x - 6 = 2x + 1; 3x - 2x = 1 + 6; x = 7. Thay lại: hai vế đều bằng 15.",
+            },
+        },
+    ]
+    for position, values in enumerate(questions):
+        existing = await db.scalar(
+            select(QuizQuestion.id).where(
+                QuizQuestion.class_id == room.id,
+                QuizQuestion.quiz_id == quiz_item.id,
+                QuizQuestion.prompt == values["prompt"],
+            )
+        )
+        if existing is None:
+            db.add(QuizQuestion(class_id=room.id, quiz_id=quiz_item.id, position=position, **values))
+    assignment_item = await item(first, "Bài tập về nhà 1", "assignment", 4)
+    assignment = await db.get(Assignment, assignment_item.id)
+    if assignment is None:
+        assignment = Assignment(
+            item_id=assignment_item.id,
+            class_id=room.id,
+            prompt="Giải 4x - 5 = 23 và 2(x + 3) = 18. Trình bày các bước biến đổi và thử lại mỗi nghiệm.",
+            due_at=at + timedelta(days=3),
+            max_points=10,
+            allow_late=True,
+            late_penalty_per_day_pct=10,
+            late_penalty_max_pct=30,
+            rubric={
+                "criteria": [
+                    {
+                        "name": "Giải phương trình",
+                        "max_points": 8,
+                        "description": "Mỗi phương trình giải đúng được 4 điểm.",
+                    },
+                    {
+                        "name": "Thử lại và trình bày",
+                        "max_points": 2,
+                        "description": "Thử lại cả hai nghiệm và ghi rõ kết luận.",
+                    },
+                ],
+                "model_answer": "4x = 28 nên x = 7, thử lại 28 - 5 = 23. x + 3 = 9 nên x = 6, thử lại 2(6 + 3) = 18.",
+            },
+        )
+        db.add(assignment)
+        await db.flush()
+    second = await lesson("Buổi 2 - Hệ phương trình", "draft", 1)
+    await item(
+        second,
+        "Chuẩn bị cho buổi học tiếp theo",
+        "text",
+        0,
+        body="Ôn cách thay giá trị vào biểu thức. Tìm hai số có tổng bằng 10 và hiệu bằng 2, rồi viết hai đẳng thức tương ứng.",
+    )
+    for email, text in (
+        ("student@demo.edu.vn", "4x - 5 = 23 nên 4x = 28, x = 7. 2(x + 3) = 18 nên x + 3 = 9, x = 6."),
+        ("student2@demo.edu.vn", "Bài 1: x = 7, thử lại 4 × 7 - 5 = 23. Bài 2: x = 6, thử lại 2 × (6 + 3) = 18."),
+    ):
+        student = await get_user_by_email(db, email)
+        if student is None:
+            continue
+        member = await db.scalar(
+            select(ClassMember.id).where(
+                ClassMember.class_id == room.id, ClassMember.user_id == student.id, ClassMember.role == "student"
+            )
+        )
+        if member is None or await db.scalar(
+            select(Submission.id).where(
+                Submission.assignment_id == assignment.item_id, Submission.student_id == student.id
+            )
+        ):
+            continue
+        result = late_penalty(
+            8 if email == "student@demo.edu.vn" else None,
+            assignment.max_points,
+            at,
+            aware(assignment.due_at),
+            assignment.late_penalty_per_day_pct,
+            assignment.late_penalty_max_pct,
+        )
+        submission = Submission(
+            assignment_id=assignment.item_id,
+            class_id=room.id,
+            student_id=student.id,
+            latest_version=1,
+            is_late=result.days_late > 0,
+            days_late=result.days_late,
+            penalty=result.penalty,
+        )
+        db.add(submission)
+        await db.flush()
+        db.add(
+            SubmissionVersion(
+                submission_id=submission.id, version_no=1, text=text, submitted_at=at, is_late=submission.is_late
+            )
+        )
+        if email == "student@demo.edu.vn":
+            submission.status = "graded"
+            submission.raw_score = 8
+            submission.final_score = result.final
+            submission.feedback = (
+                "Em tìm đúng hai nghiệm và biến đổi rõ ràng. Cần bổ sung bước thử lại cả hai phương trình."
+            )
+            submission.graded_by = teacher.id
+            submission.graded_at = at
+            await db.flush()
+            submission.status = "returned"
+            submission.returned_at = at
+    await db.commit()
+    print("LMS demo ensured")
+
+
 async def main() -> None:
     # Windows consoles default to cp1252; names and titles are Vietnamese.
     sys.stdout.reconfigure(encoding="utf-8")
@@ -313,6 +559,7 @@ async def main() -> None:
         print(f"platform agents synced ({', '.join(changed) or 'no changes'})")
         users = await seed_accounts(db)
         await seed_class(db, users)
+        await ensure_lms(db)
         await seed_approval_modes(db)
     await dispose_engine()
 

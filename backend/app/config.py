@@ -51,6 +51,9 @@ class Settings(BaseSettings):
 
     # Class documents are stored here (relative to backend/).
     upload_dir: str = "data/uploads"
+    # Feature 004 (LMS): upload limits in MB (documents/images/submissions, and videos).
+    lms_max_file_mb: int = 25
+    lms_max_video_mb: int = 200
 
     # Agent-to-agent handoffs (feature 003). Depth 0 turns handoffs off everywhere.
     handoff_max_depth: int = 2

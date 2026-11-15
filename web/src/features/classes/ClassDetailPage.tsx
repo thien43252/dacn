@@ -11,6 +11,8 @@ import { ClassAgentsTab } from "../agents/ClassAgentsTab";
 import { AuditLogView } from "../audit/AuditLogView";
 import { DocumentsTab } from "../documents/DocumentsTab";
 import { ClassProgressTab } from "../reports/ReportPages";
+import { LessonsTab } from "../lms/LessonsTab";
+import { GradebookTab } from "../lms/GradebookTab";
 import { ClassFormDialog } from "./ClassForm";
 import { MembersTab } from "./MembersTab";
 import { PolicyTab } from "./PolicyTab";
@@ -32,6 +34,7 @@ export function ClassDetailPage({ classId }: { classId: string }) {
   }
   if (!room.data) return <p className="ea-muted">Đang tải lớp…</p>;
   const data = room.data;
+  const teacher = data.my_role === "teacher";
 
   async function rotate() {
     try {
@@ -54,7 +57,7 @@ export function ClassDetailPage({ classId }: { classId: string }) {
 
   return (
     <div className="ea-page">
-      <button className="ea-back" type="button" onClick={() => navigate("/teacher/classes")}><Icon name="chevron-left" /> Lớp của tôi</button>
+      <button className="ea-back" type="button" onClick={() => navigate(data.my_role === "student" ? "/student/classes" : data.my_role === "parent" ? "/parent/home" : "/teacher/classes")}><Icon name="chevron-left" /> Lớp của tôi</button>
       <section className="ea-card">
         <div className="ea-card__meta">
           <span className="ea-chip">{subjectLabel(data.subject)}</span>
@@ -64,12 +67,24 @@ export function ClassDetailPage({ classId }: { classId: string }) {
         </div>
         <div className="ea-toolbar">
           <h2>{data.name}</h2>
-          <div className="ea-toolbar__actions">
-            <button className="button button--secondary" type="button" onClick={() => setEditing(true)}><Icon name="edit" /> Sửa</button>
-          </div>
+          {teacher ? (
+            <div className="ea-toolbar__actions">
+              <button className="button button--secondary" type="button" onClick={() => setEditing(true)}><Icon name="edit" /> Sửa</button>
+            </div>
+          ) : data.my_role === "student" ? (
+            <div className="ea-toolbar__actions">
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => navigate(`/student/classes/${data.id}/grades`)}
+              >
+                <Icon name="check" /> Điểm của tôi
+              </button>
+            </div>
+          ) : null}
         </div>
         {data.description && <p className="ea-muted">{data.description}</p>}
-        {data.join_code && (
+        {teacher && data.join_code && (
           <div className="ea-inline-form">
             <span className="ea-code" aria-label="Mã lớp">{data.join_code}</span>
             <button className="button button--secondary" type="button" onClick={() => void copyCode()}>Sao chép mã</button>
@@ -83,6 +98,17 @@ export function ClassDetailPage({ classId }: { classId: string }) {
         ariaLabel="Quản lý lớp"
         idPrefix="class"
         tabs={[
+          { id: "lessons", label: "Buổi học", description: "Buổi học, tài liệu, video, bài tập và bài kiểm tra.", render: () => <LessonsTab room={data} /> },
+          ...(teacher
+            ? [
+                {
+                  id: "gradebook",
+                  label: "Sổ điểm",
+                  description: "Sổ điểm học sinh và xuất CSV.",
+                  render: () => <GradebookTab room={data} />,
+                },
+              ]
+            : []),
           { id: "members", label: "Thành viên", description: "Học sinh, phụ huynh đã liên kết và trạng thái đồng ý.", render: () => <MembersTab room={data} /> },
           { id: "agents", label: "Agent", description: "Agent đang dùng trong lớp.", render: () => <ClassAgentsTab room={data} /> },
           { id: "documents", label: "Tài liệu", description: "Tài liệu agent được phép đọc khi trả lời trong lớp.", render: () => <DocumentsTab room={data} /> },

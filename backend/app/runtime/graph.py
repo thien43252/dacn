@@ -36,6 +36,7 @@ from app.classes.models import ClassRoom
 from app.guard import classifier, rules
 from app.guard.rules import Verdict
 from app.llm.base import ChatModel, Completion, LLMError, Message, TextDelta, Usage
+from app.lms import integrity
 from app.runtime.prompts import build_system_prompt
 from app.runtime.router import route
 from app.tools import registry as tools
@@ -160,6 +161,32 @@ def _blocked(ctx: RunContext, stage: str, text: str) -> ChatState:
     return {"reply": text, "status": "blocked", "blocked_stage": stage}
 
 
+async def exam_readers(ctx: RunContext) -> list[str]:
+    """Feature 004 (FR-028): the students who will read this turn's reply: the sender in a direct chat, every current
+    student member in a group."""
+    if ctx.conversation_kind != "group":
+        return [ctx.user.id] if ctx.role == "student" else []
+    from sqlalchemy import select
+
+    from app.chat.models import ConversationMember
+
+    return list(
+        await ctx.db.scalars(
+            select(User.id)
+            .join(ConversationMember, ConversationMember.user_id == User.id)
+            .where(
+                ConversationMember.conversation_id == ctx.conversation.id,
+                ConversationMember.left_at.is_(None),
+                User.role == "student",
+            )
+        )
+    )
+
+
+def _exam_verdict(reason: str, detector: str) -> Verdict:
+    return Verdict("block", "exam_integrity", reason, detector, "medium")
+
+
 async def screen(state: ChatState) -> ChatState:
     ctx = state["ctx"]
     if ctx.guard_mode != "full":
@@ -169,6 +196,11 @@ async def screen(state: ChatState) -> ChatState:
     if verdict.blocks:
         ctx.log("input", verdict, text)
         return _blocked(ctx, "input", rules.SELF_HARM_REPLY if verdict.category == "self_harm" else INPUT_BLOCKED)
+    if ctx.role == "student" and ctx.source == "chat":
+        exams = await integrity.active_exams(ctx.db, [ctx.user.id])
+        if exams and integrity.matches_question(text, exams) is not None:
+            ctx.log("input", _exam_verdict("Hỏi câu của bài kiểm tra đang làm", "rule"), text)
+            return _blocked(ctx, "input", integrity.EXAM_BLOCKED)
     topic = rules.policy_topics(text, (ctx.room.policy or {}).get("blocked_topics", []) if ctx.room else [])
     if topic:
         ctx.log("input", Verdict("block", "class_policy", f"Chủ đề bị chặn trong lớp: {topic}", "policy"), text)
@@ -412,6 +444,22 @@ async def review(state: ChatState) -> ChatState:
         ctx.log("output", verdict, verdict.text, agent.slug)
         _replace(ctx, verdict.text)
         reply = verdict.text
+    # Feature 004 (FR-028): nobody reading this reply mid-exam may get that exam's answers, whoever asked.
+    exams = await integrity.active_exams(ctx.db, await exam_readers(ctx)) if ctx.source == "chat" else []
+    if exams:
+        if integrity.reveals_answer(reply, user_text, exams):
+            ctx.log("output", _exam_verdict("Câu trả lời lộ đáp án bài kiểm tra đang mở", "rule"), reply, agent.slug)
+            _replace(ctx, integrity.EXAM_BLOCKED)
+            return {"reply": integrity.EXAM_BLOCKED, "status": "blocked", "blocked_stage": "output"}
+        started = time.perf_counter()
+        verdict, usage = await classifier.review_output(
+            ctx.chat_model, reply, user_text, await _review_role(ctx), True, integrity.exam_context(exams)
+        )
+        ctx.timed("output_guard", usage, started)
+        if verdict.blocks and verdict.category == "exam_integrity":
+            ctx.log("output", verdict, reply, agent.slug)
+            _replace(ctx, integrity.EXAM_BLOCKED)
+            return {"reply": integrity.EXAM_BLOCKED, "status": "blocked", "blocked_stage": "output"}
     # Teachers get answer keys and full solutions by design; the model review protects students and parents. In a
     # group everyone reads the reply, so it is reviewed for the strictest role among the viewers (FR-052).
     role = await _review_role(ctx)

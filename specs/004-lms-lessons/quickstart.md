@@ -50,3 +50,35 @@ Kiểm thử trên trình duyệt: dùng skill `run-eduagent` cho các kịch b�
 - SC-006: `uv run python ../eval/run_exam_integrity.py --provider <tên>` → tỉ lệ từ chối mỗi kênh ≥ 95%.
 - SC-009/SC-010: `uv run python ../eval/run_lms_assist.py --provider <tên>` trên tài liệu và bộ 30 bài tự luận có điểm
   giáo viên trong `eval/lms_assist/` → tỉ lệ câu duyệt không sửa ≥ 80%, độ lệch ≤ 1 điểm ở ≥ 80% bài.
+
+## Kết quả kiểm thử đầu-cuối (2026-11-16)
+
+Chạy trên stack của `.\dev.ps1` (Postgres `eduagent_main`, migration 0007, seed `--ensure`, LLM thật), trình duyệt
+Chrome qua skill `run-eduagent`. Kịch bản không chạy trên trình duyệt được ghi rõ là "test tự động", tức là được kiểm
+bằng pytest (310+ test, chạy trên cả SQLite và Postgres).
+
+| # | Kết quả | Ghi chú |
+|---|---|---|
+| 1 | Đạt | Tab "Buổi học" đứng đầu; GV tạo buổi, tải PDF vào mục tài liệu; HS xem buổi đã công bố, video YouTube nhúng phát trong trang, tệp .md có nút tải |
+| 2 | Test tự động | `test_lms_lessons.py` (publish_at tương lai → `locked`) |
+| 3 | Đạt | Tệp `.exe` bị từ chối kèm danh sách định dạng; giới hạn dung lượng: `test_lms_files.py` |
+| 4 | Test tự động | `test_lms_lessons.py` (bật/tắt "cho agent đọc", tìm kiếm thấy nội dung) |
+| 5 | Đạt | Làm quiz 15 phút, đồng hồ chạy, "Đã lưu", tải lại trang vẫn còn lựa chọn; nộp có xác nhận; bài có tự luận hiện "Chờ chấm" |
+| 6 | Test tự động | `test_lms_quizzes.py` (hết giờ tự nộp, lưu sau hạn → 409 `attempt_closed`) |
+| 7 | Đạt | Response `POST attempts` của HS không có `answer_key`/`explanation`/`rubric`; mọi tổ hợp chế độ: `test_lms_quizzes.py` |
+| 8 | Test tự động | `test_lms_quizzes.py` (chấm lại + `grade_audit`) |
+| 9 | Đạt (kênh a) | HS đang làm bài dán câu 1 vào chat Trợ lý lớp → bị từ chối với thông báo bài kiểm tra; kênh b, c và nhật ký GV: `test_lms_integrity.py`, `eval/run_exam_integrity.py` (96/96 mỗi kênh với mô hình fake) |
+| 10 | Test tự động | `test_lms_integrity.py` (`block_agents=false`) |
+| 11 | Đạt | HS nộp lại qua UI (2 phiên bản); ví dụ trừ muộn 8 → 5: `test_lms_assignments.py`, `test_lms_grading.py` |
+| 12 | Test tự động | `test_lms_assignments.py` (gia hạn riêng) |
+| 13 | Test tự động | `test_lms_assist.py`; nút "Gợi ý câu hỏi" có trong màn soạn quiz |
+| 14 | Đạt | Gợi ý chấm bằng `tro-giang-lms` (mô hình thật, 8/10 kèm lý do từng tiêu chí); HS không thấy điểm trước khi GV duyệt và trả; sau khi trả HS thấy điểm, trừ muộn, điểm cuối, nhận xét |
+| 15 | Test tự động | `test_lms_assist.py` (`skipped_consent`, không gọi mô hình) |
+| 16 | Test tự động | `test_lms_assist.py` (gỡ agent → 409, gợi ý cũ còn) |
+| 17 | Đạt | Tab "Sổ điểm" đúng trạng thái/điểm; CSV có BOM, nhãn tiếng Việt |
+| 18 | Đạt | "Việc cần làm" của HS2 liệt kê quiz chưa làm kèm hạn |
+| 19 | Đạt | Phụ huynh xem việc cần làm và "Điểm đã trả" của con (8/10); đọc dữ liệu HS khác → 404; toàn bộ endpoint: `test_lms_access.py` |
+| 20 | Đạt | Sau khi GV trả bài, chuông của HS có 1 thông báo "returned" |
+
+Lỗi tìm thấy khi kiểm thử và đã sửa: gợi ý chấm chọn nhầm agent chấm Văn trong lớp Toán (nay ưu tiên agent đúng môn
+hoặc "chung"); CSV ghi mã trạng thái tiếng Anh (nay ghi nhãn tiếng Việt).

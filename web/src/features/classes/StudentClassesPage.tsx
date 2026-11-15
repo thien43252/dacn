@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { errorMessage, useResource } from "../../app/useResource";
 import { classesApi, familyApi } from "../../api-client/classes";
 import { subjectLabel } from "../../api-client/types";
+import { navigate } from "../../app/router";
 import { Icon } from "../../components/Icon";
 
 export function StudentClassesPage() {
@@ -47,8 +48,25 @@ export function StudentClassesPage() {
         {(classes.data ?? []).map((room) => (
           <article key={room.id} className="ea-card">
             <div className="ea-card__meta"><span className="ea-chip">{subjectLabel(room.subject)}</span><span>Lớp {room.grade}</span></div>
-            <h3>{room.name}</h3>
+            <h3>
+              <button
+                className="lms-link-button"
+                type="button"
+                onClick={() => navigate(`/student/classes/${room.id}`)}
+              >
+                {room.name}
+              </button>
+            </h3>
             <span className="ea-muted">Giáo viên: {room.teacher_name}</span>
+            <div style={{ marginTop: "var(--space-3)" }}>
+              <button
+                className="button button--secondary button--sm"
+                type="button"
+                onClick={() => navigate(`/student/classes/${room.id}`)}
+              >
+                Vào lớp học & buổi học <Icon name="chevron-right" />
+              </button>
+            </div>
           </article>
         ))}
       </div>

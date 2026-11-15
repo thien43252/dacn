@@ -17,12 +17,35 @@ log = logging.getLogger("eduagent.worker")
 _task: asyncio.Task | None = None
 
 
+_lms_last = 0.0
+LMS_EVERY_SECONDS = 20.0
+
+
+async def _lms_jobs(db) -> None:
+    """Feature 004: close overdue quiz attempts, scheduled lesson publishing, due-soon reminders. Throttled; tests
+    call `app.lms.jobs.run_due` directly."""
+    global _lms_last
+    import time
+
+    from app.lms import jobs as lms_jobs
+
+    if time.monotonic() - _lms_last < LMS_EVERY_SECONDS:
+        return
+    _lms_last = time.monotonic()
+    try:
+        await lms_jobs.run_due(db)
+    except Exception as error:  # one failing LMS step must not stop handoffs
+        log.error("lms jobs failed: %r", error)
+        await db.rollback()
+
+
 async def tick(*, concurrent: bool = True) -> int:
     from app.runtime.run import expire_cards, resume
 
     async with session_factory()() as db:
         await expire_cards(db)
         await db.commit()
+        await _lms_jobs(db)
         handoff_ids = await handoffs.claimable_ids(db)
         run_ids = await runs.resumable_ids(db)
     jobs = [handoffs.execute(handoff_id) for handoff_id in handoff_ids] + [resume(run_id) for run_id in run_ids]

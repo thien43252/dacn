@@ -1,0 +1,11 @@
+# Khoa học tự nhiên 8: Áp suất trên một bề mặt
+
+Áp lực là lực ép có phương vuông góc với mặt bị ép. Khi một chiếc hộp nằm yên trên bàn ngang, lực ép của hộp tác dụng lên bàn là một ví dụ về áp lực. Không phải mọi lực tác dụng lên vật đều là áp lực đối với một mặt đang xét. Muốn nhận biết áp lực, cần chỉ rõ mặt bị ép và xem lực có phương vuông góc với mặt đó hay không. Trong bài học này, ta xét áp lực phân bố đều trên diện tích tiếp xúc.
+
+Áp suất cho biết mức độ tác dụng của áp lực trên một đơn vị diện tích bị ép. Công thức tính là p = F/S, với p là áp suất, F là độ lớn áp lực và S là diện tích bị ép. Trong hệ đơn vị SI, F đo bằng niutơn, kí hiệu N; S đo bằng mét vuông, kí hiệu m²; p đo bằng pascal, kí hiệu Pa. Một pascal bằng một niutơn trên một mét vuông. Khi tính toán, phải đổi diện tích về mét vuông trước khi thay vào công thức.
+
+Ví dụ, một vật tác dụng áp lực 120 N lên diện tích 0,04 m². Áp suất do vật gây ra là 120 chia 0,04, bằng 3000 Pa. Nếu giữ nguyên áp lực nhưng tăng diện tích tiếp xúc lên 0,08 m² thì áp suất còn 1500 Pa. Như vậy, với cùng áp lực, diện tích bị ép tăng gấp đôi làm áp suất giảm một nửa. Nếu giữ nguyên diện tích mà tăng áp lực gấp đôi thì áp suất tăng gấp đôi. Cần nói rõ đại lượng nào được giữ cố định khi so sánh.
+
+Đầu đinh được làm nhọn để diện tích tiếp xúc với gỗ nhỏ. Với cùng lực đóng, áp suất tại đầu đinh lớn, giúp đinh dễ xuyên vào gỗ. Lưỡi dao sắc cũng vận dụng cách tăng áp suất bằng việc giảm diện tích tiếp xúc. Ngược lại, quai cặp bản rộng phân bố lực ép lên diện tích vai lớn hơn, nên giảm áp suất lên vai khi khối lượng cặp không đổi. Bánh xích của xe làm tăng diện tích tiếp xúc với nền đất, giúp giảm áp suất và hạn chế lún.
+
+Để kiểm tra ảnh hưởng của diện tích, có thể đặt cùng một khối hộp lên cát theo các mặt khác nhau. Khối lượng và áp lực được giữ gần như không đổi, còn diện tích tiếp xúc thay đổi. Mặt có diện tích nhỏ thường làm hộp lún sâu hơn. Độ lún chỉ là dấu hiệu định tính trong thí nghiệm này; không được coi số đo độ lún chính là áp suất. Khi giải thích một hiện tượng, nên nêu áp lực, diện tích bị ép và quan hệ giữa chúng, thay vì chỉ ghi rằng vật nặng thì luôn gây áp suất lớn hơn. Một vật nhẹ vẫn có thể gây áp suất lớn nếu diện tích tiếp xúc rất nhỏ.

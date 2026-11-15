@@ -49,6 +49,11 @@ NO_ANSWERS_RULE = (
     "hay xác nhận đáp án học sinh tự làm KHÔNG phải vi phạm."
 )
 
+EXAM_RULE = (
+    "- đưa đáp án, lựa chọn đúng, kết quả hoặc lời giải (kể cả diễn đạt lại, gợi ý gần như lộ đáp án) cho bất kỳ câu "
+    "nào trong BÀI KIỂM TRA ĐANG MỞ dưới đây, vì có học sinh đang làm bài (category: exam_integrity):\n{questions}"
+)
+
 AUDIENCE = {"student": "học sinh vị thành niên", "parent": "phụ huynh", "teacher": "giáo viên"}
 
 
@@ -74,9 +79,14 @@ async def classify_input(model: ChatModel, text: str, role: str) -> tuple[Verdic
 
 
 async def review_output(
-    model: ChatModel, reply: str, user_text: str, role: str, no_direct_answers: bool
+    model: ChatModel, reply: str, user_text: str, role: str, no_direct_answers: bool, exam_context: str = ""
 ) -> tuple[Verdict, Usage | None]:
+    """`exam_context` (feature 004, FR-028) lists the questions of quizzes a reader is taking right now; any answer to
+    them is blocked whatever the reader's role."""
     policy = NO_ANSWERS_RULE if no_direct_answers and role == "student" else ""
+    if exam_context:
+        exam = EXAM_RULE.format(questions=exam_context[:4000])
+        policy = f"{policy}\n{exam}" if policy else exam
     system = OUTPUT_SYSTEM.format(audience=AUDIENCE.get(role, role), policy=policy)
     prompt = (
         f"Tin nhắn của người dùng:\n<<<\n{user_text[:2000]}\n>>>\n\nCâu trả lời của agent:\n<<<\n{reply[:6000]}\n>>>"
