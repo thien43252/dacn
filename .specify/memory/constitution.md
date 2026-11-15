@@ -1,16 +1,17 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0 (MINOR: thêm một nguyên tắc mới)
-- Modified principles: không đổi I, II
-- Added principles:
-  - III. Script `dev.ps1` luôn chạy được bản mới nhất (từ yêu cầu người dùng)
-- Added sections: Governance (bản 1.0.0 nêu trong report cũ nhưng không có trong file)
+- Version change: 1.1.0 → 1.1.1 (PATCH: bỏ thành phần không có trên `main`; không thêm hay bỏ nguyên tắc)
+- Modified principles:
+  - III. Script `dev.ps1` luôn chạy được bản mới nhất: bỏ Dify khỏi danh sách stack, khỏi các thay đổi
+    "ảnh hưởng tới bước chạy" và khỏi phần lý do. Stack trên `main` là Postgres, backend, web.
+- Added sections: không có
 - Removed sections: không có
+- Templates: không cần sửa (plan/spec/tasks template không nhắc Dify)
 - Follow-up TODOs:
-  - TODO(MISSING_PRINCIPLES): report của 1.0.0 liệt kê nguyên tắc "An toàn học sinh là lõi",
+  - TODO(MISSING_PRINCIPLES) (giữ từ 1.1.0): report của 1.0.0 liệt kê nguyên tắc "An toàn học sinh là lõi",
     "Kiểm thử chạy được không cần hạ tầng ngoài", "Giữ hợp đồng và đo lường được" cùng các mục
-    "Ràng buộc kỹ thuật", "Quy trình phát triển", nhưng nội dung chưa từng được ghi vào file (kể cả
-    bản đã commit). Chủ dự án cần xác nhận có khôi phục các nguyên tắc này không.
+    "Ràng buộc kỹ thuật", "Quy trình phát triển", nhưng nội dung chưa từng được ghi vào file. Chủ dự án cần
+    xác nhận có khôi phục các nguyên tắc này không.
 -->
 
 # EduAgent Hub Constitution
@@ -38,11 +39,11 @@ Sync Impact Report
 ### III. Script `dev.ps1` luôn chạy được bản mới nhất
 
 - `dev.ps1` ở gốc repo là cách chạy local chính thức: một lệnh `.\dev.ps1` MUST dựng được toàn bộ
-  stack (Dify, Postgres, backend, web) của trạng thái code hiện tại.
+  stack (Postgres, backend, web) của trạng thái code hiện tại.
 - Mọi thay đổi ảnh hưởng tới bước chạy MUST cập nhật `dev.ps1` trong cùng thay đổi đó. "Ảnh hưởng
   tới bước chạy" gồm: thêm, bỏ hoặc đổi service hay container; đổi cổng; thêm biến môi trường bắt
   buộc trong `.env`; thêm bước migration, seed, build hay cài dependency; đổi lệnh khởi động, thư mục,
-  endpoint health; đổi phiên bản hoặc vị trí Dify.
+  endpoint health.
 - Khi bước thủ công trong mục "Chạy local" của `README.md` thay đổi, README MUST được cập nhật cùng
   lúc để hai nơi không mâu thuẫn.
 - Trước khi coi thay đổi là xong, agent MUST ít nhất kiểm tra cú pháp `dev.ps1` và, nếu hạ tầng có
@@ -51,7 +52,7 @@ Sync Impact Report
   khi thiếu công cụ, thiếu `.env` hoặc service không lên.
 - `tasks.md` của feature có thay đổi thuộc loại trên MUST có task cập nhật `dev.ps1`.
 
-Lý do: dự án có nhiều thành phần chạy riêng (Dify ngoài repo, Postgres, backend, web) và đồ án cần
+Lý do: dự án có nhiều thành phần chạy riêng (Postgres trong Docker, backend, web) và đồ án cần
 demo được bất cứ lúc nào. Script lệch với code là nguyên nhân phổ biến khiến demo hỏng mà test
 không phát hiện.
 
@@ -64,4 +65,4 @@ không phát hiện.
 - Phiên bản theo semver: MAJOR khi bỏ hoặc định nghĩa lại nguyên tắc theo cách không tương thích;
   MINOR khi thêm nguyên tắc hoặc mở rộng đáng kể; PATCH khi chỉ sửa câu chữ.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-06 | **Last Amended**: 2026-11-08
+**Version**: 1.1.1 | **Ratified**: 2026-11-06 | **Last Amended**: 2026-11-15
