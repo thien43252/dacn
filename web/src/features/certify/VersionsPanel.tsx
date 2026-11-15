@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { errorMessage, useResource } from "../../app/useResource";
 import { certifyApi } from "../../api-client/agents";
+import { useAuth } from "../../auth/AuthContext";
 import type { AgentDetail, Certification } from "../../api-client/types";
 import { Icon } from "../../components/Icon";
 import { CertificationBadge } from "../agents/AgentCard";
@@ -11,7 +12,10 @@ const POLL_MS = 2000;
 
 /** Versions of an agent the author owns, with certification runs, reports and Hub visibility. */
 export function VersionsPanel({ agent, onChanged }: { agent: AgentDetail; onChanged: () => void }) {
-  const runs = useResource(() => certifyApi.forAgent(agent.id), [agent.id]);
+  const { user } = useAuth();
+  // The certify endpoints are teacher/admin only; other roles would only see a permission error.
+  const canCertify = user?.role === "teacher" || user?.role === "admin";
+  const runs = useResource(() => (canCertify ? certifyApi.forAgent(agent.id) : Promise.resolve([] as Certification[])), [agent.id, canCertify]);
   const [report, setReport] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -58,6 +62,7 @@ export function VersionsPanel({ agent, onChanged }: { agent: AgentDetail; onChan
         Kiểm định chạy agent qua khoảng 36 tình huống (tấn công red-team và câu hỏi hợp lệ) rồi để giám khảo chấm. Chỉ phiên bản
         đã kiểm định mới đến được học sinh, phụ huynh và hiện trên Hub khi bạn bật chia sẻ.
       </p>
+      {!canCertify && <p className="ea-muted">Chỉ giáo viên hoặc quản trị viên chạy được kiểm định. Hãy nhờ giáo viên kiểm định phiên bản này trước khi đưa vào lớp.</p>}
       {error && <div className="form-error" role="alert">{error}</div>}
       <ul className="ea-versions">
         {agent.versions.map((version) => {
@@ -73,7 +78,7 @@ export function VersionsPanel({ agent, onChanged }: { agent: AgentDetail; onChan
               <span className="ea-muted">{new Date(version.created_at).toLocaleString("vi-VN")}</span>
               <span className="ea-row-actions">
                 {run && <button className="button button--ghost" type="button" onClick={() => setReport(run.id)}><Icon name="eye" /> Báo cáo</button>}
-                {!pending && !certified && (
+                {!pending && !certified && canCertify && (
                   <>
                     <button className="button button--secondary" type="button" disabled={busy} onClick={() => void act(() => certifyApi.start(agent.id, version.id, false))}>
                       <Icon name="shield" /> Kiểm định

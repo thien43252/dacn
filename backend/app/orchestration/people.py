@@ -101,6 +101,8 @@ def resolve(recipients: list[Recipient], recipient: str, subject: str) -> list[R
     recipient = recipient.strip().lower()
     if recipient == "teacher":
         matching = [r for r in recipients if r.user.role == "teacher" and subject and r.subject == subject.lower()]
+        # The subject teacher comes first; the homeroom owner only inherits the class subject, so they are offered after.
+        matching.sort(key=lambda r: r.homeroom)
         return matching or [r for r in recipients if r.homeroom]
     if recipient == "homeroom":
         return [r for r in recipients if r.homeroom]

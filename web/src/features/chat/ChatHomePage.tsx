@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorMessage, useResource } from "../../app/useResource";
 import { chatApi } from "../../api-client/agents";
@@ -63,7 +63,11 @@ export function ChatHomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A second open() of the same chat would remount the thread when it finishes, aborting a stream already sent.
+  const loadingId = useRef<string | null>(null);
   const open = useCallback(async (conversation: ConversationListItem) => {
+    if (loadingId.current === conversation.id) return;
+    loadingId.current = conversation.id;
     setSelectedId(conversation.id);
     setCurrent(conversation);
     storeSelected(userId, conversation.id);
@@ -79,6 +83,8 @@ export function ChatHomePage() {
       if (last) void conversationsApi.markRead(conversation.id, last).catch(() => {});
     } catch (reason) {
       setError(errorMessage(reason));
+    } finally {
+      loadingId.current = null;
     }
   }, [userId]);
 

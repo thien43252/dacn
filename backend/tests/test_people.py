@@ -279,3 +279,17 @@ async def test_withdrawn_consent_cancels_waiting_questions_but_not_group_talk(as
     # Outside the group the gate still stops the message before any agent.
     blocked = await chat(student, "Xin chào", class_id=room["id"], agent="tro-ly-lop")
     assert blocked[-1]["status"] == "consent_required"
+
+
+def test_resolve_prefers_subject_teacher_over_homeroom_owner():
+    from types import SimpleNamespace
+
+    from app.orchestration.people import Recipient, resolve
+
+    def person(uid):
+        return SimpleNamespace(id=uid, role="teacher")
+
+    homeroom = Recipient(person("owner"), "GV chủ nhiệm", subject="toan", homeroom=True)
+    subject_teacher = Recipient(person("toan"), "GV Toán", subject="toan")
+    picked = resolve([homeroom, subject_teacher], "teacher", "toan")
+    assert [r.user.id for r in picked] == ["toan", "owner"]
