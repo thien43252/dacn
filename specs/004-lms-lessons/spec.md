@@ -16,6 +16,17 @@ học (trong buổi học có thể thêm tài liệu, video, bài tập, tạo 
 - Q: Agent AI có hỗ trợ giáo viên tạo nội dung và chấm bài không? → A: Có (phương án C): gợi ý câu hỏi quiz từ tài liệu
   của buổi học, và gợi ý điểm cùng nhận xét cho câu tự luận và bài tập. Mọi gợi ý chỉ có hiệu lực khi giáo viên duyệt
   (FR-031 – FR-036).
+- Q: Trong lúc học sinh làm bài kiểm tra, chặn đưa đáp án ở những agent nào? → A: Mọi agent học sinh dùng (của lớp, tự
+  tạo, trong nhóm chat), chỉ chặn đáp án của bài đang mở; lần chặn không hiện với giáo viên/phụ huynh theo FR-051 của
+  feature 003 (FR-028, SC-006).
+- Q: Học sinh chưa có đồng ý của phụ huynh (lớp bật yêu cầu đồng ý) thì AI có gợi ý chấm bài của em đó không? → A:
+  Không; giáo viên tự chấm, dùng chung trạng thái đồng ý hiện có (FR-037).
+- Q: Nộp bài tập muộn có tự trừ điểm không? → A: Giáo viên đặt mức trừ theo % mỗi ngày muộn và mức trừ tối đa cho từng
+  bài, mặc định 0% (FR-020a).
+- Q: Có khóa buổi sau cho tới khi học sinh hoàn thành buổi trước không? → A: Không; buổi chỉ mở theo trạng thái công bố
+  và thời điểm mở (FR-002).
+- Q: Trợ lý AI cho giáo viên là thành phần có sẵn của nền tảng hay agent cài từ Hub? → A: Agent trên Hub, đã kiểm định;
+  lớp phải cài mới có chức năng gợi ý; nền tảng seed sẵn một agent mẫu (FR-038).
 
 ## Bối cảnh
 
@@ -121,6 +132,8 @@ và trả bài; học sinh thấy điểm và nhận xét.
    thấy điểm; sau khi giáo viên bấm trả bài thì thấy.
 5. **Given** giáo viên gia hạn riêng cho một học sinh, **When** học sinh đó nộp sau hạn chung nhưng trước hạn riêng,
    **Then** bài không bị đánh dấu nộp muộn.
+6. **Given** bài tập điểm tối đa 10, trừ 10% mỗi ngày muộn, tối đa 30%, **When** học sinh nộp muộn 2 ngày 3 giờ và giáo
+   viên chấm 8, **Then** mức trừ là 3 ngày × 10% = 3 điểm (bằng mức tối đa), điểm cuối là 5 và hiện rõ cả ba con số.
 
 ---
 
@@ -169,23 +182,30 @@ sinh khác cùng lớp.
 ### User Story 6 - Agent tôn trọng buổi học và bài kiểm tra (Priority: P2)
 
 Agent của lớp biết nội dung buổi học (tài liệu được bật "cho agent đọc") để giải thích bài cho học sinh. Trong lúc một
-bài kiểm tra đang mở với một học sinh, agent của lớp không đưa đáp án hay lời giải trực tiếp cho câu hỏi của bài đó; với
-bài tập, agent hướng dẫn gợi ý thay vì làm thay theo chính sách lớp hiện có.
+bài kiểm tra đang mở với một học sinh, **mọi agent** mà học sinh đó dùng (agent của lớp, agent tự tạo, agent trong nhóm
+chat) không đưa đáp án hay lời giải trực tiếp cho câu hỏi của bài đó; với bài tập, agent hướng dẫn gợi ý thay vì làm
+thay theo chính sách lớp hiện có.
 
 Phía giáo viên, agent đóng vai trợ lý: (1) gợi ý câu hỏi quiz từ tài liệu của buổi học, giáo viên duyệt, sửa hoặc bỏ
 từng câu trước khi đưa vào quiz; (2) gợi ý điểm và nhận xét cho câu tự luận và bài tập, giáo viên duyệt hoặc sửa trước
 khi trả bài. Gợi ý của AI không bao giờ tới học sinh nếu giáo viên chưa duyệt.
 
-**Why this priority**: Đây là chỗ LMS gặp lõi của dự án (agent, guard). Nếu thiếu, học sinh có thể dùng agent của lớp để
-gian lận trong bài kiểm tra.
+**Why this priority**: Đây là chỗ LMS gặp lõi của dự án (agent, guard). Nếu thiếu, học sinh có thể dùng agent của lớp,
+agent tự tạo hoặc nhóm chat để gian lận trong bài kiểm tra.
 
-**Independent Test**: Học sinh đang làm bài kiểm tra, mở chat với agent lớp và dán nguyên văn một câu hỏi của bài;
-agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký lớp.
+**Independent Test**: Học sinh đang làm bài kiểm tra, lần lượt dán nguyên văn một câu hỏi của bài vào chat với agent
+lớp, chat với agent tự tạo và một nhóm chat có agent; cả ba agent đều từ chối đưa đáp án.
 
 **Acceptance Scenarios**:
 
 1. **Given** học sinh đang trong thời gian làm một bài kiểm tra, **When** hỏi agent lớp đáp án một câu của bài, **Then**
-   agent từ chối đưa đáp án, giải thích ngắn gọn lý do, và hệ thống ghi một sự kiện vào nhật ký lớp.
+   agent từ chối đưa đáp án và giải thích ngắn gọn lý do cho học sinh.
+1a. **Given** học sinh đang làm bài kiểm tra, **When** hỏi đáp án câu đó với agent tự tạo trong chat riêng hoặc với agent
+   trong một nhóm chat (kể cả nhóm học sinh tự lập), **Then** agent cũng từ chối; trong nhóm, các thành viên khác vẫn chat
+   bình thường, chỉ câu trả lời chứa đáp án bị chặn.
+1b. **Given** một lần chặn vì bài kiểm tra xảy ra trong chat riêng hoặc nhóm, **When** giáo viên mở nhật ký lớp, **Then**
+   giáo viên không thấy sự kiện đó (giữ quy tắc không gian riêng tư FR-051 của feature 003); chỉ có sự kiện an toàn không
+   kèm nội dung cho admin.
 2. **Given** bài kiểm tra đã đóng và đáp án đã công bố, **When** học sinh hỏi agent giải thích câu đó, **Then** agent
    giải thích bình thường.
 3. **Given** tài liệu buổi học được bật "cho agent đọc", **When** học sinh hỏi về nội dung, **Then** câu trả lời dẫn
@@ -216,7 +236,7 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
 - Tệp tải lên vượt giới hạn dung lượng hoặc sai định dạng: từ chối với thông báo nêu rõ giới hạn.
 - Link video không phát được (bị xóa, chặn nhúng): hiện thông báo và nút mở link ở tab mới.
 - Học sinh chưa có đồng ý của phụ huynh (lớp bật yêu cầu đồng ý): vẫn xem buổi học và làm bài, nhưng không chat được
-  với agent như quy tắc hiện có.
+  với agent như quy tắc hiện có, và bài làm của em không được gửi cho AI gợi ý chấm (FR-037).
 - Lớp đã lưu trữ: mọi nội dung chỉ còn chế độ chỉ xem; không giao bài mới, không nộp bài.
 - Quiz không có câu hỏi nào: không cho công bố.
 
@@ -229,7 +249,7 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
 - **FR-001**: Giáo viên chủ lớp (và giáo viên đồng dạy của lớp) MUST tạo, sửa, sắp xếp lại, lưu trữ buổi học trong lớp;
   mỗi buổi có tiêu đề, mô tả, ngày học (tùy chọn), thứ tự và trạng thái nháp/đã công bố.
 - **FR-002**: Giáo viên MUST đặt được thời điểm tự mở buổi; trước thời điểm đó học sinh chỉ thấy tiêu đề và trạng thái
-  "sắp mở".
+  "sắp mở". Buổi học MUST không có điều kiện mở theo tiến độ của học sinh (hoàn thành buổi trước, điểm tối thiểu).
 - **FR-003**: Một buổi học MUST chứa được các loại mục: tài liệu (tệp), video (tệp tải lên hoặc link video), liên kết
   ngoài, đoạn văn bản, bài tập, quiz/bài kiểm tra; giáo viên sắp xếp được thứ tự các mục.
 - **FR-004**: Học sinh MUST xem được tài liệu thông dụng (PDF, ảnh, văn bản) và phát được video ngay trong trang buổi
@@ -267,7 +287,11 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
 - **FR-019**: Học sinh MUST nộp bài bằng văn bản và/hoặc tệp, nộp lại được trước hạn; mọi bản nộp được lưu, bản mới nhất
   là bản được chấm.
 - **FR-020**: Bài nộp sau hạn MUST được đánh dấu "nộp muộn"; bài không cho nộp muộn MUST bị từ chối sau hạn.
-- **FR-021**: Giáo viên MUST gia hạn riêng được cho từng học sinh.
+- **FR-020a**: Giáo viên MUST đặt được mức trừ điểm nộp muộn cho từng bài tập: phần trăm điểm tối đa bị trừ cho mỗi
+  ngày muộn (tính tròn lên theo ngày, từ hạn nộp áp dụng cho học sinh đó) và mức trừ tối đa; mặc định 0% (không trừ).
+  Điểm cuối = điểm giáo viên chấm − mức trừ, không âm. Giáo viên và học sinh MUST thấy cả điểm chấm, mức trừ và điểm cuối;
+  giáo viên MUST bỏ được mức trừ cho từng bài nộp (ghi nhật ký theo FR-030).
+- **FR-021**: Giáo viên MUST gia hạn riêng được cho từng học sinh; hạn riêng thay hạn chung khi tính nộp muộn và mức trừ.
 - **FR-022**: Giáo viên MUST chấm điểm, viết nhận xét và trả bài theo từng bài hoặc trả hàng loạt; học sinh chỉ thấy điểm
   và nhận xét sau khi bài được trả.
 
@@ -285,9 +309,12 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
 
 - **FR-027**: Chỉ thành viên của lớp (giáo viên, học sinh) và phụ huynh đã liên kết của học sinh trong lớp MUST truy cập
   được nội dung lớp; học sinh MUST chỉ thấy bài nộp và điểm của chính mình; phụ huynh MUST chỉ thấy dữ liệu của con mình.
-- **FR-028**: Trong lúc một học sinh đang có lượt làm bài kiểm tra mở, agent của lớp MUST không đưa đáp án hoặc lời giải
-  trực tiếp cho câu hỏi của bài đó, và mỗi lần chặn MUST được ghi vào nhật ký lớp hiện có. Giáo viên MUST tắt được hành
-  vi này cho từng quiz (ví dụ quiz luyện tập cho phép hỏi agent).
+- **FR-028**: Trong lúc một học sinh đang có lượt làm bài kiểm tra mở, mọi agent trả lời học sinh đó (agent của lớp,
+  agent học sinh tự tạo, agent trong chat riêng hay trong nhóm chat) MUST không đưa đáp án hoặc lời giải trực tiếp cho câu
+  hỏi của bài đó, kể cả khi câu hỏi được diễn đạt lại. Agent MUST nói lý do với học sinh. Việc chặn chỉ áp dụng cho đáp án
+  của bài đang mở; học sinh vẫn chat được các nội dung khác. Theo FR-051 của feature 003, lần chặn MUST không được thông
+  báo hay hiện cho giáo viên hoặc phụ huynh; chỉ ghi sự kiện an toàn không kèm nội dung cho admin. Giáo viên MUST tắt
+  được hành vi này cho từng quiz (ví dụ quiz luyện tập cho phép hỏi agent).
 - **FR-029**: Nội dung văn bản do người dùng nhập (đề bài, câu hỏi, bài nộp, nhận xét) MUST đi qua guard nội dung hiện
   có giống như tin nhắn chat.
 - **FR-030**: Mọi thao tác ảnh hưởng tới điểm (chấm, chấm lại, sửa điểm, gia hạn, xóa bài nộp) MUST được ghi nhật ký với
@@ -306,6 +333,14 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
 - **FR-035**: Nội dung gửi cho AI khi gợi ý (tài liệu, bài nộp) MUST đi qua guard hiện có, chỉ dùng dữ liệu của chính
   lớp đó, và mỗi lần gợi ý MUST được ghi nhật ký (ai yêu cầu, cho bài nào, kết quả duyệt).
 - **FR-036**: Giáo viên MUST tắt được trợ lý AI chấm bài cho từng bài tập/quiz.
+- **FR-037**: Khi lớp bật yêu cầu phụ huynh đồng ý, bài nộp và lượt làm bài của học sinh chưa có đồng ý MUST không được gửi
+  cho AI gợi ý chấm (dùng chung trạng thái đồng ý hiện có, không thêm loại đồng ý mới); giao diện chấm MUST hiện rõ lý
+  do không có gợi ý, giáo viên vẫn tự chấm bình thường. Khi chấm hàng loạt bằng gợi ý AI, các bài này MUST được bỏ qua và
+  liệt kê lại cho giáo viên.
+- **FR-038**: Trợ lý soạn câu hỏi và gợi ý chấm (FR-031, FR-033) MUST là một agent trên Hub, đi qua quy trình kiểm định
+  hiện có như mọi agent khác, và chỉ hoạt động trong lớp đã cài agent đó. Lớp chưa cài thì các nút gợi ý MUST ẩn hoặc vô
+  hiệu, kèm hướng dẫn cài từ Hub. Nền tảng MUST cung cấp sẵn một agent mẫu loại này đã kiểm định (có trong dữ liệu seed)
+  để demo được ngay. Gỡ agent khỏi lớp MUST không xóa các gợi ý đã duyệt trước đó.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -320,14 +355,15 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
 - **Câu hỏi (Question)**: thuộc quiz; loại, nội dung, các lựa chọn, đáp án đúng, điểm, lời giải thích, thứ tự.
 - **Lượt làm bài (Quiz attempt)**: một học sinh × một quiz × lần thứ n; thời điểm bắt đầu, hạn kết thúc, thời điểm nộp,
   các câu trả lời, điểm từng câu, trạng thái (đang làm, đã nộp, chờ chấm, đã chấm).
-- **Bài tập (Assignment)**: là một mục nội dung; đề bài, hạn nộp, điểm tối đa, cho nộp muộn, gia hạn riêng theo học sinh.
+- **Bài tập (Assignment)**: là một mục nội dung; đề bài, hạn nộp, điểm tối đa, cho nộp muộn, mức trừ mỗi ngày muộn và
+  mức trừ tối đa, gia hạn riêng theo học sinh.
 - **Bài nộp (Submission)**: một học sinh × một bài tập; các phiên bản nộp (văn bản, tệp, thời điểm), cờ nộp muộn, điểm,
   nhận xét, trạng thái trả bài.
 - **Mục sổ điểm (Grade item)**: bài tập hoặc quiz được tính điểm trong lớp, có trọng số; điểm của học sinh suy ra từ lượt
   làm hoặc bài nộp.
 - **Lượt xem nội dung (Content view)**: học sinh đã mở mục nội dung nào, lúc nào.
-- **Gợi ý AI (AI suggestion)**: loại (câu hỏi quiz hoặc chấm bài), đối tượng (buổi học, bài nộp, lượt làm), nội dung gợi
-  ý, căn cứ (đoạn tài liệu, tiêu chí thang chấm), trạng thái (chờ duyệt, đã duyệt, đã sửa, đã bỏ), người duyệt.
+- **Gợi ý AI (AI suggestion)**: loại (câu hỏi quiz hoặc chấm bài), đối tượng (buổi học, bài nộp, lượt làm), agent Hub
+  (và phiên bản) đã tạo gợi ý, nội dung gợi ý, căn cứ (đoạn tài liệu, tiêu chí thang chấm), trạng thái (chờ duyệt, đã duyệt, đã sửa, đã bỏ), người duyệt.
 - **Thang chấm (Rubric)**: thuộc câu tự luận hoặc bài tập; các tiêu chí, mức điểm, đáp án mẫu.
 - **Thông báo (Notification)**: người nhận, loại sự kiện, liên kết tới buổi/bài, đã đọc/chưa đọc.
 
@@ -344,12 +380,14 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
   với 20 lần ngắt giữa chừng).
 - **SC-005**: 0 trường hợp học sinh nhận được đáp án đúng trước thời điểm cho phép, kiểm tra trên mọi loại câu hỏi và mọi
   chế độ xem đáp án.
-- **SC-006**: Trên bộ thử gian lận (ít nhất 30 câu hỏi dán nguyên văn hoặc diễn đạt lại từ bài kiểm tra đang mở), agent
-  của lớp từ chối đưa đáp án ở ít nhất 95% trường hợp, và 100% lần chặn có trong nhật ký lớp.
+- **SC-006**: Trên bộ thử gian lận (ít nhất 30 câu hỏi dán nguyên văn hoặc diễn đạt lại từ bài kiểm tra đang mở, chạy
+  qua ba kênh: chat với agent lớp, chat với agent tự tạo, nhóm chat có agent), agent từ chối đưa đáp án ở ít nhất 95%
+  trường hợp của mỗi kênh; 0 lần chặn hiện ra với giáo viên hoặc phụ huynh.
 - **SC-007**: Sổ điểm của lớp 40 học sinh × 20 bài hiển thị đầy đủ trong dưới 3 giây và khớp 100% với điểm từng bài.
 - **SC-008**: 0 trường hợp học sinh hoặc phụ huynh xem được bài nộp hoặc điểm của học sinh khác (kiểm thử truy cập trực
   tiếp bằng đường dẫn với mọi vai trò).
-- **SC-009**: Ít nhất 80% câu hỏi AI gợi ý được giáo viên duyệt mà không phải sửa đáp án (đo trên tập tài liệu demo).
+- **SC-009**: Với agent mẫu seed sẵn, ít nhất 80% câu hỏi AI gợi ý được giáo viên duyệt mà không phải sửa đáp án (đo
+  trên tập tài liệu demo).
 - **SC-010**: Trên bộ thử ít nhất 30 bài tự luận đã có điểm giáo viên chấm, điểm AI gợi ý lệch không quá 1 điểm (thang 10)
   ở ít nhất 80% bài.
 - **SC-011**: 0 trường hợp điểm hoặc nhận xét do AI gợi ý tới được học sinh hay phụ huynh khi chưa được giáo viên duyệt.
@@ -364,8 +402,9 @@ agent từ chối đưa đáp án và lần chặn được ghi vào nhật ký 
   demo), không dùng dịch vụ lưu trữ ngoài.
 - Thông báo chỉ trong ứng dụng; không gửi email, SMS hay thông báo đẩy.
 - Không có lớp học trực tuyến trực tiếp (gọi video), điểm danh, diễn đàn thảo luận theo buổi, ngân hàng câu hỏi dùng
-  chung toàn hệ thống, chứng chỉ hoàn thành khóa, hay chống gian lận bằng giám sát trình duyệt/camera. Phạm vi chống gian
-  lận là chặn agent của lớp đưa đáp án (FR-028).
+  chung toàn hệ thống, chứng chỉ hoàn thành khóa, khóa buổi học theo tiến độ, hay chống gian lận bằng giám sát trình duyệt/camera. Phạm vi chống gian
+  lận là chặn mọi agent trên nền tảng đưa đáp án của bài đang mở (FR-028); không ngăn được học sinh dùng công cụ ngoài
+  nền tảng.
 - Thang điểm mặc định 10, giáo viên đổi được điểm tối đa từng bài.
 - Tab "Tài liệu" hiện có vẫn giữ vai trò kho tri thức cho agent; tài liệu gắn vào buổi học dùng chung kho đó khi bật
   "cho agent đọc" thay vì tạo kho mới.
