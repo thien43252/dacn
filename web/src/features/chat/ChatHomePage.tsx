@@ -8,10 +8,11 @@ import type { ChatAgent, ConversationListItem } from "../../api-client/types";
 import { useAuth } from "../../auth/AuthContext";
 import { ChatThread, fromStored, NO_MESSAGES, type ThreadMessage } from "../../components/chat/ChatThread";
 import { Icon } from "../../components/Icon";
-import { ConversationList } from "./ConversationList";
+import { bubbleKey, ConversationList } from "./ConversationList";
 import { DirectChatDialog } from "./DirectChatDialog";
 import { GroupSettingsPanel } from "./GroupSettingsPanel";
 import { NewGroupDialog } from "./NewGroupDialog";
+import { SessionHistoryPanel } from "./SessionHistoryPanel";
 import "./messenger.css";
 
 const SELECTED_KEY = "eduagent.messenger.selected";
@@ -42,14 +43,17 @@ export function ChatHomePage() {
   const [selectedId, setSelectedId] = useState<string | null>(() => readSelected(userId));
   const [dialog, setDialog] = useState<"direct" | "group" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [current, setCurrent] = useState<ConversationListItem | null>(null);
   const [initial, setInitial] = useState<ThreadMessage[]>(NO_MESSAGES);
   const [agents, setAgents] = useState<ChatAgent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [threadKey, setThreadKey] = useState(0);
 
   const selected = useMemo(
-    () => list.data?.find((item) => item.id === selectedId) ?? null,
-    [list.data, selectedId],
+    // The list may not hold a session just started or reopened until it reloads.
+    () => list.data?.find((item) => item.id === selectedId) ?? (current?.id === selectedId ? current : null),
+    [list.data, selectedId, current],
   );
 
   // Refresh the list (unread counts, last messages) while the page is open.
@@ -61,8 +65,10 @@ export function ChatHomePage() {
 
   const open = useCallback(async (conversation: ConversationListItem) => {
     setSelectedId(conversation.id);
+    setCurrent(conversation);
     storeSelected(userId, conversation.id);
     setSettingsOpen(false);
+    setHistoryOpen(false);
     setError(null);
     try {
       const [usable, stored] = await Promise.all([chatApi.agents(conversation.class_id), conversationsApi.messages(conversation.id)]);
@@ -75,6 +81,22 @@ export function ChatHomePage() {
       setError(errorMessage(reason));
     }
   }, [userId]);
+
+  async function startSession(conversation: ConversationListItem) {
+    try {
+      const fresh = await conversationsApi.restartDirect(conversation.id);
+      list.reload();
+      await open(fresh);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
+  async function resumeSession(conversation: ConversationListItem) {
+    const resumed = await conversationsApi.resumeDirect(conversation.id);
+    list.reload();
+    await open(resumed);
+  }
 
   // Open the remembered chat once the list arrives.
   useEffect(() => {
@@ -93,6 +115,7 @@ export function ChatHomePage() {
     return inGroup.size ? agents.filter((agent) => inGroup.has(agent.slug)) : agents;
   }, [agents, selected]);
   const requestFields = useMemo(() => ({ class_id: selected?.class_id ?? null }), [selected?.class_id]);
+  const classNames = useMemo(() => Object.fromEntries((classes.data ?? []).map((item) => [item.id, item.name])), [classes.data]);
   const room = classes.data?.find((item) => item.id === selected?.class_id);
 
   if (!user) return null;
@@ -102,13 +125,14 @@ export function ChatHomePage() {
         items={list.data ?? []}
         loading={list.loading}
         error={list.error}
-        selectedId={selectedId}
+        selectedKey={selected ? bubbleKey(selected) : null}
         search={search}
         onSearch={setSearch}
         onSelect={(item) => void open(item)}
         onNewDirect={() => setDialog("direct")}
         onNewGroup={() => setDialog("group")}
         canCreateGroup={(classes.data ?? []).some((item) => !item.archived)}
+        classNames={classNames}
       />
       <section className="messenger__thread" aria-label="Cuộc trò chuyện">
         {!selected ? (
@@ -133,10 +157,16 @@ export function ChatHomePage() {
                 {selected.waiting_for.length > 0 && <small className="ea-waiting">Đang chờ {selected.waiting_for.join(", ")} trả lời</small>}
               </div>
               {selected.kind === "direct" && (
-                <button className="icon-button" type="button" title="Bắt đầu cuộc trò chuyện mới với agent này" aria-label="Cuộc trò chuyện mới"
-                  onClick={async () => { const fresh = await conversationsApi.restartDirect(selected.id); list.reload(); void open(fresh); }}>
-                  <Icon name="plus" />
-                </button>
+                <>
+                  <button className="icon-button" type="button" title={selected.last_message ? "Bắt đầu phiên chat mới với agent này" : "Phiên này chưa có tin nhắn"}
+                    aria-label="Phiên chat mới" disabled={!selected.last_message} onClick={() => void startSession(selected)}>
+                    <Icon name="plus" />
+                  </button>
+                  <button className={`icon-button${historyOpen ? " is-active" : ""}`} type="button" title="Lịch sử phiên chat" aria-label="Lịch sử phiên chat"
+                    aria-expanded={historyOpen} onClick={() => setHistoryOpen((value) => !value)}>
+                    <Icon name="history" />
+                  </button>
+                </>
               )}
               {selected.kind === "group" && (
                 <button className={`icon-button${settingsOpen ? " is-active" : ""}`} type="button" aria-label="Thành viên nhóm" aria-expanded={settingsOpen}
@@ -145,6 +175,9 @@ export function ChatHomePage() {
                 </button>
               )}
             </header>
+            {historyOpen && selected.kind === "direct" && (
+              <SessionHistoryPanel currentId={selected.id} onPick={resumeSession} />
+            )}
             {settingsOpen && selected.kind === "group" && (
               <GroupSettingsPanel group={selected} viewerId={user.id} onChanged={() => list.reload()} onLeft={() => { setSelectedId(null); list.reload(); }} />
             )}

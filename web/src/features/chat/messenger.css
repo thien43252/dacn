@@ -4,7 +4,10 @@
   display: grid;
   grid-template-columns: minmax(240px, 320px) 1fr;
   gap: 16px;
-  min-height: min(78vh, 900px);
+  /* The page fills the workspace (fillHeight); the list and the thread each scroll on their own. */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .messenger__list,
@@ -22,13 +25,30 @@
   padding: 12px;
 }
 
+.messenger__list {
+  min-height: 0;
+}
+
 .messenger__list ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   display: grid;
+  align-content: start;
   gap: 4px;
+}
+
+.messenger__items {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.messenger__item-scope {
+  color: var(--muted, #64748b);
+  font-weight: 400;
 }
 
 .messenger__list-head {
@@ -120,7 +140,80 @@
 }
 
 .messenger__inner {
+  /* .chat-panel__inner is sized for the slide-out panel; here it must fill the thread column. */
+  width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.messenger__thread {
+  min-width: 0;
+  min-height: 0;
+}
+
+.messenger__history {
+  display: grid;
+  gap: 8px;
+  max-height: 45%;
+  overflow-y: auto;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, rgba(15, 23, 42, 0.08));
+}
+
+.messenger__history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.messenger__session {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border, rgba(15, 23, 42, 0.08));
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.messenger__session:hover:not(:disabled),
+.messenger__session.is-active {
+  background: var(--surface-strong, rgba(59, 130, 246, 0.1));
+}
+
+.messenger__session:disabled {
+  cursor: default;
+}
+
+.messenger__session-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.messenger__session-top strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.messenger__session-top em,
+.messenger__session small {
+  flex: none;
+  color: var(--muted, #64748b);
+  font-size: 0.8rem;
+  font-style: normal;
 }
 
 .messenger__header {
@@ -377,6 +470,20 @@
 @media (max-width: 760px) {
   .messenger {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  /* Stacked on a phone: the page scrolls again, the contact list keeps its own short scroll area. */
+  .workspace-main--fill[data-screen$="/chat"] {
+    overflow-y: auto;
+  }
+
+  .messenger__list {
+    max-height: 40vh;
+  }
+
+  .messenger__thread {
+    min-height: 70vh;
   }
 
   .messenger__pick-grid {

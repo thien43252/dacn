@@ -11,6 +11,9 @@ import type {
 
 const enc = encodeURIComponent;
 
+/** One session (open or in history) with the agent of a direct chat. */
+export type DirectSession = ConversationListItem & { archived: boolean };
+
 /** Messenger-style conversations, groups and the per-conversation event stream (contracts/rest-api.md). */
 export const conversationsApi = {
   all: (q = "") => apiRequest<ConversationListItem[]>(`/api/chat/conversations?all=true${q ? `&q=${enc(q)}` : ""}`),
@@ -19,6 +22,8 @@ export const conversationsApi = {
   openDirect: (classId: string | null, agent: string | null) =>
     apiRequest<ConversationListItem>("/api/chat/direct", { method: "POST", body: { class_id: classId, agent } }),
   restartDirect: (id: string) => apiRequest<ConversationListItem>(`/api/chat/direct/${enc(id)}/restart`, { method: "POST" }),
+  sessions: (id: string) => apiRequest<DirectSession[]>(`/api/chat/direct/${enc(id)}/sessions`),
+  resumeDirect: (id: string) => apiRequest<ConversationListItem>(`/api/chat/direct/${enc(id)}/resume`, { method: "POST" }),
   markRead: (id: string, seq: number) =>
     apiRequest<void>(`/api/chat/conversations/${enc(id)}/read`, { method: "POST", body: { seq } }),
   eventsUrl: (id: string, after: number) => `/api/chat/conversations/${enc(id)}/events?after=${after}`,

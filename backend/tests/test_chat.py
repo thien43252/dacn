@@ -138,3 +138,29 @@ async def test_agents_endpoint_filters_by_role(as_user) -> None:
     # A student mentioning a teacher-only agent falls back instead of reaching it.
     events = await chat(student, "@tao-de cho em xem đề", class_id=room["id"])
     assert next(event for event in events if event["type"] == "agent")["agent"] == "tro-ly-lop"
+
+
+async def test_direct_sessions_history_and_resume(as_user, fake_llm) -> None:
+    from tests.helpers import chat, class_with_student, conversation_id_of
+
+    _, student, _, room = await class_with_student(as_user)
+    first = conversation_id_of(await chat(student, "Câu hỏi thứ nhất", class_id=room["id"]))
+    second = conversation_id_of(await chat(student, "Câu hỏi thứ hai", class_id=room["id"]))
+
+    # A new session closes every open auto-routed chat, so one bubble remains.
+    fresh = (await student.post(f"/api/chat/direct/{second}/restart")).json()
+    listed = (await student.get("/api/chat/conversations?all=true")).json()
+    assert [item["id"] for item in listed if item["kind"] == "direct"] == [fresh["id"]]
+
+    sessions = (await student.get(f"/api/chat/direct/{fresh['id']}/sessions")).json()
+    assert {item["id"] for item in sessions} == {first, second, fresh["id"]}
+    assert {item["id"] for item in sessions if not item["archived"]} == {fresh["id"]}
+
+    # Reopening a past session makes it the open one; the session before it moves to history.
+    resumed = await student.post(f"/api/chat/direct/{first}/resume")
+    assert resumed.status_code == 200, resumed.text
+    listed = (await student.get("/api/chat/conversations?all=true")).json()
+    assert [item["id"] for item in listed if item["kind"] == "direct"] == [first]
+
+    outsider = await as_user("student")
+    assert (await outsider.get(f"/api/chat/direct/{first}/sessions")).status_code == 404

@@ -67,7 +67,8 @@ export function WorkspacePage({ pathname }: { pathname: string }) {
   const screen = screens[meta.pattern];
 
   return (
-    <AppShell pathname={pathname} pattern={meta.pattern} title={meta.title} eyebrow={meta.eyebrow} description={meta.description} classId={matched.params.classId}>
+    <AppShell pathname={pathname} pattern={meta.pattern} title={meta.title} eyebrow={meta.eyebrow} description={meta.description} classId={matched.params.classId}
+      fillHeight={meta.pattern.endsWith("/chat")}>
       {screen ? screen(matched) : <PlaceholderPage title={meta.title} week={meta.week} />}
     </AppShell>
   );

@@ -139,17 +139,69 @@ async def open_direct_chat(payload: DirectIn, user: CurrentUser, db: DbSession) 
     return await conversation_out(db, conversation, user.id)
 
 
+def _same_direct_sessions(user: User, conversation: Conversation):
+    """Every direct chat (open or closed) this user had with the same agent in the same class or personal space."""
+    return select(Conversation).where(
+        Conversation.kind == "direct",
+        Conversation.user_id == user.id,
+        Conversation.class_id.is_(None)
+        if conversation.class_id is None
+        else Conversation.class_id == conversation.class_id,
+        Conversation.direct_agent_slug.is_(None)
+        if conversation.direct_agent_slug is None
+        else Conversation.direct_agent_slug == conversation.direct_agent_slug,
+    )
+
+
 @router.post("/direct/{conversation_id}/restart")
 async def restart_direct(conversation_id: str, user: CurrentUser, db: DbSession) -> dict[str, Any]:
     conversation, _ = await visibility.viewable(db, user, conversation_id)
     if conversation.kind != "direct":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Chỉ bắt đầu lại được chat riêng.")
-    conversation.archived_at = datetime.now(UTC)
+    # Close every open session with this agent (older auto-routed chats may have several) so one stays open.
+    now = datetime.now(UTC)
+    for other in await db.scalars(_same_direct_sessions(user, conversation).where(Conversation.archived_at.is_(None))):
+        other.archived_at = now
     room = await db.get(ClassRoom, conversation.class_id) if conversation.class_id else None
     await db.flush()
     fresh = await open_direct(db, user, room, conversation.direct_agent_slug)
     await db.commit()
     return await conversation_out(db, fresh, user.id)
+
+
+@router.get("/direct/{conversation_id}/sessions")
+async def direct_sessions(conversation_id: str, user: CurrentUser, db: DbSession) -> list[dict[str, Any]]:
+    """Past and current sessions with the agent of this direct chat, newest first (the history drawer)."""
+    conversation, _ = await visibility.viewable(db, user, conversation_id)
+    if conversation.kind != "direct":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Chỉ chat riêng mới có lịch sử phiên.")
+    rows = list(
+        await db.scalars(_same_direct_sessions(user, conversation).order_by(Conversation.updated_at.desc()).limit(50))
+    )
+    out = []
+    for row in rows:
+        item = await conversation_out(db, row, user.id)
+        item["archived"] = row.archived_at is not None
+        out.append(item)
+    return out
+
+
+@router.post("/direct/{conversation_id}/resume")
+async def resume_direct(conversation_id: str, user: CurrentUser, db: DbSession) -> dict[str, Any]:
+    """Make a past session the open one again; the session open before it moves to history."""
+    conversation, _ = await visibility.viewable(db, user, conversation_id)
+    if conversation.kind != "direct":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Chỉ mở lại được chat riêng.")
+    now = datetime.now(UTC)
+    for other in await db.scalars(
+        _same_direct_sessions(user, conversation).where(
+            Conversation.archived_at.is_(None), Conversation.id != conversation.id
+        )
+    ):
+        other.archived_at = now
+    conversation.archived_at = None
+    await db.commit()
+    return await conversation_out(db, conversation, user.id)
 
 
 @router.get("/conversations/{conversation_id}")
