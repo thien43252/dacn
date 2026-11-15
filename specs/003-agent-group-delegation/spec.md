@@ -24,6 +24,18 @@ phụ huynh thì cũng phải có cơ chế giống như openbot."
 - Các ràng buộc về giao việc, hỏi người và duyệt hành động MUST theo cơ chế của OpenBot (CopilotKit OpenBot v1.0.3, bản
   đang cài local). Ràng buộc cũ lấy từ 002 mà OpenBot không có (tối đa 1 lần hỏi lại, 3 câu mỗi lần, nút "Cứ làm luôn",
   giới hạn tổng thời gian và số agent mỗi lượt, xác nhận chỉ có Đồng ý/Không) đã được bỏ hoặc thay bằng cơ chế OpenBot.
+- Q: Sau khi các agent được hỏi đã trả lời, agent hỏi có được tự động thêm một lượt để viết kết luận không? → A: Có;
+  khi mọi yêu cầu giao việc của lượt đã có kết quả (trả lời, không nhận được, bị từ chối), agent hỏi tự có một lượt
+  viết kết luận, dẫn tới các câu trả lời chứ không chép lại (FR-017).
+- Q: Trong nhóm, câu trả lời có dữ liệu riêng của một học sinh hiện cho ai? → A: Agent không lấy dữ liệu riêng của học
+  sinh nào trong nhóm; nó báo sẽ trả lời riêng rồi trả lời trong chat riêng với người hỏi. Bổ sung của người dùng: phần
+  chat làm giống Messenger (danh sách hội thoại gồm chat riêng với từng agent và các nhóm; người dùng tự tạo nhóm với
+  người khác); chat riêng thì người ngoài, kể cả phụ huynh và giáo viên, không xem được (FR-046, FR-049, FR-050).
+- Q: Nhóm học sinh tự tạo (không có giáo viên) thì giáo viên có thấy không? → A: Riêng tư hoàn toàn: chỉ thành viên biết
+  nhóm tồn tại. Gặp vi phạm (gian lận, nội dung cấm…), agent chỉ chặn hành động đó, không thông báo cho giáo viên
+  (FR-040, FR-050, FR-051).
+- Q: Khi học sinh tạo nhóm, học sinh được thêm những ai? → A: Học sinh cùng lớp, giáo viên của lớp, phụ huynh đã liên
+  kết của chính mình, và agent của lớp; không được thêm phụ huynh của học sinh khác (FR-039).
 
 ## Bối cảnh
 
@@ -212,10 +224,14 @@ trong hộp yêu cầu. Đăng nhập lại học sinh, thấy trợ lý lớp �
 
 ### User Story 4 - Nhóm chat có nhiều agent và nhiều người (Priority: P2)
 
-Giáo viên chủ nhiệm tạo nhóm "Ôn thi HK1 – 9A" trong lớp, thêm GV Toán, GV Văn, một số học sinh, phụ huynh của các em,
+Giáo viên chủ nhiệm (hoặc một học sinh) tạo nhóm "Ôn thi HK1 – 9A" trong lớp, thêm GV Toán, GV Văn, một số học sinh, phụ huynh của các em,
 và các agent Trợ lý lớp (agent mặc định của nhóm), Gia sư Toán, Gia sư Văn. Mọi thành viên đọc chung một dòng tin; mỗi
 agent có luồng riêng. Khi agent đang trả lời giao việc cho agent khác (bằng công cụ hoặc `@Tên`), câu trả lời của agent
 được hỏi hiện thành **tin riêng** dưới tên của nó, kèm nhãn "trả lời cho <agent hỏi>", tương ứng "Chat 1" của ví dụ.
+
+Phần chat của mọi vai trò làm theo kiểu Messenger: một danh sách hội thoại gồm chat riêng với từng agent và các nhóm,
+sắp theo tin mới nhất, có số tin chưa đọc. Từ đây người dùng (kể cả học sinh) mở chat riêng với một agent hoặc tạo
+nhóm mới với người khác trong lớp.
 
 **Why this priority**: Nhóm chat là trải nghiệm mới lớn, nhưng cần story 1 và 2 làm nền.
 
@@ -238,6 +254,12 @@ giao việc cho Gia sư Toán. Mọi thành viên thấy tin của học sinh, l
    chỉ người được hỏi bấm trả lời được, còn những người khác thấy trạng thái.
 7. **Given** thành viên được thêm hoặc bị bớt, **When** có tin mới, **Then** thành viên mới chỉ thấy tin từ lúc được thêm
    (trừ khi người thêm chọn cho xem lịch sử), còn thành viên bị bớt không nhận và không xem được tin mới.
+8. **Given** học sinh hỏi trong nhóm "em được mấy điểm bài kiểm tra Toán?", **When** agent xử lý, **Then** agent không lấy
+   điểm trong nhóm, chỉ trả lời trong nhóm rằng sẽ trả lời riêng, rồi trả lời trong chat riêng giữa học sinh và agent đó.
+9. **Given** học sinh mở danh sách hội thoại, **When** xem, **Then** thấy chat riêng với từng agent và các nhóm của mình,
+   sắp theo tin mới nhất, có số tin chưa đọc, và tạo được nhóm mới hoặc mở chat riêng với một agent.
+10. **Given** học sinh có chat riêng với một agent, **When** phụ huynh, giáo viên của lớp hoặc học sinh khác tìm cách xem,
+    **Then** không ai trong số họ thấy nội dung hay danh sách tin của chat đó.
 
 ---
 
@@ -316,8 +338,9 @@ trải nghiệm chính.
 
 **Acceptance Scenarios**:
 
-1. **Given** đã có giao việc trong lớp, **When** giáo viên mở nhật ký lớp, **Then** mỗi lần giao việc có agent hỏi, agent
-   được hỏi, tầng, thời gian và kết quả (được mời, bị từ chối kèm lý do, đã giao, lỗi, thử lại).
+1. **Given** đã có giao việc trong các nhóm của lớp, **When** giáo viên mở nhật ký lớp, **Then** mỗi lần giao việc có agent
+   hỏi, agent được hỏi, tầng, thời gian và kết quả (được mời, bị từ chối kèm lý do, đã giao, lỗi, thử lại), chỉ với các
+   nhóm giáo viên là thành viên. Chat riêng của học sinh và nhóm giáo viên không tham gia không xuất hiện.
 2. **Given** học sinh hoặc phụ huynh, **When** mở nhật ký, **Then** chỉ thấy hoạt động trong hội thoại của chính mình.
 3. **Given** có một lần từ chối, **When** xem nhật ký, **Then** dòng đó ghi rõ quy tắc, quyền hoặc giới hạn đã chặn.
 
@@ -342,8 +365,10 @@ trải nghiệm chính.
 - **Nội dung câu hỏi gửi người lớn vi phạm an toàn** (ví dụ lời xúc phạm giáo viên). Câu hỏi không được đưa ra duyệt; agent
   báo lý do.
 - **Dấu hiệu tự làm hại**, ở chat riêng hay nhóm. Không giao việc, không hỏi người khác; đi thẳng luồng hỗ trợ an toàn
-  như hiện nay. Trong nhóm, phản hồi hỗ trợ chỉ gửi riêng cho người nhắn, và giáo viên chủ nhiệm nhận cảnh báo theo cơ
-  chế hiện có.
+  như hiện nay (phản hồi hỗ trợ kèm Tổng đài 111). Trong nhóm, phản hồi hỗ trợ chỉ gửi riêng cho người nhắn. Ở không
+  gian riêng tư (FR-051), không ai khác được thông báo.
+- **Học sinh nhờ agent gian lận** trong chat riêng hoặc nhóm riêng tư (ví dụ xin đáp án bài kiểm tra đang làm). Agent từ
+  chối hoặc chặn đúng hành động đó và nói lý do với người nhắn; không giáo viên hay phụ huynh nào nhận thông báo.
 - **Hai người trong nhóm cùng gọi agent một lúc.** Các lượt xử lý lần lượt theo thứ tự đến; người vẫn gửi tin được trong
   lúc agent đang trả lời.
 - **Câu trả lời của agent được hỏi không qua kiểm duyệt** (ví dụ đáp án hoàn chỉnh trong lớp cấm đưa đáp án). Thanh "Đã
@@ -397,7 +422,7 @@ trải nghiệm chính.
   thấy.
 - **FR-014**: Câu trả lời của agent được hỏi MUST được nền tảng ghi **nguyên văn** vào hội thoại gốc, gắn với yêu cầu
   giao việc đó, dưới tên và avatar của agent được hỏi. Không mô hình nào chạy ở bước ghi, ngoài kiểm duyệt đầu ra
-  (FR-048).
+  (FR-052).
 - **FR-015**: Mỗi yêu cầu giao việc MUST có mã duy nhất (theo agent được hỏi và lượt). Câu trả lời MUST được ghi tối đa
   một lần, dù việc có chạy lại hoặc người dùng tải lại trang.
 - **FR-016**: Yêu cầu giao việc lỗi MUST được thử lại tới số lần cấu hình được (mặc định 2). Hết số lần mà vẫn không có
@@ -405,8 +430,8 @@ trải nghiệm chính.
   nhận được gì và phần nào vì thế chưa kiểm chứng được. Người dùng MUST không thấy mã lỗi kỹ thuật.
 - **FR-017**: Khi mọi yêu cầu giao việc của một lượt đều đã có kết quả (trả lời, không nhận được, bị từ chối), agent hỏi
   MUST nhận một lượt tiếp để làm nốt việc. Ở lượt này, agent dẫn tới các câu trả lời đã có, MUST không chép lại nguyên văn,
-  và ghi tên các agent đã đóng góp. *(Bổ sung so với OpenBot: tài liệu OpenBot không nói rõ agent hỏi có được làm tiếp sau
-  khi nhận câu trả lời hay không.)*
+  và ghi tên các agent đã đóng góp. Lượt này MUST tự chạy, không chờ người dùng nhắn tiếp, và MUST chỉ chạy một lần cho
+  mỗi đợt giao việc. *(Bổ sung so với OpenBot, đã chốt khi làm rõ spec.)*
 - **FR-018**: Câu hỏi agent tự làm được MUST không kích hoạt giao việc, và thời gian trả lời MUST không chậm hơn hiện nay
   một cách đáng kể (SC-001).
 - **FR-019**: Giáo viên MUST tắt được giao việc giữa agent cho lớp của mình (tương đương số tầng = 0 trong lớp đó), mặc
@@ -490,10 +515,13 @@ trải nghiệm chính.
 
 - **FR-039**: Mỗi nhóm MUST thuộc một lớp. Thành viên người lấy từ lớp đó: giáo viên (hiển thị môn), học sinh, phụ huynh
   đã liên kết với học sinh của lớp. Thành viên agent là agent đã cài và dùng được trong lớp. Quyền xem và gửi tin MUST do
-  danh sách thành viên quyết định.
-- **FR-040**: Giáo viên của lớp MUST tạo được nhóm. Học sinh và phụ huynh MUST tạo được nhóm khi giáo viên bật quyền này
-  trong chính sách lớp (mặc định tắt). Nhóm có học sinh MUST có ít nhất một giáo viên của lớp, và giáo viên chủ nhiệm
-  MUST xem được mọi nhóm của lớp.
+  danh sách thành viên quyết định. Khi người thêm thành viên là học sinh, người được thêm MUST chỉ là: học sinh cùng lớp,
+  giáo viên của lớp, phụ huynh đã liên kết của chính học sinh đó, và agent dùng được trong lớp. Học sinh MUST không thêm
+  được phụ huynh của học sinh khác; bộ chọn thành viên MUST không hiện những người này.
+- **FR-040**: Mọi thành viên của lớp (giáo viên, học sinh, phụ huynh) MUST tạo được nhóm trong lớp. Giáo viên MUST tắt
+  được quyền tạo nhóm của học sinh và phụ huynh cho lớp mình (mặc định bật). Nhóm MUST riêng tư hoàn toàn: chỉ thành viên
+  biết nhóm tồn tại, thấy danh sách thành viên và đọc được tin. Nhóm không bắt buộc có giáo viên. Giáo viên (kể cả chủ
+  nhiệm) không phải thành viên MUST không thấy nhóm, tin hay nhật ký theo từng hội thoại của nhóm.
 - **FR-041**: Người tạo nhóm và giáo viên trong nhóm MUST thêm và bớt được thành viên (người và agent), đặt tên nhóm và
   chọn agent mặc định của nhóm (mặc định là trợ lý lớp nếu có).
 - **FR-042**: Người đọc chung một dòng tin; mỗi agent trong nhóm MUST có luồng riêng. Mọi tin MUST hiện cho mọi thành
@@ -508,45 +536,68 @@ trải nghiệm chính.
 - **FR-045**: Agent trả lời trong nhóm MUST theo vai trò và chính sách của **người gửi tin đã gọi nó** (ví dụ câu hỏi của
   học sinh vẫn chịu chính sách "không đưa đáp án" dù nhóm có giáo viên). Ngữ cảnh agent dùng MUST chỉ gồm tin trong nhóm
   mà người đó được xem, trừ nội dung đã bị ẩn.
-- **FR-046**: Thành viên mới MUST chỉ thấy tin từ lúc được thêm, trừ khi người thêm chọn cho xem lịch sử. Thành viên bị
+- **FR-046**: Trong nhóm, agent (kể cả agent được hỏi qua giao việc) MUST không lấy hay đưa ra dữ liệu riêng của bất kỳ học
+  sinh nào: điểm, tiến độ, lời xin phép, câu trả lời của giáo viên hay phụ huynh dành riêng cho em đó. Gặp câu hỏi loại
+  này, agent MUST trả lời trong nhóm rằng sẽ trả lời riêng, rồi trả lời trong chat riêng giữa người hỏi và agent đó (mở
+  chat riêng nếu chưa có). Câu hỏi gửi người phát sinh từ nhóm mà có nội dung riêng của học sinh MUST chỉ hiện trong hộp
+  yêu cầu của người nhận, không hiện thẻ trong nhóm.
+- **FR-047**: Thành viên mới MUST chỉ thấy tin từ lúc được thêm, trừ khi người thêm chọn cho xem lịch sử. Thành viên bị
   bớt MUST không nhận và không xem được tin mới.
 
 **Chat riêng**
 
-- **FR-047**: Người dùng MUST chat riêng được với mọi agent họ dùng được (cài vào lớp, cài cá nhân, tự tạo). Giao việc,
+- **FR-048**: Người dùng MUST chat riêng được với mọi agent họ dùng được (cài vào lớp, cài cá nhân, tự tạo). Giao việc,
   hỏi người và duyệt hành động MUST áp dụng trong chat riêng như trong nhóm.
+- **FR-049**: Giao diện chat MUST theo kiểu Messenger cho mọi vai trò:
+  - một danh sách hội thoại gồm chat riêng với từng agent và các nhóm người dùng là thành viên;
+  - sắp theo tin mới nhất, kèm xem trước tin cuối và số tin chưa đọc;
+  - tìm được theo tên agent hoặc tên nhóm;
+  - từ danh sách, mở được chat riêng với một agent hoặc tạo nhóm mới.
+
+  Mỗi agent MUST có tối đa một chat riêng đang mở với mỗi người dùng trong mỗi lớp hoặc không gian cá nhân; người dùng MUST
+  bắt đầu lại được cuộc trò chuyện mới với agent đó.
+- **FR-050**: Chat riêng giữa một người và agent MUST chỉ người đó xem được. Phụ huynh, giáo viên (kể cả giáo viên chủ
+  nhiệm) và học sinh khác MUST không xem được nội dung, danh sách tin hay nhật ký theo từng hội thoại của chat riêng đó.
+  Ngoại lệ duy nhất: số liệu tổng hợp trong báo cáo học tập hiện có (không kèm nguyên văn, phụ huynh tắt được), và nội
+  dung mà chính người đó đã duyệt gửi đi qua câu hỏi gửi người.
+- **FR-051**: Trong chat riêng và trong mọi nhóm (gọi chung là không gian riêng tư), khi
+  sàng lọc hoặc kiểm duyệt phát hiện vi phạm (gian lận, nội dung cấm của lớp, thông tin cá nhân, dấu hiệu tự làm hại…),
+  agent MUST chỉ chặn hoặc từ chối đúng hành động hay nội dung đó, và nói lý do với người nhắn. Nền tảng MUST không thông
+  báo, gửi cảnh báo hay hiện sự kiện đó cho giáo viên hoặc phụ huynh. Dấu hiệu tự làm hại vẫn nhận phản hồi hỗ trợ kèm
+  Tổng đài 111, gửi riêng cho người nhắn. Sự kiện an toàn vẫn được ghi để admin vận hành nền tảng, không kèm nội dung.
 
 **An toàn**
 
-- **FR-048**: Cổng đồng ý của phụ huynh, ẩn thông tin cá nhân và sàng lọc an toàn MUST chạy trước khi agent nhận mọi tin
+- **FR-052**: Cổng đồng ý của phụ huynh, ẩn thông tin cá nhân và sàng lọc an toàn MUST chạy trước khi agent nhận mọi tin
   của người, kể cả câu trả lời cho câu hỏi và tin trong nhóm. Mọi nội dung hiển thị cho người dùng MUST qua kiểm duyệt đầu
   ra theo vai trò và chính sách của người xem, kể cả câu trả lời nguyên văn của agent được hỏi. Nội dung bị ẩn MUST hiện
   "Nội dung đã được ẩn" và được ghi thành sự kiện an toàn kèm agent liên quan.
-- **FR-049**: Khi sàng lọc chặn tin hoặc phát hiện dấu hiệu cần hỗ trợ an toàn, nền tảng MUST không giao việc, không hỏi
+- **FR-053**: Khi sàng lọc chặn tin hoặc phát hiện dấu hiệu cần hỗ trợ an toàn, nền tảng MUST không giao việc, không hỏi
   người khác, và MUST xử lý như hiện nay.
-- **FR-050**: Ngữ cảnh agent nhớ ở các lượt sau MUST gồm các tin trong hội thoại (tin người dùng, câu trả lời giao việc
+- **FR-054**: Ngữ cảnh agent nhớ ở các lượt sau MUST gồm các tin trong hội thoại (tin người dùng, câu trả lời giao việc
   đã ghi vào hội thoại, câu hỏi gửi người và câu trả lời). MUST không gồm nội dung trong luồng nháp của agent được hỏi.
 
 **Nhật ký và đo lường**
 
-- **FR-051**: Nền tảng MUST ghi mỗi yêu cầu giao việc với các trạng thái: được mời, bị từ chối (kèm quyền hoặc giới hạn
+- **FR-055**: Nền tảng MUST ghi mỗi yêu cầu giao việc với các trạng thái: được mời, bị từ chối (kèm quyền hoặc giới hạn
   đã chặn), đã giao, lỗi, thử lại. Bản ghi gồm agent hỏi, agent được hỏi, tầng, hội thoại, thời gian và lượng dùng mô
   hình, để báo cáo chi phí theo agent vẫn đúng. Báo cáo sử dụng MUST tách được lượt có giao việc và lượt không có.
-- **FR-052**: Nền tảng MUST ghi mỗi câu hỏi gửi người (đã gửi, không đến được ai, đã trả lời, hết hạn, huỷ) và mỗi quyết
+- **FR-056**: Nền tảng MUST ghi mỗi câu hỏi gửi người (đã gửi, không đến được ai, đã trả lời, hết hạn, huỷ) và mỗi quyết
   định duyệt (lựa chọn nào, do thẻ, quy tắc nào hay chế độ nào quyết). Mỗi lần từ chối MUST ghi kèm quy tắc đã chặn.
-- **FR-053**: Mỗi agent MUST có trang hoạt động: nó đã chạy, đọc, lưu gì, đã giao việc cho ai, kèm kết quả. Tệp đã lưu chỉ
+- **FR-057**: Mỗi agent MUST có trang hoạt động: nó đã chạy, đọc, lưu gì, đã giao việc cho ai, kèm kết quả. Tệp đã lưu chỉ
   ghi tên và kích thước, không ghi nội dung.
-  - Giáo viên xem được nhật ký của lớp mình.
+  - Giáo viên xem được nhật ký của lớp mình, chỉ gồm các nhóm mà giáo viên là thành viên. Chat riêng của người khác và
+    nhóm giáo viên không tham gia không xuất hiện trong nhật ký (FR-040, FR-050).
   - Chủ agent xem được hoạt động của agent mình, không kèm nội dung hội thoại của người khác.
   - Học sinh và phụ huynh chỉ xem được hoạt động trong hội thoại của chính mình.
-  - Admin xem được toàn bộ những gì đã được cho phép, bị từ chối và bị lỗi.
-- **FR-054**: Dự án MUST có bộ kịch bản kiểm thử tương đương 5 test của OpenBot (luồng đầy đủ nhiều tầng, agent dữ liệu từ
+  - Admin xem được toàn bộ những gì đã được cho phép, bị từ chối và bị lỗi (không kèm nội dung chat riêng).
+- **FR-058**: Dự án MUST có bộ kịch bản kiểm thử tương đương 5 test của OpenBot (luồng đầy đủ nhiều tầng, agent dữ liệu từ
   chối ngoài phạm vi, agent không gửi ra ngoài khi chưa duyệt, agent không bịa, quyền giao việc bị chặn ở tầng nền tảng),
   dựng trên agent và dữ liệu demo của trường học, chạy được và báo được các chỉ số ở Success Criteria.
 
 **Vận hành**
 
-- **FR-055**: `dev.ps1` MUST dựng được đủ những gì feature cần bằng một lệnh, theo nguyên tắc III của hiến pháp: thay đổi
+- **FR-059**: `dev.ps1` MUST dựng được đủ những gì feature cần bằng một lệnh, theo nguyên tắc III của hiến pháp: thay đổi
   dữ liệu, cấu hình mới, hàng đợi giao việc, agent demo đã cấp quyền giao việc, và nhóm demo.
 
 ### Key Entities *(include if feature involves data)*
@@ -615,7 +666,7 @@ trải nghiệm chính.
   chỉnh được.
 - Các điểm spec bổ sung hoặc chặt hơn OpenBot, vì người dùng là học sinh:
   - agent hỏi có lượt làm tiếp sau khi nhận đủ câu trả lời (FR-017);
-  - câu trả lời nguyên văn vẫn qua kiểm duyệt đầu ra (FR-048);
+  - câu trả lời nguyên văn vẫn qua kiểm duyệt đầu ra (FR-052);
   - hỏi người được nối tới giáo viên và phụ huynh (FR-025);
   - học sinh mặc định ở chế độ duyệt "Hỏi mỗi lần" (FR-035);
   - câu hỏi duyệt từ agent tầng dưới bắt buộc về hội thoại gốc (FR-029, FR-037).
@@ -624,7 +675,11 @@ trải nghiệm chính.
 - Danh sách quyền giao việc mặc định trống khi tạo agent mới. Agent nền tảng mẫu được seed sẵn quyền hợp lý: trợ lý lớp
   được hỏi các gia sư môn; gia sư môn được hỏi agent tài liệu và agent tạo đề.
 - Nhóm chat luôn gắn với một lớp. Nằm ngoài phạm vi: nhóm không thuộc lớp, nhóm liên lớp, nhắn riêng giữa hai người không
-  có agent.
+  có agent (người dùng tạo nhóm hai người nếu cần).
+- Quyền riêng tư được ưu tiên hơn giám sát (đã chốt khi làm rõ): chat riêng và mọi nhóm là không gian riêng tư; vi phạm chỉ
+  bị chặn tại chỗ, không báo cho giáo viên hay phụ huynh, kể cả dấu hiệu tự làm hại (vẫn có phản hồi hỗ trợ và Tổng đài 111
+  cho người nhắn). Điều này thay đổi hành vi hiện có trên `main`: nhật ký an toàn theo lớp của giáo viên sẽ không còn hiện
+  sự kiện từ các không gian riêng tư.
 - "Giáo viên các môn" lấy theo môn của giáo viên trong lớp. Nếu dữ liệu lớp chưa ghi môn cho từng giáo viên thì feature bổ
   sung trường này.
 - Thông báo chỉ trong ứng dụng (huy hiệu, hộp yêu cầu). Email, SMS và thông báo đẩy nằm ngoài phạm vi.

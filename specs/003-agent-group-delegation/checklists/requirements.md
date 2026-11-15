@@ -36,6 +36,8 @@
   spec 002 mà OpenBot không có: tối đa 1 lần hỏi lại, 3 câu mỗi lần, nút "Cứ làm luôn", giới hạn tổng thời gian và số
   agent, xác nhận chỉ có hai lựa chọn.
 - `dev.ps1` (FR-055) là yêu cầu của hiến pháp, nguyên tắc III; tên công cụ OpenBot chỉ dùng để dẫn nguồn.
-- Không có marker [NEEDS CLARIFICATION]. Mặc định nên xác nhận qua `/speckit-clarify`: số tầng giao việc (2), số lần
-  giao việc mỗi lượt (6), học sinh mặc định ở chế độ duyệt "Hỏi mỗi lần", quyền tạo nhóm của học sinh và phụ huynh (mặc
-  định tắt), và lượt làm tiếp của agent hỏi (FR-017, OpenBot không nói rõ).
+- Không có marker [NEEDS CLARIFICATION]. `/speckit-clarify` (2026-11-15) đã chốt 4 điểm: agent hỏi có lượt viết kết luận
+  (FR-017); dữ liệu riêng không đưa vào nhóm và giao diện kiểu Messenger (FR-046, FR-049); chat riêng và nhóm riêng tư hoàn
+  toàn, vi phạm chỉ bị chặn, không báo giáo viên (FR-040, FR-050, FR-051); học sinh chỉ thêm được bạn cùng lớp, giáo viên và
+  phụ huynh của mình vào nhóm (FR-039). Còn để mặc định: số tầng (2), số lần giao việc mỗi lượt (6), học sinh duyệt "Hỏi
+  mỗi lần".
