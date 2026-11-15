@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 
 import { errorMessage, useResource } from "../../app/useResource";
@@ -35,7 +36,8 @@ export function DirectChatDialog({ classes, onClose, onOpened }: { classes: Clas
     }
   }
 
-  return (
+  return createPortal(
+
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <div className="dialog frosted messenger__dialog" role="dialog" aria-modal="true" aria-labelledby="direct-title" onClick={(event) => event.stopPropagation()}>
         <h2 id="direct-title">Chat riêng với một agent</h2>
@@ -62,6 +64,7 @@ export function DirectChatDialog({ classes, onClose, onOpened }: { classes: Clas
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="dialog__actions"><button className="button" type="button" onClick={onClose}>Đóng</button></div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

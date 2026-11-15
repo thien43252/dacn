@@ -2066,3 +2066,15 @@ button.glass-controller__cell:disabled { cursor: default; }
 .placeholder-page { display: grid; justify-items: center; gap: var(--space-3); margin: var(--space-8) auto; max-width: 480px; padding: var(--space-8); border: 1px dashed var(--line-strong); border-radius: var(--radius-card); color: var(--muted); background: var(--surface); text-align: center; }
 .placeholder-page svg { width: 32px; height: 32px; color: var(--primary); }
 .placeholder-page h2 { margin: 0; color: var(--text); }
+
+/* Shared modal: .dialog-backdrop > .dialog (messenger dialogs, ConfirmDialog). Rendered into document.body. */
+.dialog-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: var(--space-6); background: rgba(12, 45, 69, 0.32); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: popover-in 200ms var(--ease-out); }
+.dialog { width: min(560px, 100%); max-height: min(760px, calc(100vh - 2 * var(--space-6))); overflow-y: auto; overscroll-behavior: contain; margin: 0; border-radius: 24px; padding: var(--space-6); background: var(--surface); box-shadow: var(--shadow-strong); }
+.dialog h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+.dialog__head { display: flex; align-items: flex-start; gap: var(--space-3); }
+.dialog__body { margin-top: var(--space-3); }
+.dialog__actions { position: sticky; bottom: calc(-1 * var(--space-6)); display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-2) calc(-1 * var(--space-6)) calc(-1 * var(--space-6)); padding: var(--space-3) var(--space-6) var(--space-6); background: var(--surface); }
+.dialog .field { display: grid; gap: 6px; }
+.dialog fieldset { margin: 0; padding: var(--space-3); }
+.dialog fieldset legend { padding: 0 4px; font-weight: 600; }
+@media (max-width: 760px) { .dialog-backdrop { padding: 12px; } .dialog { padding: 16px; } .dialog__actions { bottom: -16px; margin: 8px -16px -16px; padding: 12px 16px 16px; } }

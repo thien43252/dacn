@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { errorMessage, useResource } from "../../app/useResource";
@@ -39,7 +40,8 @@ export function NewGroupDialog({ classes, onClose, onCreated }: { classes: Class
   }
 
   const data = candidates.data;
-  return (
+  return createPortal(
+
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <form className="dialog frosted messenger__dialog" role="dialog" aria-modal="true" aria-labelledby="group-title" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
         <h2 id="group-title">Tạo nhóm chat</h2>
@@ -85,6 +87,7 @@ export function NewGroupDialog({ classes, onClose, onCreated }: { classes: Class
           <button className="button button--primary" type="submit" disabled={busy || !title.trim() || !classId || data?.can_create === false}>Tạo nhóm</button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

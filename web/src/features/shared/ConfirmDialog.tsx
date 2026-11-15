@@ -5,6 +5,7 @@
  * before they commit to it.
  */
 
+import { createPortal } from "react-dom";
 import { type ReactNode, useEffect, useRef } from "react";
 
 import { Icon } from "../../components/Icon";
@@ -48,7 +49,8 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
+
     <div className="dialog-backdrop" onClick={onCancel} role="presentation">
       <div
         aria-labelledby="dialog-title"
@@ -85,6 +87,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
