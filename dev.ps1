@@ -71,8 +71,14 @@ function Test-Port($port) {
 }
 
 function Start-Window($title, $dir, $command) {
-    $cmd = "`$Host.UI.RawUI.WindowTitle = '$title'; Set-Location '$dir'; $command"
-    Start-Process $Shell -ArgumentList '-NoExit', '-Command', $cmd | Out-Null
+    # The Microsoft Store build of pwsh does not inherit this process's environment, so pass on what the window
+    # needs explicitly: PATH (uv, npm, node) and DATABASE_URL (chosen by Select-Database).
+    $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
+    $envSetup = "`$env:PATH = $(& $q $env:PATH); "
+    if ($env:DATABASE_URL) { $envSetup += "`$env:DATABASE_URL = $(& $q $env:DATABASE_URL); " }
+    $cmd = "$envSetup`$Host.UI.RawUI.WindowTitle = $(& $q $title); Set-Location $(& $q $dir); $command"
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))
+    Start-Process $Shell -ArgumentList '-NoExit', '-EncodedCommand', $encoded | Out-Null
 }
 
 function Invoke-Psql($db, $sql) {
