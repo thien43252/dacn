@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.auth.models import new_id
@@ -26,7 +26,7 @@ class GuardEvent(Base):
     conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     message_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     agent_slug: Mapped[str | None] = mapped_column(String(48), nullable=True)
-    # input | tool | output
+    # input | tool | output | handoff
     stage: Mapped[str] = mapped_column(String(16))
     # block | support | redact | flag
     verdict: Mapped[str] = mapped_column(String(16), index=True)
@@ -36,4 +36,7 @@ class GuardEvent(Base):
     severity: Mapped[str] = mapped_column(String(8), default="low")
     reason: Mapped[str] = mapped_column(String(300), default="")
     excerpt: Mapped[str] = mapped_column(String(300), default="")
+    # From a direct chat or a group (feature 003): never shown to teachers who are not members, and admins see it
+    # without the excerpt.
+    private_space: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

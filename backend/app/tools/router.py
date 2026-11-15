@@ -28,4 +28,5 @@ async def list_tools(_: CurrentUser) -> list[ToolOut]:
             parameters=_llm_schema(tool.args),
         )
         for tool in TOOLS.values()
+        if not tool.meta
     ]

@@ -52,6 +52,8 @@ class AgentManifest(BaseModel):
     system_prompt: str = Field(min_length=40, max_length=8000)
     examples: list[Example] = Field(default_factory=list, max_length=5)
     starter_prompts: list[str] = Field(default_factory=list, max_length=6)
+    # Agents this one may hand work to (message_agent). Empty means it is offered no handoff tool at all.
+    handoff_to: list[str] = Field(default_factory=list, max_length=8)
 
     @field_validator("slug")
     @classmethod
@@ -76,6 +78,16 @@ class AgentManifest(BaseModel):
     def _ages(self) -> "AgentManifest":
         if self.age_range and not (5 <= self.age_range[0] <= self.age_range[1] <= 99):
             raise ValueError("Độ tuổi không hợp lệ.")
+        return self
+
+    @model_validator(mode="after")
+    def _handoffs(self) -> "AgentManifest":
+        for slug in self.handoff_to:
+            if not SLUG.match(slug):
+                raise ValueError("Mã agent được giao việc không hợp lệ.")
+            if slug == self.slug:
+                raise ValueError("Agent không thể tự giao việc cho chính mình.")
+        self.handoff_to = list(dict.fromkeys(self.handoff_to))
         return self
 
 

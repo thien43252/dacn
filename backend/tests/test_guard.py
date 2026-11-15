@@ -58,10 +58,13 @@ async def test_jailbreak_is_blocked_before_any_agent_and_logged(as_user, fake_ll
         stored = (await db.scalars(select(ChatMessage).order_by(ChatMessage.created_at))).all()
         assert [(m.role, m.status) for m in stored] == [("user", "blocked"), ("assistant", "blocked")]
 
+    # Feature 003 (FR-050, FR-051): a student's direct chat is private, so the teacher's log does not show it.
     audit = (await teacher.get(f"/api/classes/{room['id']}/audit")).json()
-    assert audit["summary"]["by_category"] == {"jailbreak": 1}
-    assert audit["events"][0]["user_name"] == student.user["name"]
-    assert (await teacher.get("/api/audit/events")).json()["summary"]["total"] == 1
+    assert audit["summary"]["total"] == 0 and audit["events"] == [] and audit["scope_note"]
+    assert (await teacher.get("/api/audit/events")).json()["summary"]["total"] == 0
+    admin = await as_user("admin")
+    platform = (await admin.get("/api/audit/events")).json()
+    assert platform["summary"]["by_category"] == {"jailbreak": 1} and platform["events"][0]["excerpt"] == ""
     assert (await student.get(f"/api/classes/{room['id']}/audit")).status_code == 403
     other = await as_user("teacher")
     assert (await other.get(f"/api/classes/{room['id']}/audit")).status_code == 404

@@ -1,6 +1,7 @@
-"""Create the demo accounts shown on the login page plus one demo class. Idempotent: existing data is left untouched.
+"""Create the demo accounts shown on the login page plus one demo class. Idempotent: existing data is left untouched,
+so dev.ps1 runs it on every start (`--ensure`) to add what a newer version of the demo needs.
 
-Usage (from backend/): uv run python -m scripts.seed_demo
+Usage (from backend/): uv run python -m scripts.seed_demo [--ensure]
 """
 
 import asyncio
@@ -17,12 +18,13 @@ from app.agents.models import Agent, AgentVersion, Installation
 from app.agents.service import latest_version, sync_platform_agents
 from app.auth.models import Role, User
 from app.auth.service import EmailTakenError, create_user, get_user_by_email
-from app.chat.models import ChatMessage, Conversation
+from app.chat.models import ChatMessage, Conversation, ConversationMember
 from app.classes import service as classes
-from app.classes.models import ClassRoom
+from app.classes.models import ClassMember, ClassRoom
 from app.db import dispose_engine, get_session
 from app.knowledge import service as knowledge
 from app.knowledge.models import Document
+from app.orchestration.models import ALWAYS_ASK, ApprovalKindMode
 
 SEED_DIR = Path(__file__).resolve().parents[2] / "seed"
 EVAL_DIR = SEED_DIR.parent / "eval"
@@ -77,7 +79,12 @@ DEMO_ACCOUNTS = [
     ("Nguyễn Văn Bình", "parent@demo.edu.vn", Role.PARENT),
     ("Quản trị viên", "admin@demo.edu.vn", Role.ADMIN),
     ("Trần Gia Bảo", "bao@demo.edu.vn", Role.STUDENT),
+    # Feature 003: a subject teacher and a second family, for groups and questions to people.
+    ("Thầy Lê Văn Toàn", "toan@demo.edu.vn", Role.TEACHER),
+    ("Phạm Thanh Bình", "student2@demo.edu.vn", Role.STUDENT),
+    ("Phạm Văn Hùng", "parent2@demo.edu.vn", Role.PARENT),
 ]
+DEMO_GROUP = "Ôn thi HK1 - Toán 8A1"
 DEMO_CLASS = {
     "name": "Toán 8A1",
     "subject": "toan",
@@ -109,6 +116,10 @@ async def install(db, agent_slug: str, *, installed_by: User, class_id: str | No
             Installation.class_id == class_id if class_id else Installation.user_id == user_id,
         )
     )
+    if existing is not None and agent.is_platform and existing.agent_version_id != version.id:
+        # Demo installations follow the platform's latest version (e.g. feature 003 added handoff grants).
+        existing.agent_version_id = version.id
+        print(f"updated {agent_slug} ({scope}) to v{version.version}")
     if existing is None:
         db.add(
             Installation(
@@ -156,11 +167,15 @@ async def seed_class(db, users: dict[str, User]) -> None:
     if room is None:
         room = await classes.create_class(db, teacher, **DEMO_CLASS)
         print(f"created class {room.name} (code {room.join_code})")
-    for email in ("student@demo.edu.vn", "bao@demo.edu.vn"):
+    for email in ("student@demo.edu.vn", "bao@demo.edu.vn", "student2@demo.edu.vn"):
         await classes.add_student(db, room, users[email])
     student, parent = users["student@demo.edu.vn"], users["parent@demo.edu.vn"]
     await classes.link_parent(db, parent, student)
     await classes.set_consent(db, parent, student.id, allow_agents=True, allow_reports=True)
+    second, second_parent = users["student2@demo.edu.vn"], users["parent2@demo.edu.vn"]
+    await classes.link_parent(db, second_parent, second)
+    await classes.set_consent(db, second_parent, second.id, allow_agents=True, allow_reports=True)
+    await seed_subject_teacher(db, room, users["toan@demo.edu.vn"], "toan")
     # Bảo has no linked parent, so the consent gate is visible in the demo.
     for slug in CLASS_AGENTS:
         await install(db, slug, installed_by=teacher, class_id=room.id)
@@ -168,23 +183,103 @@ async def seed_class(db, users: dict[str, User]) -> None:
     await seed_document(db, room, teacher)
     await seed_history(db, room, student)
     await seed_teacher_agents(db, teacher)
+    await seed_group(db, room, users)
+
+
+async def seed_subject_teacher(db, room: ClassRoom, teacher: User, subject: str) -> None:
+    member = await db.scalar(
+        select(ClassMember).where(ClassMember.class_id == room.id, ClassMember.user_id == teacher.id)
+    )
+    if member is None:
+        db.add(ClassMember(class_id=room.id, user_id=teacher.id, role="teacher", subject=subject))
+        print(f"subject teacher {teacher.email} ({subject})")
+    elif member.subject != subject:
+        member.subject = subject
+    await db.commit()
+
+
+async def seed_group(db, room: ClassRoom, users: dict[str, User]) -> None:
+    """A demo group: homeroom and maths teachers, two students, one parent, the class assistant and the tutor."""
+    exists = await db.scalar(
+        select(Conversation.id).where(Conversation.class_id == room.id, Conversation.title == DEMO_GROUP)
+    )
+    if exists:
+        return
+    homeroom = users["teacher@demo.edu.vn"]
+    group = Conversation(
+        user_id=homeroom.id, class_id=room.id, kind="group", title=DEMO_GROUP, default_agent_slug="tro-ly-lop"
+    )
+    db.add(group)
+    await db.flush()
+    people = ["teacher@demo.edu.vn", "toan@demo.edu.vn", "student@demo.edu.vn", "student2@demo.edu.vn"]
+    people.append("parent@demo.edu.vn")
+    for email in people:
+        person = users[email]
+        db.add(
+            ConversationMember(
+                conversation_id=group.id, user_id=person.id, is_admin=person.role == "teacher", can_see_history=True
+            )
+        )
+    for slug in ("tro-ly-lop", "gia-su-toan"):
+        db.add(ConversationMember(conversation_id=group.id, agent_slug=slug, can_see_history=True))
+    await db.commit()
+    print(f"group {DEMO_GROUP}")
+
+
+async def seed_approval_modes(db) -> None:
+    """Students get "ask every time" for every always-ask action (FR-035); teachers and parents choose."""
+    modes = (("student", "ask_every_time"), ("teacher", "members_choose"), ("parent", "members_choose"))
+    for kind in sorted(ALWAYS_ASK):
+        for role, mode in modes:
+            if await db.get(ApprovalKindMode, (kind, role)) is None:
+                db.add(ApprovalKindMode(action_kind=kind, role=role, mode=mode))
+    await db.commit()
 
 
 async def seed_history(db, room: ClassRoom, student: User) -> None:
-    if await db.scalar(select(Conversation.id).where(Conversation.user_id == student.id, Conversation.kind == "chat")):
+    existing = await db.scalar(
+        select(Conversation.id).where(Conversation.user_id == student.id, Conversation.kind.in_(("chat", "direct")))
+    )
+    if existing:
         return
     now = datetime.now(UTC)
     for days_ago, slug, question, answer in DEMO_HISTORY:
         at = now - timedelta(days=days_ago, hours=2)
+        # Past auto-routed chats (direct_agent_slug null), as they were before feature 003.
         conversation = Conversation(
-            user_id=student.id, class_id=room.id, title=question[:80], created_at=at, updated_at=at
+            user_id=student.id,
+            class_id=room.id,
+            title=question[:80],
+            created_at=at,
+            updated_at=at,
+            kind="direct",
+            last_seq=2,
         )
         db.add(conversation)
         await db.flush()
-        db.add(ChatMessage(conversation_id=conversation.id, role="user", content=question, created_at=at))
+        db.add(
+            ConversationMember(
+                conversation_id=conversation.id,
+                user_id=student.id,
+                is_admin=True,
+                can_see_history=True,
+                last_read_seq=2,
+            )
+        )
         db.add(
             ChatMessage(
                 conversation_id=conversation.id,
+                seq=1,
+                role="user",
+                content=question,
+                created_at=at,
+                sender_user_id=student.id,
+            )
+        )
+        db.add(
+            ChatMessage(
+                conversation_id=conversation.id,
+                seq=2,
                 role="assistant",
                 content=answer,
                 agent_slug=slug,
@@ -218,6 +313,7 @@ async def main() -> None:
         print(f"platform agents synced ({', '.join(changed) or 'no changes'})")
         users = await seed_accounts(db)
         await seed_class(db, users)
+        await seed_approval_modes(db)
     await dispose_engine()
 
 

@@ -148,6 +148,7 @@ export function ChatPanel({ open, onClose, onBusyChange, userId, role, contextCl
           initialMessages={initial}
           onConversation={onConversation}
           onBusyChange={onBusyChange}
+          viewerId={userId}
           disabled={!classId}
           emptyHint={
             roomless && role === "student" ? "Bạn chưa tham gia lớp nào. Vào “Lớp của tôi” để nhập mã lớp, hoặc trò chuyện với agent cá nhân."

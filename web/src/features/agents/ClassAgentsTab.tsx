@@ -52,6 +52,25 @@ export function ClassAgentsTab({ room }: { room: ClassRoom }) {
                     onChange={(event) => void run(() => installApi.toggle(room.id, installation.id, event.target.checked))} />
                   <span>{installation.enabled ? "Đang bật" : "Đang tắt"}</span>
                 </label>
+                {(installation.handoff_to ?? []).length > 0 && (
+                  <details className="ea-handoff-allow">
+                    <summary>Được giao việc cho</summary>
+                    {(installation.handoff_to ?? []).map((slug) => {
+                      const allowed = installation.handoff_allow ?? installation.handoff_to ?? [];
+                      return (
+                        <label key={slug} className="ea-check">
+                          <input type="checkbox" checked={allowed.includes(slug)}
+                            onChange={() => {
+                              const next = allowed.includes(slug) ? allowed.filter((item) => item !== slug) : [...allowed, slug];
+                              void run(() => installApi.narrowHandoffs(room.id, installation.id, next));
+                            }} />
+                          <span>@{slug}</span>
+                        </label>
+                      );
+                    })}
+                    <small className="ea-muted">Chỉ thu hẹp được trong quyền người tạo đã cấp.</small>
+                  </details>
+                )}
                 <button className="icon-button icon-button--danger" type="button" aria-label={`Gỡ ${installation.agent.name}`}
                   onClick={() => void run(() => installApi.uninstall(room.id, installation.id))}>
                   <Icon name="trash" />

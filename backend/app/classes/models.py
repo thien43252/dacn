@@ -13,6 +13,10 @@ DEFAULT_POLICY: dict = {
     "blocked_topics": [],
     "allow_personal_agents": True,
     "notes_for_agents": "",
+    # Feature 003: agents may hand work to each other; members may create groups and ask to add their own agents.
+    "allow_handoffs": True,
+    "members_can_create_groups": True,
+    "allow_member_agents": True,
 }
 
 
@@ -42,6 +46,8 @@ class ClassMember(Base):
     class_id: Mapped[str] = mapped_column(ForeignKey("classes.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String(16))  # "teacher" | "student"
+    # The subject a teacher teaches in this class (null for students); ask_person finds "GV Toán" through it.
+    subject: Mapped[str | None] = mapped_column(String(16), nullable=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

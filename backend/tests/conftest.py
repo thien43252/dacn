@@ -17,6 +17,8 @@ from app.main import create_app
 
 # Tests never send traces, even when the repo-root .env has Langfuse keys (env vars override the .env file).
 os.environ["LANGFUSE_PUBLIC_KEY"] = ""
+# The background worker never runs in tests; they call the `drain` fixture to run queued work deterministically.
+os.environ["WORKER_ENABLED"] = "false"
 
 
 @pytest.fixture
@@ -105,3 +107,11 @@ async def as_user(app, sessionmaker):
     yield make
     for http in clients:
         await http.aclose()
+
+
+@pytest.fixture
+def drain():
+    """`await drain()` runs every queued handoff and resumable run, one at a time."""
+    from app.orchestration import worker
+
+    return worker.drain

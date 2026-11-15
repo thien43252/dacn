@@ -29,8 +29,9 @@ docker compose -f infra/docker-compose.yml up -d --wait
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run python -m scripts.seed_demo   # 4 tài khoản demo, mật khẩu Demo123!
-uv run uvicorn app.main:app --reload --port 8001
+uv run python -m scripts.seed_demo --ensure   # tài khoản demo (mật khẩu Demo123!), lũy đẳng: chạy lại an toàn
+# Tài khoản: teacher@, student@, parent@, admin@ và (feature 003) toan@ (GV Toán), student2@, parent2@demo.edu.vn
+uv run uvicorn app.main:app --reload --port 8001   # kèm worker chạy giao việc giữa agent (WORKER_ENABLED)
 
 # Frontend (http://127.0.0.1:5173, proxy /api -> 8001)
 cd web
@@ -45,6 +46,8 @@ cd backend && uv run pytest -q && uv run ruff check . && uv run ruff format --ch
 # Chạy cùng bộ test trên Postgres (bắt lỗi khác biệt so với SQLite):
 TEST_DATABASE_URL=postgresql+asyncpg://eduagent:eduagent@127.0.0.1:5433/eduagent_test uv run pytest -q
 cd web && npm test && npm run build
+# Feature 003: hàng rào giao việc giữa agent và hỏi người (mô hình fake, 7 kịch bản)
+cd backend && uv run python ../eval/run_delegation.py
 ```
 
 Test backend không cần database hay API key (LLM adapter `fake`).
@@ -76,6 +79,12 @@ Theo kế hoạch 12 tuần ([docs/PLAN.md](docs/PLAN.md)).
 - Tuần 10: báo cáo học tập cho phụ huynh (số liệu tổng hợp, nhận xét bằng LLM hoặc theo mẫu, cảnh báo cần trò chuyện
   với con, không có nguyên văn tin nhắn; tắt được trong mục đồng ý), tab "Tiến độ" của lớp cho giáo viên, seed lịch sử
   học và hai agent giáo viên để demo kiểm định.
+- Feature 003 (spec `specs/003-agent-group-delegation`): giao diện chat kiểu Messenger (chat riêng với từng agent, nhóm
+  có cả người và agent, riêng tư hoàn toàn); agent giao việc cho agent khác theo quyền do người tạo cấp (bất đồng bộ,
+  câu trả lời ghi nguyên văn một lần, thanh "Đã hỏi" mở/đóng được, agent hỏi viết kết luận); agent hỏi người
+  (`ask_person`: chính người dùng, giáo viên bộ môn, chủ nhiệm, phụ huynh) qua hộp yêu cầu; duyệt hành động kiểu OpenBot
+  (4 lựa chọn, chế độ theo vai trò, "Cực kỳ cẩn thận"); học sinh và phụ huynh tự tạo agent. Kiểm tra bằng
+  `eval/run_delegation.py`.
 - Tuần 11: script thực nghiệm `eval/run_redteam.py`, `run_routing.py`, `run_certify.py` và bộ 20 agent có nhãn
   (`eval/certify_agents.yaml`); xem [eval/README.md](eval/README.md).
 - Tuần 12: kịch bản demo [docs/DEMO.md](docs/DEMO.md), bản nháp báo cáo [docs/BAO-CAO.md](docs/BAO-CAO.md), test e2e

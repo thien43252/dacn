@@ -22,21 +22,29 @@ export interface RouteMeta {
 export const navigation: Record<Role, NavigationItem[]> = {
   teacher: [
     { label: "Lớp của tôi", path: "/teacher/classes", icon: "school" },
+    { label: "Tin nhắn", path: "/teacher/chat", icon: "message" },
+    { label: "Hộp yêu cầu", path: "/teacher/inbox", icon: "check" },
     { label: "Agent Hub", path: "/teacher/hub", icon: "layers" },
     { label: "Agent của tôi", path: "/teacher/builder", icon: "sparkles" },
     { label: "Nhật ký an toàn", path: "/teacher/audit", icon: "shield" },
   ],
   student: [
     { label: "Trợ lý học tập", path: "/student/home", icon: "home" },
+    { label: "Tin nhắn", path: "/student/chat", icon: "message" },
+    { label: "Hộp yêu cầu", path: "/student/inbox", icon: "check" },
     { label: "Lớp của tôi", path: "/student/classes", icon: "school" },
     { label: "Agent Hub", path: "/student/hub", icon: "layers" },
     { label: "Agent của tôi", path: "/student/agents", icon: "sparkles" },
+    { label: "Tạo agent", path: "/student/builder", icon: "edit" },
   ],
   parent: [
     { label: "Con của tôi", path: "/parent/home", icon: "team" },
+    { label: "Tin nhắn", path: "/parent/chat", icon: "message" },
+    { label: "Hộp yêu cầu", path: "/parent/inbox", icon: "check" },
     { label: "Báo cáo học tập", path: "/parent/reports", icon: "book" },
     { label: "Agent Hub", path: "/parent/hub", icon: "layers" },
     { label: "Đồng ý & quyền riêng tư", path: "/parent/consent", icon: "lock" },
+    { label: "Tạo agent", path: "/parent/builder", icon: "edit" },
   ],
   admin: [
     { label: "Kiểm định agent", path: "/admin/certification", icon: "shield" },
@@ -46,7 +54,18 @@ export const navigation: Record<Role, NavigationItem[]> = {
   ],
 };
 
+const messenger = (role: string): RouteMeta[] => [
+  { pattern: `/${role}/chat`, title: "Tin nhắn", description: "Chat riêng với từng agent hoặc tạo nhóm với bạn bè, thầy cô, phụ huynh. Chỉ thành viên đọc được.", week: 13 },
+  { pattern: `/${role}/inbox`, title: "Hộp yêu cầu", description: "Câu hỏi và yêu cầu duyệt mà agent gửi cho bạn thay mặt người khác.", week: 13 },
+  { pattern: `/${role}/settings/approvals`, title: "Cài đặt duyệt", description: "Những gì agent được làm mà không hỏi lại bạn.", week: 13 },
+];
+
 export const routes: RouteMeta[] = [
+  ...messenger("teacher"),
+  ...messenger("student"),
+  ...messenger("parent"),
+  { pattern: "/student/builder", title: "Tạo agent", description: "Tạo agent của riêng bạn từ tool của nền tảng. Muốn đưa vào lớp cần qua kiểm định và giáo viên đồng ý.", week: 13 },
+  { pattern: "/parent/builder", title: "Tạo agent", description: "Tạo agent giúp bạn kèm con học. Agent vẫn tuân theo quy tắc an toàn của nền tảng.", week: 13 },
   { pattern: "/teacher/classes", title: "Lớp của tôi", description: "Tạo lớp, gửi mã mời cho học sinh và phụ huynh.", week: 3 },
   { pattern: "/teacher/classes/:classId", title: "Chi tiết lớp", description: "Thành viên, agent, tài liệu, chính sách và nhật ký của lớp.", week: 3 },
   { pattern: "/teacher/hub", title: "Agent Hub", description: "Tìm agent theo môn, khối lớp và kết quả kiểm định rồi cài vào lớp.", week: 9 },

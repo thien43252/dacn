@@ -1,12 +1,12 @@
 """Learning activity of a student, aggregated for parents (weekly report), teachers (class progress) and the
 `progress_summary` tool.
 
-Reports carry counts and keywords only, never message text: a parent sees that their child asked 12 maths questions,
-not what the child wrote. Wellbeing signals (the input guard's "support" verdicts) are reported as a count so the
-adult can start a conversation; their content stays in the teacher's audit log.
+Reports carry counts only, never message text: a parent sees that their child asked 12 maths questions, not what the
+child wrote. Since feature 003 every direct chat and group is a private space (FR-050, FR-051): keywords taken from
+messages are no longer reported, and guard events from private spaces (blocks, wellbeing signals) are not counted for
+parents or teachers; the agent only blocks the action and tells the student.
 """
 
-import re
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -19,13 +19,6 @@ from app.audit.models import GuardEvent
 from app.chat.models import ChatMessage, Conversation
 from app.llm.base import ChatModel, LLMError, Usage, complete_json
 
-STOPWORDS = set(
-    "là của và có không cho em mình bạn này với được thì một những các trong để về như làm gì nào sao vậy ạ nhé "
-    "giúp hãy đi rồi đã sẽ ra vào khi thế nhưng hay hoặc từ theo bài câu ơi cái đó đây nè tôi con cô thầy "
-    "giải thích chưa hiểu lại xem thử muốn biết".split()
-)
-# Placeholders the input guard leaves where personal data was ("[số điện thoại đã ẩn]").
-REDACTION = re.compile(r"\[[^\]]*đã ẩn\]")
 SUBJECT_NAMES = {
     "toan": "Toán",
     "van": "Ngữ văn",
@@ -47,19 +40,29 @@ async def activity(db: AsyncSession, student_id: str, days: int = 7, class_id: s
             ChatMessage.role, ChatMessage.content, ChatMessage.agent_slug, ChatMessage.status, ChatMessage.created_at
         )
         .join(Conversation, Conversation.id == ChatMessage.conversation_id)
-        .where(Conversation.user_id == student_id, Conversation.kind == "chat", ChatMessage.created_at >= since)
+        .where(
+            ChatMessage.sender_user_id == student_id,
+            Conversation.kind.in_(("direct", "group")),
+            ChatMessage.created_at >= since,
+        )
     )
     if class_id:
         query = query.where(Conversation.class_id == class_id)
     rows = list(await db.execute(query))
     asked = [row for row in rows if row.role == "user"]
-    agents = Counter(row.agent_slug for row in rows if row.role == "assistant" and row.agent_slug)
-    keywords = Counter(
-        word
-        for row in asked
-        for word in re.findall(r"[a-zà-ỹđ]{3,}", REDACTION.sub(" ", row.content).lower())
-        if word not in STOPWORDS
+    agent_rows = await db.execute(
+        select(ChatMessage.agent_slug)
+        .join(Conversation, Conversation.id == ChatMessage.conversation_id)
+        .where(
+            Conversation.user_id == student_id,
+            Conversation.kind == "direct",
+            ChatMessage.role == "assistant",
+            ChatMessage.agent_slug.is_not(None),
+            ChatMessage.created_at >= since,
+            *([Conversation.class_id == class_id] if class_id else []),
+        )
     )
+    agents = Counter(slug for (slug,) in agent_rows)
 
     subjects: Counter[str] = Counter()
     for slug, count in agents.items():
@@ -71,7 +74,10 @@ async def activity(db: AsyncSession, student_id: str, days: int = 7, class_id: s
     by_day: Counter[date] = Counter(row.created_at.date() for row in asked)
     today = datetime.now(UTC).date()
     events = select(GuardEvent.verdict).where(
-        GuardEvent.user_id == student_id, GuardEvent.source == "chat", GuardEvent.created_at >= since
+        GuardEvent.user_id == student_id,
+        GuardEvent.source == "chat",
+        GuardEvent.private_space.is_(False),
+        GuardEvent.created_at >= since,
     )
     if class_id:
         events = events.where(GuardEvent.class_id == class_id)
@@ -89,7 +95,8 @@ async def activity(db: AsyncSession, student_id: str, days: int = 7, class_id: s
         ],
         "agents_used": dict(agents.most_common(5)),
         "subjects": dict(subjects.most_common(5)),
-        "frequent_keywords": [word for word, _ in keywords.most_common(8)],
+        # Kept for API compatibility; always empty (no content from private spaces).
+        "frequent_keywords": [],
         "blocked_messages": verdicts.get("block", 0),
         "wellbeing_alerts": verdicts.get("support", 0),
         "last_active": max((row.created_at for row in asked), default=None),

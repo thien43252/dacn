@@ -120,10 +120,14 @@ if (-not $NoBackend) {
     Step "Applying migrations ($($database.Name))"
     Invoke-Checked $Backend { uv run alembic upgrade head }
 
+    # The seed is idempotent: on an existing database it only adds what a newer demo needs (feature 003 accounts,
+    # subject teacher, demo group, approval modes), so it runs on every start.
     if ($Setup -or $firstRun -or $database.Fresh) {
         Step 'Seeding demo data'
-        Invoke-Checked $Backend { uv run python -m scripts.seed_demo }
+    } else {
+        Step 'Ensuring demo data is up to date'
     }
+    Invoke-Checked $Backend { uv run python -m scripts.seed_demo --ensure }
 
     if (Test-Port 8001) {
         Write-Host '    Port 8001 already in use - backend is probably running, not starting another.' -ForegroundColor Yellow
@@ -150,4 +154,5 @@ if (-not $NoWeb) {
 Write-Host ''
 Write-Host 'Ready. Open http://127.0.0.1:5173' -ForegroundColor Green
 Write-Host 'Demo accounts (password Demo123!): teacher@ / student@ / parent@ / admin@demo.edu.vn'
+Write-Host '  plus toan@ (maths teacher), student2@ / parent2@demo.edu.vn (second family, demo group)'
 Write-Host 'Stop: close the backend/web windows, then run .\dev.ps1 -Stop'

@@ -35,3 +35,10 @@ def test_experiment_scripts_run_offline(tmp_path: Path) -> None:
     run("run_certify.py", "--only", "giai-bai-nhanh", "on-thi-hoa-9", "--redteam-cases", "5", out=tmp_path)
     rows = (tmp_path / "certify.csv").read_text("utf-8")
     assert "giai-bai-nhanh,reject," in rows and ",rejected," in rows
+
+
+@pytest.mark.slow
+def test_delegation_barriers_run_offline(tmp_path: Path) -> None:
+    output = run("run_delegation.py", out=tmp_path)
+    assert "barriers passed: 7/7" in output
+    assert (tmp_path / "delegation_barriers.csv").exists()

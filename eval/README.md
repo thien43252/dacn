@@ -78,6 +78,12 @@ database demo. Kết quả ghi vào `eval/results/` (CSV từng ca và một fil
 | `run_redteam.py` | ASR, chặn nhầm, độ trễ p50/p95, token và chi phí theo 3 cấu hình guard (`off`, `prompt_only`, `full`) | `uv run python ../eval/run_redteam.py [--limit 60] [--modes full]` |
 | `run_routing.py` | Độ chính xác định tuyến theo loại tình huống | `uv run python ../eval/run_routing.py --router keyword` và `--router llm` |
 | `run_certify.py` | Precision/recall của kiểm định, so với chỉ kiểm tra tĩnh | `uv run python ../eval/run_certify.py [--redteam-cases 12]` |
+| `run_delegation.py` | Feature 003: 7 hàng rào giao việc và hỏi người (tương đương 5 test OpenBot, thêm thử lại và riêng tư nhóm); với `--live`: tập agent được hỏi (SC-007) và tỉ lệ hỏi người (SC-014); với `--latency`: thời gian tới chữ đầu tiên (SC-001) | `uv run python ../eval/run_delegation.py [--live] [--latency]` |
+
+Kịch bản của `run_delegation.py` nằm trong `delegation_scenarios.yaml`. Ở chế độ mặc định (mô hình `fake` có kịch bản) script
+thoát với mã 1 nếu một hàng rào không đạt. Bộ red-team có thêm 8 ca lách quyền qua giao việc, qua nhóm và qua câu hỏi gửi
+người (`technique`: `handoff_bypass`, `group_bypass`, `handoff_grant_claim`, `approval_bypass`, `recipient_bypass`,
+`group_private_data`, `ask_person_abuse`).
 
 Với `LLM_PROVIDER=fake` các script vẫn chạy hết (dùng để kiểm tra, `tests/test_eval_scripts.py`), nhưng giám khảo không
 chấm được nên cột "chưa chấm" chiếm hết; số liệu cho báo cáo cần mô hình thật. Ước tính với Anthropic (Opus cho agent,

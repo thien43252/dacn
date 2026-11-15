@@ -31,6 +31,18 @@ Mỗi sự kiện là `data: <json>\n\n`. Các sự kiện đang có giữ nguy�
 | `read` | `user_id`, `last_read_seq` | Một thành viên đã đọc tới đâu. Tuỳ chọn, dùng cho dấu "đã xem". |
 | `ping` | | Giữ kết nối. |
 
+## Ánh xạ trạng thái handoff (DB → client)
+
+| DB (`handoffs`) | Client (`handoff.status`) |
+|---|---|
+| `queued` | `queued` |
+| `running` | `running` |
+| `answered`, `answer_visible=true` | `answered` |
+| `answered`, `answer_visible=false` | `hidden` |
+| `answered`, `late=true` | `late` |
+| `failed` | `no_answer` |
+| `refused` | `refused` |
+
 ## Bất biến
 
 - **Một lần, đúng thứ tự**: `seq` tăng dần trong mỗi hội thoại. Client bỏ qua tin có `seq` nhỏ hơn hoặc bằng `seq` lớn

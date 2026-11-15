@@ -105,8 +105,10 @@ async def available_agents(db: AsyncSession, user: User, room: ClassRoom | None,
     for installation, agent, version in rows:
         if installation.scope == "personal" and not allow_personal:
             continue
-        # Only certified versions reach students and parents; teachers can use their own drafts in their class.
-        if role in ("student", "parent") and version.certification_status != "certified":
+        # Only certified versions reach students and parents; teachers can use their own drafts in their class, and
+        # anyone may use their own agent in their personal space (feature 003, FR-003).
+        own_personal = installation.scope == "personal" and agent.owner_id == user.id
+        if role in ("student", "parent") and version.certification_status != "certified" and not own_personal:
             continue
         resolved = _resolved(agent, version, installation.scope, installation)
         if role not in resolved.manifest.target_roles or resolved.slug in found:

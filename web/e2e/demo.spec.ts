@@ -13,6 +13,8 @@ async function login(page: Page, email: string) {
 }
 
 async function send(page: Page, text: string) {
+  // Wait until the previous turn has finished (the composer shows "send", not "stop").
+  await expect(page.getByRole("button", { name: "Gửi câu hỏi" })).toBeAttached();
   await page.fill("#chat-input", text);
   await page.keyboard.press("Enter");
 }
@@ -33,9 +35,13 @@ test("student: the orchestrator picks the tutor, the guard blocks a jailbreak an
   await expect(page.locator(".message--assistant").last()).toContainText("[số điện thoại đã ẩn]");
 });
 
-test("teacher: the safety log shows the blocked jailbreak", async ({ page }) => {
+test("safety log: private chats stay private for the teacher, the admin sees the event without text", async ({ page }) => {
+  // Feature 003 (FR-050, FR-051): a student's direct chat is a private space.
   await login(page, "teacher@demo.edu.vn");
-  await page.goto("/teacher/audit");
+  const teacherLog = await (await page.request.get("/api/audit/events")).json();
+  expect(teacherLog.events.every((event: { category: string }) => event.category !== "jailbreak")).toBeTruthy();
+  await login(page, "admin@demo.edu.vn");
+  await page.goto("/admin/audit");
   await expect(page.getByRole("cell", { name: /Vượt quy tắc/ }).first()).toBeVisible();
 });
 

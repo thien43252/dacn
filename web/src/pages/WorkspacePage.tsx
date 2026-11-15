@@ -14,6 +14,9 @@ import { StudentClassesPage } from "../features/classes/StudentClassesPage";
 import { TeacherClassesPage } from "../features/classes/TeacherClassesPage";
 import { ParentConsentPage, ParentHomePage } from "../features/family/ParentPages";
 import { ParentReportsPage } from "../features/reports/ReportPages";
+import { ChatHomePage } from "../features/chat/ChatHomePage";
+import { InboxPage } from "../features/inbox/InboxPage";
+import { ApprovalSettingsPage } from "../features/settings/ApprovalSettings";
 import { NotFoundPage } from "./NotFoundPage";
 import { PlaceholderPage } from "./PlaceholderPage";
 
@@ -36,6 +39,16 @@ const screens: Record<string, (route: MatchedRoute) => ReactNode> = {
   "/parent/home": () => <ParentHomePage />,
   "/parent/consent": () => <ParentConsentPage />,
   "/parent/reports": () => <ParentReportsPage />,
+  // Feature 003: Messenger-style chat, inbox, approval settings, builder for every role.
+  ...Object.fromEntries(
+    ["teacher", "student", "parent"].flatMap((role) => [
+      [`/${role}/chat`, () => <ChatHomePage />],
+      [`/${role}/inbox`, () => <InboxPage />],
+      [`/${role}/settings/approvals`, () => <ApprovalSettingsPage />],
+    ]),
+  ),
+  "/student/builder": () => <BuilderPage />,
+  "/parent/builder": () => <BuilderPage />,
 };
 
 export function WorkspacePage({ pathname }: { pathname: string }) {

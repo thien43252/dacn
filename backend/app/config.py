@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     # Class documents are stored here (relative to backend/).
     upload_dir: str = "data/uploads"
 
+    # Agent-to-agent handoffs (feature 003). Depth 0 turns handoffs off everywhere.
+    handoff_max_depth: int = 2
+    handoff_max_per_run: int = 6
+    handoff_max_attempts: int = 2
+    handoff_lease_seconds: int = 120
+    # How long a question to a person and an approval card stay open.
+    person_request_hours: int = 72
+    approval_card_hours: int = 24
+    # The in-process worker runs queued handoffs and resumes waiting runs. Tests turn it off and call drain().
+    worker_enabled: bool = True
+    worker_poll_seconds: float = 1.0
+
 
 @lru_cache
 def get_settings() -> Settings:

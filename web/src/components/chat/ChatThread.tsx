@@ -1,10 +1,15 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { conversationsApi } from "../../api-client/chat";
 import { type ChatStreamEvent, consumeChatStream } from "../../api-client/chatStream";
-import type { ChatAgent, StoredMessage } from "../../api-client/types";
+import type { ApprovalCard as ApprovalCardData, ChatAgent, HandoffNode, MessageSender, PersonRequest, StoredMessage } from "../../api-client/types";
+import { useConversationEvents } from "../../features/chat/useConversationEvents";
 import { Icon } from "../Icon";
 import { Mascot, type MascotName } from "../Mascot";
+import { ApprovalCard } from "./ApprovalCard";
+import { HandoffBar } from "./HandoffBar";
 import { ChatMessageText, MessageBody } from "./MessageBody";
+import { PersonRequestCard } from "./PersonRequestCard";
 
 const TOOL_LABELS: Record<string, string> = {
   class_doc_search: "Đang tìm trong tài liệu lớp",
@@ -37,26 +42,42 @@ export const NO_MESSAGES: ThreadMessage[] = [];
 
 export interface ThreadMessage {
   id: string;
-  role: "user" | "assistant" | "notice";
+  role: "user" | "assistant" | "notice" | "system";
   content: string;
   agent?: { slug: string; name: string; avatar: string; reason?: string };
   tools: { name: string; status: string }[];
-  status: "ok" | "blocked" | "error" | "streaming";
+  status: "ok" | "blocked" | "error" | "streaming" | "hidden";
+  // Feature 003
+  seq?: number;
+  sender?: MessageSender;
+  /** Set on a handoff's verbatim answer; in a group it is its own message "trả lời cho <agent>". */
+  replyToAgent?: string | null;
+  handoffs?: HandoffNode[];
+  personRequest?: PersonRequest | null;
+  approvalCard?: ApprovalCardData | null;
 }
 
-export function fromStored(messages: StoredMessage[], agents: ChatAgent[]): ThreadMessage[] {
+/** `kind` "direct": handoff answers live inside the asking message's "Đã hỏi" bars instead of the thread. */
+export function fromStored(messages: StoredMessage[], agents: ChatAgent[], kind: "direct" | "group" = "direct"): ThreadMessage[] {
   const bySlug = new Map(agents.map((agent) => [agent.slug, agent]));
-  return messages.map((message) => {
+  return messages.filter((message) => kind === "group" || !message.handoff_id).map((message) => {
     const agent = message.agent_slug ? bySlug.get(message.agent_slug) : undefined;
     // A reply the input guard gave in place of any agent is shown as a notice, as it was live.
     const guardNotice = message.role === "assistant" && message.status === "blocked" && !message.agent_slug;
+    const senderAvatar = message.sender?.kind === "agent" ? message.sender.avatar : null;
     return {
       id: message.id,
       role: guardNotice ? "notice" : message.role,
       content: message.content,
-      agent: message.agent_slug ? { slug: message.agent_slug, name: agent?.name ?? message.agent_slug, avatar: agent?.avatar ?? "owl", reason: message.meta?.route_reason } : undefined,
+      agent: message.agent_slug ? { slug: message.agent_slug, name: agent?.name ?? message.sender?.name ?? message.agent_slug, avatar: agent?.avatar ?? senderAvatar ?? "owl", reason: message.meta?.route_reason } : undefined,
       tools: message.meta?.tools ?? [],
       status: message.status,
+      seq: message.seq,
+      sender: message.sender,
+      replyToAgent: message.reply_to_agent,
+      handoffs: message.handoffs ?? [],
+      personRequest: message.person_request,
+      approvalCard: message.approval_card,
     };
   });
 }
@@ -73,6 +94,12 @@ interface ChatThreadProps {
   onBusyChange?: (busy: boolean) => void;
   emptyHint: string;
   disabled?: boolean;
+  /** Feature 003: who is reading (own messages, cards they may answer) and what kind of conversation this is. */
+  viewerId?: string;
+  kind?: "direct" | "group";
+  /** Follow the conversation's event stream (handoff answers, conclusions, other members). Off in the sandbox. */
+  live?: boolean;
+  composerPlaceholder?: string;
 }
 
 export function ChatThread({
@@ -85,6 +112,10 @@ export function ChatThread({
   onBusyChange,
   emptyHint,
   disabled = false,
+  viewerId,
+  kind = "direct",
+  live = true,
+  composerPlaceholder,
 }: ChatThreadProps) {
   const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -96,6 +127,44 @@ export function ChatThread({
   const abortRef = useRef<AbortController | null>(null);
   const conversationRef = useRef(conversationId);
   conversationRef.current = conversationId;
+  const sendingRef = useRef(false);
+  sendingRef.current = sending;
+  const pendingRefresh = useRef(false);
+
+  // Messages that arrive after the turn (handoff answers, the conclusion, other members, cards) come through the
+  // conversation's event stream; the thread then reloads the stored messages, which carry seq and handoff trees.
+  const refresh = useCallback(async () => {
+    const id = conversationRef.current;
+    if (!id) return;
+    if (sendingRef.current) {
+      pendingRefresh.current = true;
+      return;
+    }
+    try {
+      const stored = await conversationsApi.messages(id);
+      if (sendingRef.current) {
+        pendingRefresh.current = true;
+        return;
+      }
+      setMessages(fromStored(stored, agents, kind));
+      const last = stored[stored.length - 1]?.seq;
+      if (last) void conversationsApi.markRead(id, last).catch(() => {});
+    } catch {
+      // The stream reconnects and asks again.
+    }
+  }, [agents, kind]);
+  useConversationEvents(live ? conversationId : null, refresh);
+  useEffect(() => {
+    if (!sending && pendingRefresh.current) {
+      pendingRefresh.current = false;
+      void refresh();
+    }
+  }, [sending, refresh]);
+
+  const agentOf = useCallback((slug: string) => {
+    const found = agents.find((agent) => agent.slug === slug);
+    return { name: found?.name ?? slug, avatar: mascotOf(found?.avatar) };
+  }, [agents]);
 
   // Replaces the thread only when the caller loads a different history (pass NO_MESSAGES, not a fresh []).
   useEffect(() => setMessages(initialMessages), [initialMessages]);
@@ -207,7 +276,9 @@ export function ChatThread({
       }
     } finally {
       setSending(false);
+      sendingRef.current = false;
       abortRef.current = null;
+      if (live) void refresh();
     }
   }
 
@@ -260,14 +331,47 @@ export function ChatThread({
             )}
           </div>
         )}
-        {messages.map((message) => (
-          <div key={message.id} className={`message message--${message.role === "notice" ? "assistant" : message.role}${message.role === "notice" ? " ea-notice-message" : ""}${message.status === "error" ? " message--failed" : ""}${message.status === "blocked" ? " ea-blocked-message" : ""}`}>
+        {messages.map((message) => {
+          if (message.role === "system") {
+            return (
+              <div key={message.id} className="message message--system">
+                {message.approvalCard ? <ApprovalCard card={message.approvalCard} viewerId={viewerId ?? ""} onAnswered={() => void refresh()} />
+                  : message.personRequest ? <PersonRequestCard request={message.personRequest} viewerId={viewerId ?? ""} onChanged={() => void refresh()} />
+                  : <p className="message__para ea-muted"><Icon name="alert" /> {message.content}</p>}
+              </div>
+            );
+          }
+          const fromOther = message.role === "user" && !!message.sender?.id && !!viewerId && message.sender.id !== viewerId;
+          const role = message.role === "notice" ? "assistant" : fromOther ? "assistant" : message.role;
+          return (
+          <div key={message.id} className={`message message--${role}${fromOther ? " message--person" : ""}${message.role === "notice" ? " ea-notice-message" : ""}${message.status === "error" ? " message--failed" : ""}${message.status === "blocked" ? " ea-blocked-message" : ""}${message.status === "hidden" ? " ea-hidden-message" : ""}`}>
+            {fromOther && (
+              <div className="message__meta">
+                <span className="profile-avatar profile-avatar--small" aria-hidden="true">{(message.sender?.name ?? "?").charAt(0).toUpperCase()}</span>
+                <strong>{message.sender?.name}</strong>
+                {message.sender?.role_label && <span className="ea-muted">· {message.sender.role_label}</span>}
+                {message.personRequest && <span className="ea-muted">· trả lời câu hỏi của agent</span>}
+              </div>
+            )}
             {message.role === "assistant" && message.agent && (
               <div className="message__meta">
                 <Mascot character={mascotOf(message.agent.avatar)} mood={message.status === "streaming" ? "thinking" : "still"} />
                 <strong>{message.agent.name}</strong>
+                {message.replyToAgent && <span className="ea-muted ea-reply-to">· trả lời cho {agentOf(message.replyToAgent).name}</span>}
                 {message.agent.reason && AUTO_ROUTED.has(message.agent.reason) && <span className="ea-muted" title="Orchestrator chọn agent theo nội dung câu hỏi">· tự chọn</span>}
               </div>
+            )}
+            {kind === "direct" && message.role === "assistant" && (message.handoffs?.length ?? 0) > 0 && (
+              <div className="ea-handoffs" aria-label="Các agent đã được hỏi">
+                {message.handoffs!.map((node) => <HandoffBar key={node.id} node={node} agentOf={agentOf} />)}
+              </div>
+            )}
+            {kind === "group" && message.role === "assistant" && (message.handoffs?.length ?? 0) > 0 && (
+              <ul className="ea-handoff-notes">
+                {message.handoffs!.map((node) => (
+                  <li key={node.id}><Icon name="sparkles" /> {message.agent?.name} đã hỏi {agentOf(node.to_agent).name}</li>
+                ))}
+              </ul>
             )}
             {message.tools.length > 0 && (
               <ul className="ea-tool-lines">
@@ -285,11 +389,14 @@ export function ChatThread({
               message.content ? <MessageBody text={message.content} /> : <span className="ea-typing" aria-label="Đang trả lời"><i /><i /><i /></span>
             ) : message.role === "notice" ? (
               <p className="message__para"><Icon name={message.status === "error" ? "alert" : "lock"} /> {message.content}</p>
+            ) : message.status === "hidden" ? (
+              <p className="message__para ea-muted"><Icon name="lock" /> Nội dung đã được ẩn</p>
             ) : (
               <ChatMessageText text={message.content} />
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <form className="chat-composer" onSubmit={submit}>
@@ -313,7 +420,7 @@ export function ChatThread({
           value={input}
           maxLength={4000}
           disabled={disabled}
-          placeholder={disabled ? "Chọn lớp để bắt đầu" : "Đặt câu hỏi, hoặc gõ @ để gọi một agent…"}
+          placeholder={disabled ? "Chọn lớp để bắt đầu" : composerPlaceholder ?? "Đặt câu hỏi, hoặc gõ @ để gọi một agent…"}
           onChange={(event) => { setInput(event.target.value); syncMention(event.target); }}
           onSelect={(event) => syncMention(event.currentTarget)}
           onBlur={() => setMention(null)}

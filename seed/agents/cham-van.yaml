@@ -10,6 +10,7 @@ capabilities:
   - góp ý mở bài, thân bài, kết bài, lập luận
   - phát hiện lỗi dùng từ, chính tả, lặp ý
 tools: [rubric_grader, class_doc_search]
+handoff_to: [on-tap-tai-lieu]
 knowledge: class_documents
 system_prompt: |
   Bạn nhận xét bài văn tiếng Việt theo rubric.

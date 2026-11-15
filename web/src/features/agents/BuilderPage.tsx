@@ -3,6 +3,8 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { navigate, useLocation } from "../../app/router";
 import { errorMessage, useResource } from "../../app/useResource";
 import { builderApi, toolsApi } from "../../api-client/agents";
+import { classesApi } from "../../api-client/classes";
+import { useAuth } from "../../auth/AuthContext";
 import { type AgentDetail, type AgentManifest, type AgentRole, ROLE_LABELS, SUBJECT_LABELS } from "../../api-client/types";
 import { ChatThread, mascotOf, NO_MESSAGES } from "../../components/chat/ChatThread";
 import { Icon } from "../../components/Icon";
@@ -49,8 +51,11 @@ export function BuilderPage() {
   const creating = selected === "new";
   const current = mine.data?.find((agent) => agent.id === selected) ?? null;
 
+  const { user } = useAuth();
+  const base = `/${user?.role === "admin" ? "teacher" : user?.role ?? "teacher"}/builder`;
+
   function select(id: string | null) {
-    navigate(id ? `/teacher/builder?agent=${encodeURIComponent(id)}` : "/teacher/builder");
+    navigate(id ? `${base}?agent=${encodeURIComponent(id)}` : base);
   }
 
   return (
@@ -89,7 +94,12 @@ function lines(text: string): string[] {
 }
 
 function AgentEditor({ agent, onSaved }: { agent?: AgentDetail; onSaved: (agent: AgentDetail) => void }) {
+  const { user } = useAuth();
+  const member = user?.role === "student" || user?.role === "parent";
   const tools = useResource(() => toolsApi.list(), []);
+  const handoffCandidates = useResource(() => builderApi.handoffCandidates(agent?.id), [agent?.id]);
+  const classes = useResource(() => (member ? classesApi.list() : Promise.resolve([])), [member]);
+  const [requestClass, setRequestClass] = useState("");
   const [form, setForm] = useState<AgentManifest>(agent?.draft_manifest ?? agent?.manifest ?? BLANK);
   const [capabilities, setCapabilities] = useState(form.capabilities.join("\n"));
   const [starters, setStarters] = useState(form.starter_prompts.join("\n"));
@@ -195,12 +205,25 @@ function AgentEditor({ agent, onSaved }: { agent?: AgentDetail; onSaved: (agent:
         <fieldset className="field">
           <span>Công cụ của nền tảng</span>
           <div className="ea-tool-picker">
-            {(tools.data ?? []).map((tool) => (
+            {(tools.data ?? []).filter((tool) => !member || tool.roles.includes(user!.role as AgentRole)).map((tool) => (
               <label key={tool.name} className={`ea-tool-option${form.tools.includes(tool.name) ? " is-active" : ""}`}>
                 <input type="checkbox" checked={form.tools.includes(tool.name)} onChange={() => set("tools", toggle(form.tools, tool.name))} />
                 <span><strong>{tool.title}</strong><small>{tool.description}</small><small className="ea-muted">Vai trò: {tool.roles.map((role) => ROLE_LABELS[role]).join(", ")}</small></span>
               </label>
             ))}
+          </div>
+        </fieldset>
+        <fieldset className="field">
+          <span>Được giao việc cho</span>
+          <small className="field__hint">Agent này được nhờ những agent nào khi câu hỏi cần chuyên môn khác. Không chọn ai thì agent tự trả lời; nền tảng chặn mọi lần nhờ agent ngoài danh sách.</small>
+          <div className="ea-tool-picker">
+            {(handoffCandidates.data ?? []).map((candidate) => (
+              <label key={candidate.slug} className={`ea-tool-option${(form.handoff_to ?? []).includes(candidate.slug) ? " is-active" : ""}`}>
+                <input type="checkbox" checked={(form.handoff_to ?? []).includes(candidate.slug)} onChange={() => set("handoff_to", toggle(form.handoff_to ?? [], candidate.slug))} />
+                <span><strong>{candidate.name}</strong><small>{candidate.description}</small></span>
+              </label>
+            ))}
+            {handoffCandidates.data && handoffCandidates.data.length === 0 && <p className="ea-muted">Chưa có agent nào để cấp quyền.</p>}
           </div>
         </fieldset>
         <label className="ea-switch">
@@ -229,7 +252,23 @@ function AgentEditor({ agent, onSaved }: { agent?: AgentDetail; onSaved: (agent:
                 <Icon name="layers" /> Tạo phiên bản
               </button>
               <button className="button button--secondary" type="button" disabled={dirty} onClick={() => { setTryConversation(null); setTryRun((value) => value + 1); setTrying(true); }}><Icon name="play" /> Thử ngay</button>
-              <button className="button button--ghost" type="button" disabled={!agent.version} onClick={() => setInstalling(true)}><Icon name="plus" /> Cài vào lớp</button>
+              <button className="button button--ghost" type="button" disabled={!agent.version} onClick={() => setInstalling(true)}><Icon name="plus" /> {member ? "Dùng cá nhân" : "Cài vào lớp"}</button>
+              {member && (classes.data ?? []).length > 0 && (
+                <span className="ea-inline-select">
+                  <select value={requestClass} onChange={(event) => setRequestClass(event.target.value)} aria-label="Lớp muốn đưa agent vào">
+                    <option value="">Chọn lớp…</option>
+                    {(classes.data ?? []).filter((room) => !room.archived).map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+                  </select>
+                  <button className="button button--ghost" type="button" disabled={!requestClass || busy}
+                    onClick={() => void builderApi.requestInClass(requestClass, agent.id)
+                      .then((result) => setStatus({ kind: "ok", text: result.status === "waiting_approval"
+                        ? "Hãy duyệt yêu cầu trong mục Tin nhắn; sau đó giáo viên chủ nhiệm sẽ quyết định."
+                        : "Đã gửi yêu cầu cho giáo viên chủ nhiệm." }))
+                      .catch((reason: unknown) => setStatus({ kind: "error", text: reason instanceof Error ? reason.message : "Không gửi được yêu cầu." }))}>
+                    Xin đưa vào lớp
+                  </button>
+                </span>
+              )}
             </>
           )}
         </div>
@@ -260,6 +299,7 @@ function AgentEditor({ agent, onSaved }: { agent?: AgentDetail; onSaved: (agent:
               conversationId={tryConversation}
               initialMessages={NO_MESSAGES}
               onConversation={setTryConversation}
+              live={false}
               emptyHint="Đây là phòng thử: agent chạy với bản nháp, ngoài mọi lớp, vẫn qua quy tắc an toàn của nền tảng."
             />
           </div>

@@ -62,6 +62,10 @@ class PolicyModel(BaseModel):
     blocked_topics: list[str] = Field(default_factory=list, max_length=50)
     allow_personal_agents: bool = True
     notes_for_agents: str = Field(default="", max_length=1000)
+    # Feature 003: agents handing work to each other, members creating groups, members asking to add their own agents.
+    allow_handoffs: bool = True
+    members_can_create_groups: bool = True
+    allow_member_agents: bool = True
 
 
 class JoinIn(BaseModel):

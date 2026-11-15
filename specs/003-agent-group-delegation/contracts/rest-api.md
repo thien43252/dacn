@@ -66,7 +66,7 @@ Quy ước chung:
 | `GET /agents/{id}/handoff-candidates` | Danh sách agent mà người tạo được cấp quyền giao việc tới. | FR-006 |
 | `PATCH /classes/{class_id}/agents/{installation_id}` | Thêm `handoff_allow: [slug] \| null`. Chỉ giáo viên của lớp. | FR-006 |
 | `POST /classes/{class_id}/agent-requests` | Body `{agent_id}`. Học sinh hoặc phụ huynh xin đưa agent tự tạo vào lớp: đi qua duyệt (`share`), cần phiên bản `certified`, rồi tạo `person_request` loại `install_agent` gửi giáo viên. | FR-003 |
-| `PUT /classes/{class_id}/policy` | `PolicyModel` thêm `allow_handoffs`, `members_can_create_groups`, `allow_member_agents`. | FR-020, FR-040 |
+| `PUT /classes/{class_id}/policy` | `PolicyModel` thêm `allow_handoffs`, `members_can_create_groups`, `allow_member_agents`. | FR-019, FR-040 |
 | `PATCH /classes/{class_id}/members/{member_id}` | Body `{subject}` cho giáo viên. | FR-025 |
 
 ## Hộp yêu cầu (hỏi người)

@@ -1,6 +1,7 @@
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { navigate, roleLabels } from "../app/router";
+import { inboxApi } from "../api-client/chat";
 import { navigation } from "../app/routes";
 import { useAuth } from "../auth/AuthContext";
 import { GuideOverlay } from "../guide/GuideOverlay";
@@ -13,6 +14,7 @@ import { Logo } from "./Logo";
 import { ScreenBanner, toneOf } from "./ScreenBanner";
 import "../styles/workspace-readability.css";
 import "../styles/studio-screens.css";
+import "../features/chat/messenger.css";
 
 interface AppShellProps {
   pathname: string;
@@ -38,6 +40,17 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
   const chatTriggerRef = useRef<HTMLButtonElement>(null);
   const closeAccount = useCallback(() => setAccountOpen(false), []);
   const guide = useGuide(user, pathname);
+  const [inboxOpen, setInboxOpen] = useState(0);
+
+  // Badge on "Hộp yêu cầu": open questions waiting for this user's answer (FR-028).
+  useEffect(() => {
+    if (!user || user.role === "admin") return;
+    let active = true;
+    const load = () => inboxApi.count().then((value) => { if (active) setInboxOpen(value.open); }).catch(() => {});
+    load();
+    const timer = setInterval(load, 20000);
+    return () => { active = false; clearInterval(timer); };
+  }, [user, pathname]);
 
   if (!user) return null;
 
@@ -87,6 +100,9 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
               >
                 <Icon name={item.icon} />
                 {!collapsed && <span>{item.label}</span>}
+                {item.path.endsWith("/inbox") && inboxOpen > 0 && (
+                  <span className="sidebar__badge" aria-label={`${inboxOpen} yêu cầu đang chờ`}>{inboxOpen}</span>
+                )}
               </button>
             );
           })}

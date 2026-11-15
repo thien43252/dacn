@@ -58,6 +58,27 @@ export function PolicyTab({ room }: { room: ClassRoom }) {
           <small className="ea-muted">Agent học sinh tự kéo từ Hub (đã kiểm định) vẫn chịu chính sách này.</small>
         </span>
       </label>
+      <label className="ea-switch">
+        <input type="checkbox" checked={form.allow_handoffs ?? true} onChange={(event) => setForm({ ...form, allow_handoffs: event.target.checked })} />
+        <span>
+          <strong>Giao việc giữa agent</strong><br />
+          <small className="ea-muted">Agent được nhờ agent khác (trong quyền đã cấp) khi câu hỏi cần nhiều chuyên môn. Tắt thì mỗi agent tự trả lời; agent vẫn hỏi được người khi cần.</small>
+        </span>
+      </label>
+      <label className="ea-switch">
+        <input type="checkbox" checked={form.members_can_create_groups ?? true} onChange={(event) => setForm({ ...form, members_can_create_groups: event.target.checked })} />
+        <span>
+          <strong>Học sinh, phụ huynh được tạo nhóm chat</strong><br />
+          <small className="ea-muted">Nhóm là không gian riêng tư: chỉ thành viên thấy nhóm và tin nhắn.</small>
+        </span>
+      </label>
+      <label className="ea-switch">
+        <input type="checkbox" checked={form.allow_member_agents ?? true} onChange={(event) => setForm({ ...form, allow_member_agents: event.target.checked })} />
+        <span>
+          <strong>Cho xin đưa agent tự tạo vào lớp</strong><br />
+          <small className="ea-muted">Agent của học sinh, phụ huynh phải qua kiểm định; bạn duyệt trong Hộp yêu cầu.</small>
+        </span>
+      </label>
       <label className="field">
         <span>Chủ đề không thảo luận trong lớp</span>
         <textarea rows={2} value={topics} onChange={(event) => setTopics(event.target.value)} placeholder="Ví dụ: game, thần tượng, chính trị" />

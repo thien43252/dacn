@@ -55,5 +55,12 @@ async def logout(request: Request, response: Response, db: DbSession) -> dict[st
 
 
 @router.get("/session", response_model=AuthResponse)
-async def session(user: CurrentUser) -> AuthResponse:
-    return AuthResponse(user=UserOut.model_validate(user))
+async def session(user: CurrentUser, db: DbSession) -> AuthResponse:
+    from app.orchestration.router import inbox_count
+
+    return AuthResponse(user=UserOut.model_validate(user), inbox_open=await inbox_count(db, user.id))
+
+
+@router.get("/me", response_model=AuthResponse)
+async def me(user: CurrentUser, db: DbSession) -> AuthResponse:
+    return await session(user, db)

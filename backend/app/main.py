@@ -16,11 +16,15 @@ from app.audit.router import router as audit_router
 from app.auth.router import router as auth_router
 from app.certify.pipeline import fail_interrupted
 from app.certify.router import router as certify_router
+from app.chat.events import router as chat_events_router
+from app.chat.groups import router as groups_router
 from app.chat.router import router as chat_router
 from app.classes.router import router as classes_router
 from app.config import get_settings
 from app.db import dispose_engine, ping_database, session_factory
 from app.knowledge.router import router as documents_router
+from app.orchestration import worker
+from app.orchestration.router import router as orchestration_router
 from app.reports.router import router as reports_router
 from app.tools.router import router as tools_router
 
@@ -39,7 +43,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.warning("%d interrupted certification runs marked failed", interrupted)
     except Exception:  # the API still starts (health checks work) when the database is down
         log.exception("could not sync platform agents")
+    if get_settings().worker_enabled:
+        await worker.start()
     yield
+    await worker.stop()
     tracing.flush()
     await dispose_engine()
 
@@ -97,6 +104,9 @@ def create_app() -> FastAPI:
     api.include_router(auth_router)
     api.include_router(classes_router)
     api.include_router(chat_router)
+    api.include_router(chat_events_router)
+    api.include_router(groups_router)
+    api.include_router(orchestration_router)
     api.include_router(agents_router)
     api.include_router(documents_router)
     api.include_router(audit_router)

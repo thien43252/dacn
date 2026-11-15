@@ -52,4 +52,7 @@ class Installation(Base):
     user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True)
     installed_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # A teacher narrowing the agent's handoff grants in this class: null keeps the manifest's list, a list is
+    # intersected with it (it can never add a target).
+    handoff_allow: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

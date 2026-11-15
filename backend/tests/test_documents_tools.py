@@ -196,6 +196,6 @@ async def test_rubric_grader_gives_students_feedback_without_scores(fake_llm) ->
 async def test_tools_endpoint_lists_registry(as_user) -> None:
     teacher = await as_user("teacher")
     tools = (await teacher.get("/api/tools")).json()
-    assert {tool["name"] for tool in tools} == set(registry.TOOLS)
+    assert {tool["name"] for tool in tools} == {name for name, tool in registry.TOOLS.items() if not tool.meta}
     math = next(tool for tool in tools if tool["name"] == "math_check")
     assert "ctx" not in math["parameters"]["properties"]

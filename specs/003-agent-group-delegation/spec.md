@@ -354,8 +354,9 @@ trải nghiệm chính.
   những gì đã có.
 - **Agent được hỏi bị gỡ khỏi lớp hoặc bị tắt khi việc đang trong hàng đợi.** Việc đó kết thúc là "không nhận được câu
   trả lời"; agent hỏi nói rõ trong hội thoại.
-- **Câu trả lời giao việc về sau khi agent hỏi đã viết kết luận.** Câu trả lời vẫn được ghi vào thanh hoặc tin riêng (vì
-  được ghi nguyên văn), kèm dấu "về muộn"; agent hỏi không tự viết lại kết luận.
+- **Câu trả lời giao việc về sau khi agent hỏi đã viết kết luận.** Chỉ xảy ra khi một yêu cầu đã bị đánh "không nhận được
+  câu trả lời" (hết số lần thử hoặc hết lease) rồi lần chạy cũ vẫn trả về. Câu trả lời vẫn được ghi vào thanh hoặc tin
+  riêng (vì được ghi nguyên văn), kèm dấu "về muộn"; agent hỏi không tự viết lại kết luận.
 - **Người nhận câu hỏi rời lớp, bị gỡ liên kết phụ huynh hoặc bị khoá** trước khi trả lời. Câu hỏi bị huỷ; agent báo người
   dùng gốc.
 - **Lớp có hai giáo viên cùng môn.** Agent đề xuất người nhận, người dùng chọn trên thẻ duyệt. Lớp không có giáo viên
@@ -558,8 +559,9 @@ trải nghiệm chính.
   bắt đầu lại được cuộc trò chuyện mới với agent đó.
 - **FR-050**: Chat riêng giữa một người và agent MUST chỉ người đó xem được. Phụ huynh, giáo viên (kể cả giáo viên chủ
   nhiệm) và học sinh khác MUST không xem được nội dung, danh sách tin hay nhật ký theo từng hội thoại của chat riêng đó.
-  Ngoại lệ duy nhất: số liệu tổng hợp trong báo cáo học tập hiện có (không kèm nguyên văn, phụ huynh tắt được), và nội
-  dung mà chính người đó đã duyệt gửi đi qua câu hỏi gửi người.
+  Ngoại lệ duy nhất: số đếm tổng hợp trong báo cáo học tập hiện có (số lượt hỏi, agent đã dùng; không kèm nguyên văn và
+  không kèm từ khoá lấy từ tin nhắn của không gian riêng tư; phụ huynh tắt được), và nội dung mà chính người đó đã duyệt
+  gửi đi qua câu hỏi gửi người.
 - **FR-051**: Trong chat riêng và trong mọi nhóm (gọi chung là không gian riêng tư), khi
   sàng lọc hoặc kiểm duyệt phát hiện vi phạm (gian lận, nội dung cấm của lớp, thông tin cá nhân, dấu hiệu tự làm hại…),
   agent MUST chỉ chặn hoặc từ chối đúng hành động hay nội dung đó, và nói lý do với người nhắn. Nền tảng MUST không thông

@@ -103,7 +103,8 @@ export async function consumeChatStream<T extends ChatStreamEvent>(
             for (const item of resumable ? cursor.events(event) : [event]) apply(item);
             if (event.type === "response_ready" || event.type === "done") completed = true;
           }
-          if (done) break;
+          // "done" ends the turn for this client; the server may keep the body open briefly (announcing to others).
+          if (done || completed) break;
         }
       } finally {
         await reader.cancel().catch(() => {});

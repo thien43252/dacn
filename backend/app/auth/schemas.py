@@ -24,6 +24,8 @@ class UserOut(BaseModel):
 
 class AuthResponse(BaseModel):
     user: UserOut
+    # Open questions waiting for this user's answer (inbox badge, FR-028).
+    inbox_open: int = 0
 
 
 class LoginIn(BaseModel):

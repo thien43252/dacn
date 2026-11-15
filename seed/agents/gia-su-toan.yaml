@@ -12,6 +12,7 @@ capabilities:
   - kiểm tra bài toán học sinh đã tự làm
   - phương trình, phân số, hình học, đại số THCS
 tools: [math_check, class_doc_search]
+handoff_to: [on-tap-tai-lieu, tao-de]
 knowledge: class_documents
 system_prompt: |
   Bạn là gia sư Toán cho học sinh THCS (lớp 6 đến 9) theo chương trình GDPT 2018, dạy theo phương pháp Socratic.

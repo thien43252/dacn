@@ -60,6 +60,27 @@ Lớp bảo vệ phát hiện người dùng có thể đang buồn bã hoặc c
 Tổng đài quốc gia bảo vệ trẻ em 111 (miễn phí, 24/7). Không đưa bất kỳ thông tin nào về cách thức tự làm hại."""
 
 
+HANDOFF_GUIDE = """# Giao việc cho agent khác (công cụ message_agent)
+Bạn được phép nhờ các agent sau làm một phần việc:
+{targets}
+- Chỉ giao khi phần việc nằm ngoài chuyên môn của bạn hoặc agent kia làm tốt hơn rõ rệt; câu hỏi bạn tự làm được thì trả lời luôn.
+- Mỗi yêu cầu nêu rõ việc cần làm, giới hạn và thế nào là câu trả lời tốt. Các yêu cầu độc lập thì gửi cùng lúc.
+- Sau khi gửi, báo ngắn cho người dùng là bạn đang hỏi agent nào; KHÔNG tự trả lời thay agent đó.
+- Khi được gọi lại với kết quả, viết phần kết luận: dẫn tới các câu trả lời (không chép lại nguyên văn), nói rõ phần nào chưa làm được, ghi tên các agent đã đóng góp."""
+
+ASK_PERSON_GUIDE = """# Hỏi người (công cụ ask_person)
+- Khi cần một quyết định, sự cho phép hay thông tin mà chỉ người thật mới biết (xin phép, duyệt, đánh giá của giáo viên), hãy hỏi thay vì đoán; đừng đẩy câu hỏi đó sang agent khác.
+- Thiếu thông tin quan trọng của chính người dùng thì hỏi lại họ (recipient=self), ngắn gọn, có lựa chọn khi được.
+- Hỏi giáo viên bộ môn (recipient=teacher, kèm subject), giáo viên chủ nhiệm (homeroom) hoặc phụ huynh (parent) chỉ khi người dùng muốn; nền tảng sẽ cho người dùng duyệt trước khi gửi."""
+
+GROUP_GUIDE = """# Nhóm chat
+Đây là nhóm có nhiều người và agent. Tin của người khác hiện dạng “[Tên]: …”. Chỉ trả lời phần liên quan đến bạn.
+Không đưa ra dữ liệu riêng của bất kỳ học sinh nào (điểm, tiến độ, lời xin phép) trong nhóm: dùng công cụ reply_privately để trả lời riêng."""
+
+ASKED_GUIDE = """# Bạn đang được agent “{asker}” nhờ
+Chỉ làm đúng phần việc được nhờ, ngắn gọn. Câu trả lời của bạn được ghi nguyên văn vào cuộc trò chuyện của người dùng."""
+
+
 def build_system_prompt(
     agent: ResolvedAgent,
     room: ClassRoom | None,
@@ -68,6 +89,10 @@ def build_system_prompt(
     *,
     platform_rules: bool = True,
     safety_note: bool = False,
+    handoff_targets: list[ResolvedAgent] | None = None,
+    conversation_kind: str = "direct",
+    asked_by: str | None = None,
+    resumed: bool = False,
 ) -> str:
     user_line = f"Người đang trò chuyện là {ROLE_NAMES.get(role, role)}."
     roster = ", ".join(f"@{other.slug} ({other.manifest.name})" for other in others if other.slug != agent.slug)
@@ -76,8 +101,23 @@ def build_system_prompt(
         "# Vai trò của bạn\n" + agent_block(agent.manifest),
         "# Bối cảnh\n" + user_line + "\n" + policy_block(room, role),
     ]
-    if roster:
+    if roster and conversation_kind != "group" and not asked_by:
         sections.append(f"Các agent khác người dùng có thể gọi: {roster}.")
+    if conversation_kind == "group":
+        sections.append(GROUP_GUIDE)
+    if asked_by:
+        sections.append(ASKED_GUIDE.format(asker=asked_by))
+    if handoff_targets:
+        lines = "\n".join(
+            f"- {target.slug}: {target.manifest.name}. {target.manifest.description} "
+            f"Làm được: {'; '.join(target.manifest.capabilities)}."
+            for target in handoff_targets
+        )
+        sections.append(HANDOFF_GUIDE.format(targets=lines))
+    if not safety_note:
+        sections.append(ASK_PERSON_GUIDE)
+    if resumed:
+        sections.append("Lượt này là lượt làm tiếp sau khi các việc bạn chờ đã có kết quả.")
     if safety_note:
         sections.append(SAFETY_NOTE)
     return "\n\n".join(sections)

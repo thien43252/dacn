@@ -11,13 +11,12 @@ async def test_parent_report_aggregates_without_message_text(as_user, fake_llm) 
     activity = report["activity"]
     assert activity["questions_asked"] == 2 and activity["active_days"] == 1
     assert activity["agents_used"] == {"tro-ly-lop": 2}
-    assert activity["wellbeing_alerts"] == 1 and len(activity["daily"]) == 7
-    assert "phương" in activity["frequent_keywords"]
-    # No model answer offline: the template narrative, which always raises the wellbeing signal first.
+    # Feature 003 (FR-050, FR-051): chats are private spaces, so no keywords from messages and no alerts from them.
+    assert activity["wellbeing_alerts"] == 0 and len(activity["daily"]) == 7
+    assert activity["frequent_keywords"] == []
     narrative = report["narrative"]
     assert narrative["generated_by"] == "template" and "2 câu" in narrative["summary"]
-    assert "trò chuyện" in narrative["suggestions"][0]
-    assert "không muốn sống" not in str(report)
+    assert "không muốn sống" not in str(report) and "phương" not in str(report)
 
 
 async def test_report_uses_the_model_and_respects_consent(as_user, fake_llm) -> None:
@@ -54,7 +53,8 @@ async def test_teacher_class_progress_and_student_report(as_user, fake_llm) -> N
     await chat(student, "Định lý Pytago là gì?", class_id=room["id"])
     rows = (await teacher.get(f"/api/classes/{room['id']}/progress")).json()
     assert [(row["student_name"], row["activity"]["questions_asked"]) for row in rows] == [(student.user["name"], 2)]
-    assert rows[0]["activity"]["blocked_messages"] == 1
+    # Blocks in a student's private chat are not reported to the teacher (FR-051).
+    assert rows[0]["activity"]["blocked_messages"] == 0
     report = (await teacher.get(f"/api/classes/{room['id']}/students/{student.user['id']}/report")).json()
     assert report["student_name"] == student.user["name"]
     assert (await student.get(f"/api/classes/{room['id']}/progress")).status_code == 403

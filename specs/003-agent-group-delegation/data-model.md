@@ -19,7 +19,7 @@ Quy ước dùng chung:
 | `agents.owner_id` | Không đổi. Giờ có thể là học sinh hoặc phụ huynh. |
 | `agents.visibility` | Không đổi. Agent mới luôn là `private`. |
 
-### `installations` (FR-006, FR-020)
+### `installations` (FR-006, FR-019)
 
 | Cột | Kiểu | Ý nghĩa |
 |---|---|---|
@@ -29,7 +29,7 @@ Quy ước dùng chung:
 
 | Khoá | Mặc định | Yêu cầu |
 |---|---|---|
-| `allow_handoffs` | `true` | FR-020. `false` tương đương số tầng = 0 trong lớp. |
+| `allow_handoffs` | `true` | FR-019. `false` tương đương số tầng = 0 trong lớp. |
 | `members_can_create_groups` | `true` | FR-040 |
 | `allow_member_agents` | `true` | FR-003. Học sinh, phụ huynh được xin đưa agent tự tạo vào lớp. |
 

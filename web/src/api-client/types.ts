@@ -68,6 +68,10 @@ export interface ClassPolicy {
   blocked_topics: string[];
   allow_personal_agents: boolean;
   notes_for_agents: string;
+  /** Feature 003: agents may hand work to each other; members may create groups / ask to add their own agents. */
+  allow_handoffs?: boolean;
+  members_can_create_groups?: boolean;
+  allow_member_agents?: boolean;
 }
 
 export interface Consent {
@@ -119,12 +123,134 @@ export interface ConversationSummary {
 
 export interface StoredMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   agent_slug: string | null;
-  status: "ok" | "blocked" | "error";
+  status: "ok" | "blocked" | "error" | "hidden";
   created_at: string;
-  meta: { tools?: { name: string; status: string }[]; route_reason?: string; guard?: { stage: string; verdict: string; category: string }[] };
+  meta: { tools?: { name: string; status: string }[]; route_reason?: string; guard?: { stage: string; verdict: string; category: string }[]; resumed?: boolean };
+  // Feature 003 (contracts/rest-api.md)
+  seq?: number;
+  sender?: MessageSender;
+  handoff_id?: string | null;
+  reply_to_agent?: string | null;
+  handoffs?: HandoffNode[];
+  person_request?: PersonRequest | null;
+  approval_card?: ApprovalCard | null;
+  visible_to?: string[] | null;
+}
+
+export interface MessageSender {
+  kind: "user" | "agent" | "system";
+  id: string | null;
+  name: string | null;
+  role_label: string;
+  avatar: string | null;
+}
+
+export type HandoffStatus = "queued" | "running" | "answered" | "no_answer" | "refused" | "hidden" | "late";
+
+export interface HandoffNode {
+  id: string;
+  from_agent: string;
+  to_agent: string;
+  status: HandoffStatus;
+  task: string;
+  bounds: string;
+  good_answer: string;
+  answer: string | null;
+  created_at: string;
+  children: HandoffNode[];
+}
+
+export interface AgentCard {
+  slug: string | null;
+  name: string;
+  avatar: string;
+}
+
+export interface PersonRequest {
+  id: string;
+  kind: "approval" | "question" | "choice" | "install_agent";
+  status: "draft" | "open" | "answered" | "expired" | "cancelled" | "undeliverable";
+  conversation_id: string;
+  requester: { id: string; name: string; class: string | null } | null;
+  agent: AgentCard | null;
+  recipient: { id: string; name: string; role_label: string } | null;
+  body: string;
+  options: string[];
+  answer: string | null;
+  answer_hidden: boolean;
+  answered_by: string | null;
+  expires_at: string;
+  created_at: string;
+  can_answer: boolean;
+  can_cancel: boolean;
+}
+
+export interface ApprovalCard {
+  id: string;
+  status: "open" | "allowed" | "denied" | "expired";
+  user_id: string;
+  agent: AgentCard | null;
+  tool: string;
+  action_kind: string;
+  summary: string;
+  preview: { body?: string; options?: string[]; targets?: { id: string; name: string; role_label: string }[]; arguments?: Record<string, unknown> };
+  choices: { id: string; label: string }[];
+  answer: string | null;
+  expires_at: string;
+}
+
+export interface ConversationListItem {
+  id: string;
+  kind: "direct" | "group";
+  class_id: string | null;
+  title: string;
+  updated_at: string;
+  last_message: { seq: number; sender: string | null; text: string; at: string } | null;
+  unread: number;
+  waiting_for: string[];
+  agent: AgentCard | null;
+  members_preview: { kind: "user" | "agent"; id: string; name: string; role_label: string; avatar?: string }[];
+  member_count?: number;
+  default_agent: string | null;
+}
+
+export interface GroupCandidates {
+  people: { id: string; name: string; role: string; role_label: string }[];
+  agents: { slug: string; name: string; avatar: string }[];
+  can_create: boolean;
+}
+
+export interface GroupMember {
+  id: string;
+  kind: "user" | "agent";
+  user_id?: string;
+  agent_slug?: string;
+  name: string;
+  role_label: string;
+  avatar?: string;
+  is_admin: boolean;
+}
+
+export interface ApprovalRule {
+  id: string;
+  scope: string;
+  scope_id: string | null;
+  action_kind: string;
+  agent_slug: string | null;
+  tool: string | null;
+  target: string | null;
+  effect: string;
+  source: string;
+  created_at: string;
+}
+
+export interface ApprovalSettings {
+  extra_vigilant: boolean;
+  rules: ApprovalRule[];
+  conversation_allowances: ApprovalRule[];
 }
 
 export interface AgentManifest {
@@ -142,6 +268,8 @@ export interface AgentManifest {
   system_prompt: string;
   examples: { user: string; assistant: string }[];
   starter_prompts: string[];
+  /** Agents this one may hand work to (feature 003). */
+  handoff_to?: string[];
 }
 
 export interface HubAgent {
@@ -320,6 +448,9 @@ export interface Installation {
   enabled: boolean;
   agent: HubAgent;
   created_at: string;
+  /** Feature 003: the version's handoff grants and this class's narrowing of them (null: as granted). */
+  handoff_to?: string[];
+  handoff_allow?: string[] | null;
 }
 
 export interface PlatformTool {

@@ -48,6 +48,11 @@ export const installApi = {
     }),
   toggle: (classId: string, installationId: string, enabled: boolean) =>
     apiRequest<Installation>(`/api/classes/${enc(classId)}/agents/${enc(installationId)}`, { method: "PATCH", body: { enabled } }),
+  narrowHandoffs: (classId: string, installationId: string, allow: string[] | null) =>
+    apiRequest<Installation>(`/api/classes/${enc(classId)}/agents/${enc(installationId)}`, {
+      method: "PATCH",
+      body: allow === null ? { reset_handoffs: true } : { handoff_allow: allow },
+    }),
   uninstall: (classId: string, installationId: string) =>
     apiRequest<void>(`/api/classes/${enc(classId)}/agents/${enc(installationId)}`, { method: "DELETE" }),
   mine: () => apiRequest<Installation[]>("/api/me/agents"),
@@ -64,6 +69,15 @@ export const builderApi = {
   fork: (agentId: string) => apiRequest<AgentDetail>(`/api/agents/${enc(agentId)}/fork`, { method: "POST" }),
   remove: (agentId: string) => apiRequest<void>(`/api/agents/${enc(agentId)}`, { method: "DELETE" }),
   tryPath: (agentId: string) => `/api/agents/${enc(agentId)}/try`,
+  handoffCandidates: (agentId?: string) =>
+    apiRequest<{ slug: string; name: string; avatar: string; description: string }[]>(
+      agentId ? `/api/agents/${enc(agentId)}/handoff-candidates` : "/api/agents/handoff-candidates",
+    ),
+  requestInClass: (classId: string, agentId: string) =>
+    apiRequest<{ status: string; card_id?: string; conversation_id: string }>(
+      `/api/classes/${enc(classId)}/agent-requests`,
+      { method: "POST", body: { agent_id: agentId } },
+    ),
 };
 
 export const toolsApi = {

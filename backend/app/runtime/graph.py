@@ -76,6 +76,29 @@ class RunContext:
     usage: list[tuple[str, Usage, int]] = field(default_factory=list)
     events: list[GuardEvent] = field(default_factory=list)
     trace: tracing.Trace | None = None
+    # Feature 003: where this run sits in a handoff chain and what it waits on.
+    conversation_kind: str = "direct"
+    depth: int = 0
+    chain: list[str] = field(default_factory=list)
+    root_run_id: str | None = None
+    run: Any = None  # AgentRun, created when a meta tool first needs it
+    # False for the asked agent's scratch thread and for resumed runs: nothing streams to a client.
+    stream: bool = True
+    user_text: str = ""
+    waits: list[dict[str, Any]] = field(default_factory=list)
+    transcript: list[Message] = field(default_factory=list)
+    # (kind, id) pairs announced on the conversation bus once the turn is committed.
+    after_commit: list[tuple[str, str]] = field(default_factory=list)
+    private_reply: bool = False
+    support: bool = False
+
+    def write(self, event: dict[str, Any]) -> None:
+        if not self.stream:
+            return
+        try:
+            get_stream_writer()(event)
+        except Exception:  # outside a streaming graph run there is nobody to write to
+            pass
 
     def log(self, stage: str, verdict: Verdict, text: str, agent_slug: str | None = None) -> None:
         excerpt, _ = rules.redact(text)
@@ -94,6 +117,7 @@ class RunContext:
             severity=verdict.severity,
             reason=verdict.reason[:300],
             excerpt=excerpt[:300],
+            private_space=self.source == "chat",
         )
         self.db.add(event)
         self.events.append(event)
@@ -118,6 +142,13 @@ class ChatState(TypedDict, total=False):
     status: str
     blocked_stage: str
     tool_events: list[dict[str, Any]]
+    # Resumed runs: the saved model transcript; `text` is then the platform note with the results.
+    transcript: list[Message]
+    # The text guards compare a reply against (the user's message) when `text` is not it.
+    review_text: str
+    # Name of the agent that handed this work over (asked agent's scratch thread).
+    asked_by: str
+    private_reply: bool
 
 
 def utf16_len(text: str) -> int:
@@ -125,7 +156,7 @@ def utf16_len(text: str) -> int:
 
 
 def _blocked(ctx: RunContext, stage: str, text: str) -> ChatState:
-    get_stream_writer()({"type": "notice", "message_id": ctx.message_id, "kind": "guard_blocked", "text": text})
+    ctx.write({"type": "notice", "message_id": ctx.message_id, "kind": "guard_blocked", "text": text})
     return {"reply": text, "status": "blocked", "blocked_stage": stage}
 
 
@@ -144,7 +175,7 @@ async def screen(state: ChatState) -> ChatState:
         return _blocked(ctx, "input", TOPIC_BLOCKED.format(topic=topic))
     if verdict.action == "redact" and verdict.text is not None:
         ctx.log("input", verdict, verdict.text)
-        get_stream_writer()({"type": "notice", "message_id": ctx.message_id, "kind": "redacted", "text": REDACTED})
+        ctx.write({"type": "notice", "message_id": ctx.message_id, "kind": "redacted", "text": REDACTED})
         return {"text": verdict.text}
     if verdict.action == "support":
         ctx.log("input", verdict, text)
@@ -193,7 +224,7 @@ async def gate(state: ChatState) -> ChatState:
         ctx.log("input", verdict, state["text"])
         update["support"] = True
     agent = state["agent"]
-    get_stream_writer()(
+    ctx.write(
         {
             "type": "agent",
             "message_id": ctx.message_id,
@@ -211,19 +242,34 @@ def after_gate(state: ChatState) -> str:
 
 
 async def run_agent(state: ChatState) -> ChatState:
+    from app.orchestration import handoffs, meta
+
     ctx = state["ctx"]
     agent = state["agent"]
-    write = get_stream_writer()
+    write = ctx.write
+    support = bool(state.get("support"))
+    ctx.support = support
+    offers = await meta.offers(ctx, agent)
+    targets = await handoffs.handoff_targets(ctx, agent) if offers.get("message_agent") else []
     system = build_system_prompt(
         agent,
         ctx.room,
         ctx.role,
         ctx.agents,
         platform_rules=ctx.guard_mode != "off",
-        safety_note=bool(state.get("support")),
+        safety_note=support,
+        handoff_targets=targets,
+        conversation_kind=ctx.conversation_kind,
+        asked_by=state.get("asked_by"),
+        resumed=bool(state.get("transcript")),
     )
-    specs = tools.specs_for(agent.manifest, ctx.role, ctx.room)
-    messages = [*state.get("history", []), Message(role="user", content=state["text"])]
+    specs = tools.specs_for(
+        agent.manifest, ctx.role, ctx.room, conversation_kind=ctx.conversation_kind, meta_offers=offers
+    )
+    if state.get("transcript"):
+        messages = [*state["transcript"], Message(role="user", content=state["text"])]
+    else:
+        messages = [*state.get("history", []), Message(role="user", content=state["text"])]
     shown = ""
     tool_events: list[dict[str, Any]] = []
 
@@ -261,14 +307,26 @@ async def run_agent(state: ChatState) -> ChatState:
                 emit("Mình không thể hỗ trợ yêu cầu này.")
             return {"reply": shown, "status": "blocked", "blocked_stage": "model", "tool_events": tool_events}
         if not final.message.tool_calls:
+            messages.append(Message(role="assistant", content=final.message.content))
             break
         messages.append(final.message)
         if shown and not shown.endswith("\n"):
             emit("\n\n")
         for call in final.message.tool_calls:
             write({"type": "tool", "message_id": ctx.message_id, "name": call.name, "status": "start"})
+            platform_tool = tools.TOOLS.get(call.name)
+            if platform_tool is not None and platform_tool.meta:
+                with tracing.observe(call.name, as_type="tool", input=call.arguments):
+                    content = await meta.handle(ctx, agent, call, offers)
+                tool_events.append({"name": call.name, "status": "done"})
+                write({"type": "tool", "message_id": ctx.message_id, "name": call.name, "status": "done"})
+                messages.append(Message(role="tool", content=content, tool_call_id=call.id))
+                continue
             with tracing.observe(call.name, as_type="tool", input=call.arguments) as observation:
-                outcome = await tools.execute(call, tools.ToolContext.from_run(ctx, agent))
+                held = await meta.gate_action(ctx, agent, call)
+                outcome = (
+                    held if held is not None else await tools.execute(call, tools.ToolContext.from_run(ctx, agent))
+                )
                 if observation is not None:
                     observation.update(
                         output=outcome.content[:4000],
@@ -298,12 +356,20 @@ async def run_agent(state: ChatState) -> ChatState:
             messages.append(
                 Message(role="tool", content=outcome.content, tool_call_id=call.id, is_error=outcome.is_error)
             )
+    ctx.transcript = messages
+    if ctx.private_reply:
+        # FR-046: the group only gets the fixed notice; the answer is given in the private chat.
+        if ctx.stream:
+            _replace(ctx, meta.PRIVATE_NOTICE)
+        return {"reply": meta.PRIVATE_NOTICE, "status": "ok", "tool_events": tool_events, "private_reply": True}
+    if ctx.conversation_kind == "group" and shown:
+        await meta.mentions_to_handoffs(ctx, agent, shown, targets)
     return {"reply": shown, "status": "ok", "tool_events": tool_events}
 
 
 def _replace(ctx: RunContext, text: str) -> None:
     """Retracts the streamed reply and shows `text` instead (chatStream.ts handles text_reset)."""
-    write = get_stream_writer()
+    write = ctx.write
     write({"type": "text_reset", "message_id": ctx.message_id, "generation": 1})
     write({"type": "text_delta", "message_id": ctx.message_id, "generation": 1, "text_offset": 0, "delta": text})
 
@@ -311,10 +377,11 @@ def _replace(ctx: RunContext, text: str) -> None:
 async def review(state: ChatState) -> ChatState:
     ctx = state["ctx"]
     reply = state.get("reply", "")
-    if ctx.guard_mode != "full" or state.get("status") != "ok" or not reply.strip():
+    if ctx.guard_mode != "full" or state.get("status") != "ok" or not reply.strip() or state.get("private_reply"):
         return {}
     agent = state["agent"]
-    verdict = rules.screen_output(reply, state["text"])
+    user_text = state.get("review_text") or state["text"]
+    verdict = rules.screen_output(reply, user_text)
     if verdict.blocks:
         ctx.log("output", verdict, reply, agent.slug)
         _replace(ctx, OUTPUT_BLOCKED)
@@ -328,7 +395,7 @@ async def review(state: ChatState) -> ChatState:
         return {"reply": reply}
     no_answers = bool((ctx.room.policy or {}).get("no_direct_answers", True)) if ctx.room else False
     started = time.perf_counter()
-    verdict, usage = await classifier.review_output(ctx.chat_model, reply, state["text"], ctx.role, no_answers)
+    verdict, usage = await classifier.review_output(ctx.chat_model, reply, user_text, ctx.role, no_answers)
     ctx.timed("output_guard", usage, started)
     if verdict.blocks:
         ctx.log("output", verdict, reply, agent.slug)
@@ -379,4 +446,16 @@ def build_graph():
     return graph.compile()
 
 
+def build_resume_graph():
+    """A waiting run continuing with the results it waited for: no new user input to screen or route."""
+    graph = StateGraph(ChatState)
+    graph.add_node("run_agent", _traced(run_agent, "agent"))
+    graph.add_node("review", _traced(review, "guardrail"))
+    graph.add_edge(START, "run_agent")
+    graph.add_edge("run_agent", "review")
+    graph.add_edge("review", END)
+    return graph.compile()
+
+
 GRAPH = build_graph()
+RESUME_GRAPH = build_resume_graph()

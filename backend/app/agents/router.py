@@ -19,6 +19,8 @@ from app.tools.registry import TOOLS
 
 router = APIRouter(tags=["agents"])
 Teacher = Annotated[User, Depends(require_roles(Role.TEACHER, Role.ADMIN))]
+# Feature 003: students and parents build agents too (FR-001). What they may pick is filtered by role below.
+Maker = Annotated[User, Depends(require_roles(Role.TEACHER, Role.STUDENT, Role.PARENT, Role.ADMIN))]
 
 
 class HubAgentOut(BaseModel):
@@ -65,6 +67,9 @@ class InstallationOut(BaseModel):
     enabled: bool
     agent: HubAgentOut
     created_at: datetime
+    # Feature 003: the version's handoff grants and the class's narrowing of them (null: as granted).
+    handoff_to: list[str] = []
+    handoff_allow: list[str] | None = None
 
 
 class ManifestIn(BaseModel):
@@ -72,7 +77,11 @@ class ManifestIn(BaseModel):
 
 
 class ToggleIn(BaseModel):
-    enabled: bool
+    enabled: bool | None = None
+    # A teacher narrowing the agent's handoff grants in this class (FR-006): a subset of the manifest's list, or
+    # null to keep it as granted. Send `reset_handoffs` to go back to null.
+    handoff_allow: list[str] | None = None
+    reset_handoffs: bool = False
 
 
 async def _author(db, agent: Agent) -> str:
@@ -126,7 +135,7 @@ def validate_manifest(data: dict[str, Any]) -> AgentManifest:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"Manifest không hợp lệ ({field}): {message}"
         ) from None
-    unknown = [tool for tool in manifest.tools if tool not in TOOLS]
+    unknown = [tool for tool in manifest.tools if tool not in TOOLS or TOOLS[tool].meta]
     if unknown:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"Công cụ không có trong danh mục: {', '.join(unknown)}"
@@ -267,6 +276,8 @@ async def _installation_out(db, installation: Installation) -> InstallationOut:
         enabled=installation.enabled,
         agent=await _out(db, agent, version),
         created_at=installation.created_at,
+        handoff_to=list((version.manifest or {}).get("handoff_to", [])),
+        handoff_allow=installation.handoff_allow,
     )
 
 
@@ -319,7 +330,20 @@ async def toggle_class_agent(
     class_id: str, installation_id: str, payload: ToggleIn, user: CurrentUser, db: DbSession
 ) -> InstallationOut:
     installation = await _class_installation(db, user, class_id, installation_id)
-    installation.enabled = payload.enabled
+    if payload.enabled is not None:
+        installation.enabled = payload.enabled
+    if payload.reset_handoffs:
+        installation.handoff_allow = None
+    elif payload.handoff_allow is not None:
+        version = await db.get(AgentVersion, installation.agent_version_id)
+        granted = set((version.manifest or {}).get("handoff_to", [])) if version else set()
+        extra = [slug for slug in payload.handoff_allow if slug not in granted]
+        if extra:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"Chỉ thu hẹp được trong các agent người tạo đã cấp quyền: {', '.join(extra)}",
+            )
+        installation.handoff_allow = list(dict.fromkeys(payload.handoff_allow))
     await db.commit()
     return await _installation_out(db, installation)
 
@@ -398,14 +422,78 @@ async def _slug_free(db, slug: str, exclude: str | None = None) -> None:
 
 
 @router.get("/agents/mine", response_model=list[AgentDetailOut])
-async def my_built_agents(user: Teacher, db: DbSession) -> list[AgentDetailOut]:
+async def my_built_agents(user: Maker, db: DbSession) -> list[AgentDetailOut]:
     rows = await db.scalars(select(Agent).where(Agent.owner_id == user.id).order_by(Agent.updated_at.desc()))
     return [await hub_detail(agent.id, user, db) for agent in rows]
 
 
+async def _maker_checks(db, user: User, manifest: AgentManifest) -> None:
+    """FR-002, FR-005, FR-006: tools for the maker's role, guardian consent for students, grants to usable agents."""
+    if user.role == Role.STUDENT and not await _student_consented(db, user.id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Em cần phụ huynh đồng ý trước khi tạo và dùng agent.")
+    if user.role in (Role.STUDENT, Role.PARENT):
+        blocked = [tool for tool in manifest.tools if user.role not in TOOLS[tool].roles]
+        if blocked:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"Công cụ không dành cho vai trò của bạn: {', '.join(blocked)}",
+            )
+    if manifest.handoff_to:
+        allowed = {candidate["slug"] for candidate in await _handoff_candidates(db, user, manifest.slug)}
+        wrong = [slug for slug in manifest.handoff_to if slug not in allowed]
+        if wrong:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"Chỉ cấp quyền giao việc cho agent bạn đang dùng được: {', '.join(wrong)}",
+            )
+
+
+async def _student_consented(db, student_id: str) -> bool:
+    from app.classes.models import Consent
+
+    return bool(
+        await db.scalar(select(func.count()).where(Consent.student_id == student_id, Consent.allow_agents.is_(True)))
+    )
+
+
+async def _handoff_candidates(db, user: User, exclude_slug: str | None = None) -> list[dict[str, Any]]:
+    """Agents the maker may grant handoffs to: platform agents and certified public agents made for the maker's role
+    (any role for teachers), plus the maker's own agents."""
+    rows = await db.scalars(
+        select(Agent).where(or_(Agent.is_platform.is_(True), Agent.visibility == "public", Agent.owner_id == user.id))
+    )
+    out = []
+    for agent in rows:
+        if agent.slug == exclude_slug:
+            continue
+        own = agent.owner_id == user.id
+        version = await latest_version(db, agent.id) if own else await certified_version(db, agent.id)
+        if version is None:
+            continue
+        manifest = AgentManifest.model_validate(version.manifest)
+        if user.role in (Role.STUDENT, Role.PARENT) and user.role not in manifest.target_roles:
+            continue
+        out.append(
+            {"slug": agent.slug, "name": manifest.name, "avatar": manifest.avatar, "description": manifest.description}
+        )
+    return sorted(out, key=lambda item: item["name"])
+
+
+@router.get("/agents/{agent_id}/handoff-candidates")
+async def handoff_candidates(agent_id: str, user: Maker, db: DbSession) -> list[dict[str, Any]]:
+    agent = await _own_agent(db, user, agent_id)
+    return await _handoff_candidates(db, user, agent.slug)
+
+
+@router.get("/agents/handoff-candidates")
+async def new_agent_handoff_candidates(user: Maker, db: DbSession) -> list[dict[str, Any]]:
+    return await _handoff_candidates(db, user)
+
+
 @router.post("/agents", response_model=AgentDetailOut, status_code=status.HTTP_201_CREATED)
-async def create_agent(payload: ManifestIn, user: Teacher, db: DbSession) -> AgentDetailOut:
+async def create_agent(payload: ManifestIn, user: Maker, db: DbSession) -> AgentDetailOut:
     manifest = validate_manifest(payload.manifest)
+    await _maker_checks(db, user, manifest)
     await _slug_free(db, manifest.slug)
     agent = Agent(
         slug=manifest.slug, owner_id=user.id, visibility="private", draft_manifest=manifest.model_dump(mode="json")
@@ -416,18 +504,19 @@ async def create_agent(payload: ManifestIn, user: Teacher, db: DbSession) -> Age
 
 
 @router.put("/agents/{agent_id}", response_model=AgentDetailOut)
-async def update_draft(agent_id: str, payload: ManifestIn, user: Teacher, db: DbSession) -> AgentDetailOut:
+async def update_draft(agent_id: str, payload: ManifestIn, user: Maker, db: DbSession) -> AgentDetailOut:
     agent = await _own_agent(db, user, agent_id)
     manifest = validate_manifest(payload.manifest)
     if manifest.slug != agent.slug:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Không đổi được mã agent sau khi tạo.")
+    await _maker_checks(db, user, manifest)
     agent.draft_manifest = manifest.model_dump(mode="json")
     await db.commit()
     return await hub_detail(agent.id, user, db)
 
 
 @router.post("/agents/{agent_id}/versions", response_model=AgentDetailOut, status_code=status.HTTP_201_CREATED)
-async def snapshot_version(agent_id: str, user: Teacher, db: DbSession) -> AgentDetailOut:
+async def snapshot_version(agent_id: str, user: Maker, db: DbSession) -> AgentDetailOut:
     """Freezes the draft as a new immutable version (uncertified until the pipeline runs on it)."""
     agent = await _own_agent(db, user, agent_id)
     latest = await latest_version(db, agent.id)
@@ -441,7 +530,7 @@ async def snapshot_version(agent_id: str, user: Teacher, db: DbSession) -> Agent
 
 
 @router.post("/agents/{agent_id}/fork", response_model=AgentDetailOut, status_code=status.HTTP_201_CREATED)
-async def fork_agent(agent_id: str, user: Teacher, db: DbSession) -> AgentDetailOut:
+async def fork_agent(agent_id: str, user: Maker, db: DbSession) -> AgentDetailOut:
     source, version, _ = await _viewable(db, user, agent_id)
     origin = version.manifest if version else source.draft_manifest
     base = f"{source.slug[:38]}-ban-sao"
@@ -456,7 +545,7 @@ async def fork_agent(agent_id: str, user: Teacher, db: DbSession) -> AgentDetail
 
 
 @router.delete("/agents/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_agent(agent_id: str, user: Teacher, db: DbSession) -> None:
+async def delete_agent(agent_id: str, user: Maker, db: DbSession) -> None:
     agent = await _own_agent(db, user, agent_id)
     others = await db.scalar(
         select(func.count()).where(
@@ -480,7 +569,7 @@ class TryIn(BaseModel):
 
 
 @router.post("/agents/{agent_id}/try")
-async def try_draft(agent_id: str, payload: TryIn, user: Teacher, db: DbSession) -> StreamingResponse:
+async def try_draft(agent_id: str, payload: TryIn, user: Maker, db: DbSession) -> StreamingResponse:
     """Chats with the current draft outside any class; the run is stored as a sandbox conversation."""
     from app.agents.sandbox import run_sandbox
 
@@ -499,3 +588,82 @@ async def try_draft(agent_id: str, payload: TryIn, user: Teacher, db: DbSession)
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class AgentRequestIn(BaseModel):
+    agent_id: str
+
+
+@router.post("/classes/{class_id}/agent-requests", status_code=status.HTTP_201_CREATED)
+async def request_agent_in_class(class_id: str, payload: AgentRequestIn, user: CurrentUser, db: DbSession):
+    """A student or parent asks to add their own agent to the class (FR-003): sharing is an always-ask action, the
+    agent needs a certified version, and the homeroom teacher decides in their inbox."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.chat.direct import open_direct
+    from app.config import get_settings
+    from app.orchestration import approvals, people
+    from app.orchestration.models import PersonRequest
+
+    room, role = await classes.load_class(db, class_id, user, {"student", "parent"})
+    if not (room.policy or {}).get("allow_member_agents", True):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Lớp này chưa cho đưa agent tự tạo vào lớp.")
+    agent = await db.get(Agent, payload.agent_id)
+    if agent is None or agent.owner_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Không tìm thấy agent.")
+    version = await certified_version(db, agent.id)
+    if version is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Agent cần qua kiểm định trước khi đưa vào lớp.")
+    manifest = AgentManifest.model_validate(version.manifest)
+    conversation = await open_direct(db, user, room, None, title="Trợ lý")
+    request = PersonRequest(
+        conversation_id=conversation.id,
+        class_id=room.id,
+        requester_id=user.id,
+        agent_slug=FALLBACK_SLUG,
+        recipient_id=room.owner_id,
+        kind="install_agent",
+        body=f"{user.name} xin đưa agent “{manifest.name}” (đã kiểm định) vào lớp {room.name}. {manifest.description}",
+        options=["Đồng ý", "Từ chối"],
+        payload={"agent_id": agent.id, "version_id": version.id},
+        status="draft",
+        expires_at=datetime.now(UTC) + timedelta(hours=get_settings().person_request_hours),
+    )
+    db.add(request)
+    await db.flush()
+    action = approvals.Action("share", FALLBACK_SLUG, "install_agent", room.id)
+    decision = await approvals.decide_for(
+        db, action, user_id=user.id, role=role, class_id=room.id, conversation_id=conversation.id
+    )
+    if decision.effect == "deny":
+        request.status = "cancelled"
+        await db.commit()
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Việc chia sẻ agent bị chặn bởi quy tắc duyệt.")
+    if decision.effect == "allow":
+        await people.open_request(db, request)
+        await db.commit()
+        return {"status": "sent", "request_id": request.id, "conversation_id": conversation.id}
+    card = await approvals.open_card(
+        db,
+        run_id=None,
+        tool_call_id=f"install-{request.id}",
+        conversation_id=conversation.id,
+        user_id=user.id,
+        action=approvals.Action("share", FALLBACK_SLUG, "ask_person", room.id),
+        arguments={"request_id": request.id},
+        summary=f"Xin giáo viên chủ nhiệm đưa “{manifest.name}” vào lớp {room.name}",
+        preview={"body": request.body, "targets": [{"id": room.owner_id, "name": "", "role_label": "GV chủ nhiệm"}]},
+        choices=decision.choices,
+    )
+    await db.commit()
+    return {"status": "waiting_approval", "card_id": card.id, "conversation_id": conversation.id}
+
+
+@router.get("/agents/{agent_id}/activity")
+async def agent_activity_page(agent_id: str, user: Maker, db: DbSession) -> list[dict[str, Any]]:
+    """The agent's activity for its owner (FR-057): runs, handoffs and refusals with their reasons, no conversation
+    text of other people."""
+    from app.orchestration.activity import agent_activity
+
+    agent = await _own_agent(db, user, agent_id)
+    return await agent_activity(db, agent.slug)

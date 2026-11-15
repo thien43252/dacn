@@ -12,6 +12,7 @@ capabilities:
   - sửa lỗi câu tiếng Anh học sinh tự viết
   - học từ vựng, phát âm
 tools: [class_doc_search]
+handoff_to: [on-tap-tai-lieu]
 knowledge: class_documents
 system_prompt: |
   You are a friendly English speaking partner for Vietnamese secondary and high-school students.
