@@ -31,10 +31,11 @@
 
 ## Notes
 
-- Tên nền tảng chạy agent (LangGraph, Dify) chỉ xuất hiện trong mục Assumptions để nêu phụ thuộc, không nằm trong yêu
-  cầu. `dev.ps1` ở FR-050 là yêu cầu bắt buộc của hiến pháp (nguyên tắc III), giữ nguyên tên.
-- Không dùng marker [NEEDS CLARIFICATION]. Các quyết định có tác động lớn đã chọn mặc định và ghi trong Assumptions.
-  Nên chạy `/speckit-clarify` để xác nhận: (1) học sinh, phụ huynh có được tạo nhóm không (mặc định: giáo viên bật theo
-  lớp, mặc định tắt); (2) độ sâu chuỗi giao việc (mặc định 2); (3) agent do học sinh tạo đưa vào lớp cần kiểm định cộng
-  giáo viên duyệt.
-- Feature phát triển trên `main`, không phụ thuộc `feat/dify-runtime`. Các ràng buộc từ spec 002 đã được viết lại thành FR-051 đến FR-068, SC-013, SC-014.
+- Lần sửa 2026-11-15: ràng buộc về giao việc, hỏi người và duyệt hành động được viết lại theo OpenBot v1.0.3
+  (`docs/architecture.md`: `message_bot`, `ask_person`, nhóm chat; `docs/approvals.md`). Đã bỏ các ràng buộc cũ lấy từ
+  spec 002 mà OpenBot không có: tối đa 1 lần hỏi lại, 3 câu mỗi lần, nút "Cứ làm luôn", giới hạn tổng thời gian và số
+  agent, xác nhận chỉ có hai lựa chọn.
+- `dev.ps1` (FR-055) là yêu cầu của hiến pháp, nguyên tắc III; tên công cụ OpenBot chỉ dùng để dẫn nguồn.
+- Không có marker [NEEDS CLARIFICATION]. Mặc định nên xác nhận qua `/speckit-clarify`: số tầng giao việc (2), số lần
+  giao việc mỗi lượt (6), học sinh mặc định ở chế độ duyệt "Hỏi mỗi lần", quyền tạo nhóm của học sinh và phụ huynh (mặc
+  định tắt), và lượt làm tiếp của agent hỏi (FR-017, OpenBot không nói rõ).
