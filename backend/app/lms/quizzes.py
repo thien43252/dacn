@@ -18,8 +18,10 @@ from app import lms
 from app.auth.deps import CurrentUser, DbSession
 from app.auth.models import User, new_id
 from app.classes import service as classes
+from app.classes.models import ClassMember, ClassRoom
 from app.lms import access, grading, jobs, lessons
 from app.lms.models import GradeAudit, Lesson, LessonItem, Quiz, QuizAttempt, QuizQuestion
+from app.lms.notify import notify
 from app.lms.schemas import clean
 
 router = APIRouter(tags=["lms"])
@@ -395,6 +397,43 @@ async def finalize(db: AsyncSession, attempt: QuizAttempt, reason: str) -> None:
     attempt.submitted_at = lms.now()
     attempt.submit_reason = reason
     _update_total(attempt)
+    if attempt.status == "submitted":
+        await _notify_to_grade(db, attempt)
+
+
+async def _notify_to_grade(db: AsyncSession, attempt: QuizAttempt) -> None:
+    """FR-025: teachers hear about a quiz attempt whose essays wait for grading, once per quiz and day."""
+    quiz = await db.get(Quiz, attempt.quiz_id)
+    room = await db.get(ClassRoom, quiz.class_id) if quiz else None
+    if room is None:
+        return
+    teachers = await db.scalars(
+        select(ClassMember.user_id).where(ClassMember.class_id == room.id, ClassMember.role == "teacher")
+    )
+    await notify(
+        db,
+        list(dict.fromkeys([room.owner_id, *teachers])),
+        "to_grade",
+        "Có bài kiểm tra cần chấm tự luận.",
+        f"/teacher/classes/{room.id}/quizzes/{quiz.item_id}",
+        room.id,
+        f"to_grade:{quiz.item_id}:{lms.now().date()}",
+    )
+
+
+async def _notify_graded(db: AsyncSession, attempt: QuizAttempt, quiz: Quiz) -> None:
+    """FR-025: the student hears once every essay of the attempt is graded, unless the score is never shown."""
+    if quiz.show_score == "never":
+        return
+    await notify(
+        db,
+        [attempt.student_id],
+        "returned",
+        "Bài kiểm tra đã được chấm xong.",
+        f"/student/classes/{quiz.class_id}/quizzes/{quiz.item_id}",
+        quiz.class_id,
+        f"returned:{attempt.id}",
+    )
 
 
 async def _expire(db: AsyncSession, attempt: QuizAttempt, quiz: Quiz) -> bool:
@@ -725,6 +764,8 @@ async def grade_attempt_question(cid: str, aid: str, question_id: str, body: Sco
     }
     _update_total(attempt)
     _audit(db, attempt, user.id, "grade", question_id, before)
+    if before["score"] is None and attempt.score is not None:
+        await _notify_graded(db, attempt, quiz)
     await db.commit()
     return _response(await _attempt_result(db, attempt, quiz, role))
 

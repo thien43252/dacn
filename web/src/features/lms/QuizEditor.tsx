@@ -6,6 +6,7 @@ import {
   type QuizTeacherView,
   lmsApi,
 } from "../../api-client/lms";
+import { classesApi } from "../../api-client/classes";
 import { navigate } from "../../app/router";
 import { errorMessage, useResource } from "../../app/useResource";
 import { Icon } from "../../components/Icon";
@@ -25,6 +26,8 @@ const KIND_NAMES: Record<QuestionKind, string> = {
 };
 
 export function QuizEditor({ classId, quizId }: { classId: string; quizId: string }) {
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [copiedQuiz, setCopiedQuiz] = useState<{ classId: string; quizId: string; lessonTitle: string } | null>(null);
   const [tab, setTab] = useState<"questions" | "results">("questions");
   const quizResource = useResource(
     () => lmsApi.quizzes.get(classId, quizId) as Promise<QuizTeacherView>,
@@ -168,6 +171,9 @@ export function QuizEditor({ classId, quizId }: { classId: string; quizId: strin
 
         {/* Tab switcher */}
         <div className="ea-toolbar__actions">
+          <button type="button" className="button button--secondary" onClick={() => setShowCopyDialog(true)}>
+            Sao chép quiz
+          </button>
           <div className="ea-subtabs" style={{ display: "flex", gap: "var(--space-2)" }}>
             <button
               type="button"
@@ -187,6 +193,16 @@ export function QuizEditor({ classId, quizId }: { classId: string; quizId: strin
         </div>
       </div>
 
+      {copiedQuiz && (
+        <div className="ea-notice ea-notice--ok" role="status">
+          Đã sao chép quiz sang {copiedQuiz.lessonTitle}{" "}
+          <button type="button" className="button button--ghost" onClick={() => navigate(`/teacher/classes/${copiedQuiz.classId}/quizzes/${copiedQuiz.quizId}`)}>Mở quiz đã sao chép</button>
+        </div>
+      )}
+      {showCopyDialog && <CopyQuizDialog classId={classId} quizId={quizId}
+        onClose={() => setShowCopyDialog(false)}
+        onCopied={(result) => { setCopiedQuiz(result); setShowCopyDialog(false); }}
+      />}
       {notice && <div className="ea-notice ea-notice--ok">{notice}</div>}
       {errorNotice && <div className="ea-error">{errorNotice}</div>}
 
@@ -443,6 +459,7 @@ export function QuizEditor({ classId, quizId }: { classId: string; quizId: strin
                           <span style={{ fontWeight: 700 }}>Câu {idx + 1}.</span>
                           <span className="ea-chip">{KIND_NAMES[q.kind] || q.kind}</span>
                           <span className="ea-chip ea-chip--info">{q.points} điểm</span>
+                          {q.source === "ai" && <span className="ea-chip ea-chip--ok">Nguồn: AI gợi ý, giáo viên duyệt</span>}
                         </div>
 
                         <div className="ea-toolbar__actions">
@@ -617,5 +634,90 @@ export function QuizEditor({ classId, quizId }: { classId: string; quizId: strin
         />
       )}
     </div>
+  );
+}
+
+function CopyQuizDialog({ classId, quizId, onClose, onCopied }: {
+  classId: string;
+  quizId: string;
+  onClose: () => void;
+  onCopied: (result: { classId: string; quizId: string; lessonTitle: string }) => void;
+}) {
+  const classes = useResource(() => classesApi.list(), []);
+  const [targetClassId, setTargetClassId] = useState(classId);
+  const activeClasses = (classes.data ?? []).filter((room) => !room.archived && room.my_role === "teacher");
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <div className="dialog frosted lms-copy-quiz-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="copy-quiz-title" onClick={(event) => event.stopPropagation()}>
+        <h3 id="copy-quiz-title">Sao chép quiz</h3>
+        {classes.error && <div className="ea-error">{classes.error}</div>}
+        <label className="field">
+          <span>Lớp học</span>
+          <select value={targetClassId} disabled={classes.loading || Boolean(classes.error)}
+            onChange={(event) => setTargetClassId(event.target.value)}>
+            <option value="" disabled>Chọn lớp học</option>
+            {activeClasses.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+          </select>
+        </label>
+        {classes.loading && <p className="ea-muted">Đang tải lớp học…</p>}
+        {!classes.loading && !classes.error && activeClasses.length === 0 && <p className="ea-muted">Không có lớp học khả dụng.</p>}
+        {activeClasses.some((room) => room.id === targetClassId) ? (
+          <CopyQuizTarget key={targetClassId} classId={classId} quizId={quizId} targetClassId={targetClassId}
+            onClose={onClose} onCopied={onCopied} />
+        ) : <button type="button" className="button button--secondary" onClick={onClose}>Huỷ</button>}
+      </div>
+    </div>
+  );
+}
+
+function CopyQuizTarget({ classId, quizId, targetClassId, onClose, onCopied }: {
+  classId: string;
+  quizId: string;
+  targetClassId: string;
+  onClose: () => void;
+  onCopied: (result: { classId: string; quizId: string; lessonTitle: string }) => void;
+}) {
+  const lessons = useResource(() => lmsApi.lessons.list(targetClassId), [targetClassId]);
+  const [lessonId, setLessonId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const activeLessons = (lessons.data ?? []).filter((lesson) => lesson.status !== "archived");
+  const target = activeLessons.find((lesson) => lesson.id === lessonId);
+
+  async function copyQuiz() {
+    if (!target || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const copied = await lmsApi.quizzes.copy(classId, quizId, target.id);
+      onCopied({ classId: targetClassId, quizId: copied.item_id, lessonTitle: target.title });
+    } catch (err: unknown) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      {(error || lessons.error) && <div className="ea-error">{error || lessons.error}</div>}
+      <label className="field">
+        <span>Buổi học</span>
+        <select value={lessonId} onChange={(event) => setLessonId(event.target.value)}
+          disabled={busy || lessons.loading || Boolean(lessons.error)}>
+          <option value="">Chọn buổi học</option>
+          {activeLessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
+        </select>
+      </label>
+      {lessons.loading ? <p className="ea-muted">Đang tải buổi học…</p> : !lessons.error && activeLessons.length === 0 && <p className="ea-muted">Lớp học chưa có buổi học nào.</p>}
+      <div className="dialog-actions">
+        <button type="button" className="button button--secondary" disabled={busy} onClick={onClose}>Huỷ</button>
+        <button type="button" className="button button--primary" disabled={busy || !target || lessons.loading || Boolean(lessons.error)} onClick={copyQuiz}>
+          {busy ? "Đang sao chép…" : "Sao chép"}
+        </button>
+      </div>
+    </>
   );
 }

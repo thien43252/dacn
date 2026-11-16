@@ -110,7 +110,8 @@ async def test_gradebook_states_average_csv_weights(as_user, sessionmaker, monke
     exported = await teacher.get(f"{base}/gradebook.csv")
     assert exported.content.startswith(b"\xef\xbb\xbf")
     rows = list(csv.reader(io.StringIO(exported.content.decode("utf-8-sig"))))
-    assert rows[0][0] == "Học sinh" and rows[0][-1] == "Điểm TB"
+    assert rows[0][0] == "Học sinh" and rows[0][-2:] == ["Điểm TB", "Ghi chú"]
+    assert rows[1][-1] == ""
     assert rows[1][0] == "Nguyễn Thị Ánh"
     assert "so-diem-toan-8a1.csv" in exported.headers["content-disposition"]
     path = f"{base}/gradebook/columns/{items[4].id}"
@@ -322,3 +323,67 @@ async def test_csv_uses_vietnamese_state_labels() -> None:
     from app.lms.gradebook import STATE_LABELS
 
     assert STATE_LABELS["pending"] == "Chờ chấm" and STATE_LABELS["missing"] == "Chưa nộp"
+
+
+async def test_gradebook_keeps_departed_students_with_work(as_user, sessionmaker, monkeypatch):
+    teacher, student, _, room = await class_with_student(as_user)
+    current = await as_user("student", "Z Current")
+    quiz_student = await as_user("student", "A Quiz")
+    no_work = await as_user("student", "No work")
+    for client in (current, quiz_student, no_work):
+        await client.post("/api/classes/join", json={"code": room["join_code"]})
+    monkeypatch.setattr("app.lms.now", lambda: STAMP)
+    cid, sid = room["id"], student.user["id"]
+    async with sessionmaker() as db:
+        assignment = await add_item(db, cid)
+        quiz = await add_item(db, cid, kind="quiz", position=1)
+        await add_item(db, cid, position=2, due_at=STAMP - timedelta(days=1))
+        db.add(
+            Submission(
+                class_id=cid,
+                assignment_id=assignment.id,
+                student_id=sid,
+                status="graded",
+                raw_score=8,
+                final_score=8,
+            )
+        )
+        db.add(
+            QuizAttempt(
+                class_id=cid,
+                quiz_id=quiz.id,
+                student_id=quiz_student.user["id"],
+                attempt_no=1,
+                started_at=STAMP,
+                status="graded",
+                score=16,
+                max_score=20,
+            )
+        )
+        for client in (student, quiz_student, no_work):
+            member = await db.scalar(
+                select(ClassMember).where(ClassMember.class_id == cid, ClassMember.user_id == client.user["id"])
+            )
+            await db.delete(member)
+        await db.commit()
+    base = f"/api/classes/{cid}"
+    response = await teacher.get(f"{base}/gradebook")
+    assert response.status_code == 200, response.text
+    book = response.json()
+    rows = book["rows"]
+    assert rows[0]["student"]["id"] == current.user["id"] and rows[0]["left_class"] is False
+    assert len(rows) == 3 and all(r["left_class"] for r in rows[1:])
+    departed = {r["student"]["id"]: r for r in rows[1:]}
+    assert departed[sid]["cells"][0]["final"] == 8
+    assert departed[sid]["average"] == 4
+    assert departed[quiz_student.user["id"]]["cells"][1]["final"] == 16
+    assert departed[sid]["cells"][2]["state"] == "missing"
+    # `counts` remains the existing column inclusion setting, independent of roster size.
+    assert all(c["counts"] is True for c in book["columns"])
+    exported = await teacher.get(f"{base}/gradebook.csv")
+    assert exported.content.startswith(b"\xef\xbb\xbf")
+    csv_rows = list(csv.reader(io.StringIO(exported.content.decode("utf-8-sig"))))
+    assert csv_rows[0][-1] == "Ghi chú" and csv_rows[1][-1] == ""
+    assert all(r[-1] == "Đã rời lớp" for r in csv_rows[2:])
+    for suffix in ("", "/gradebook", "/my-grades"):
+        assert (await student.get(f"{base}{suffix}")).status_code == 404

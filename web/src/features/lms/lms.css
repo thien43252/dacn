@@ -599,3 +599,10 @@
   padding: 0 10px;
   font-size: 0.85rem;
 }
+
+.lms-copy-quiz-dialog {
+  max-width: 500px;
+  width: 95%;
+  display: grid;
+  gap: var(--space-3);
+}

@@ -184,3 +184,42 @@ async def test_hidden_and_archived_assignment(as_user, sessionmaker, monkeypatch
     assert (await student.get(path)).status_code == 200
     assert (await student.post(f"{path}/submissions", json={"text": "Bài"})).status_code == 409
     assert (await teacher.patch(path, json={"prompt": "Đề mới"})).status_code == 409
+
+
+async def test_departed_submission_roster_stats_and_grading(as_user, sessionmaker, monkeypatch):
+    teacher, student, parent, room, base, path = await assignment_setup(as_user, sessionmaker)
+    current = await as_user("student", "Z Current")
+    no_work = await as_user("student", "No work")
+    for client in (current, no_work):
+        await client.post("/api/classes/join", json={"code": room["join_code"]})
+    monkeypatch.setattr("app.lms.now", lambda: DUE)
+    response = await student.post(f"{path}/submissions", json={"text": "Bài làm"})
+    assert response.status_code == 201, response.text
+    submission = response.json()
+    async with sessionmaker() as db:
+        for client in (student, no_work):
+            member = await db.scalar(
+                select(ClassMember).where(ClassMember.class_id == room["id"], ClassMember.user_id == client.user["id"])
+            )
+            await db.delete(member)
+        await db.commit()
+    response = await teacher.get(f"{path}/submissions")
+    assert response.status_code == 200, response.text
+    roster = response.json()
+    assert [(r["student_id"], r["left_class"], r["state"]) for r in roster] == [
+        (current.user["id"], False, "missing"),
+        (student.user["id"], True, "submitted"),
+    ]
+    assert roster[1]["submission_id"] == submission["id"] and roster[1]["submitted_at"] is not None
+    detail = (await teacher.get(path)).json()
+    assert detail["submissions"] == roster
+    assert detail["stats"] == dict(submitted=0, late=0, missing=1, graded=0, returned=0)
+    grade_path = f"{base}/submissions/{submission['id']}/grade"
+    response = await teacher.put(grade_path, json={"raw_score": 8})
+    assert response.status_code == 200, response.text
+    assert response.json()["final_score"] == 8
+    assert (await teacher.get(path)).json()["stats"]["graded"] == 0
+    for reader in (student, parent):
+        for url in (base, path, f"{base}/submissions/{submission['id']}"):
+            assert (await reader.get(url)).status_code == 404
+    assert (await student.put(grade_path, json={"raw_score": 10})).status_code == 404

@@ -17,6 +17,7 @@ from app.lms.models import (
     GradeAudit,
     LessonItem,
     LmsFile,
+    QuizAttempt,
     Submission,
     SubmissionVersion,
 )
@@ -214,7 +215,7 @@ async def get_assignment(cid: str, asg: str, user: CurrentUser, db: DbSession, s
         rows = await _roster(db, room, assignment)
         values["submissions"] = rows
         values["stats"] = {
-            state: sum(r["state"] == state for r in rows)
+            state: sum(r["state"] == state and not r["left_class"] for r in rows)
             for state in ("submitted", "late", "missing", "graded", "returned")
         }
     else:
@@ -354,8 +355,15 @@ async def submit(cid: str, asg: str, body: SubmissionIn, user: CurrentUser, db: 
 
 
 async def _roster(db, room, assignment):
-    ids = await access.student_ids(db, room.id)
-    users = list(await db.scalars(select(User).where(User.id.in_(ids)).order_by(User.name, User.id)))
+    ids = set(await access.student_ids(db, room.id))
+    work_ids = (
+        select(Submission.student_id)
+        .where(Submission.class_id == room.id)
+        .union(select(QuizAttempt.student_id).where(QuizAttempt.class_id == room.id))
+    )
+    departed_ids = set(await db.scalars(work_ids)) - ids
+    users = list(await db.scalars(select(User).where(User.id.in_(ids | departed_ids)).order_by(User.name, User.id)))
+    users.sort(key=lambda user: user.id not in ids)
     submissions = {
         r.student_id: r
         for r in await db.scalars(select(Submission).where(Submission.assignment_id == assignment.item_id))
@@ -383,6 +391,7 @@ async def _roster(db, room, assignment):
             {
                 "student_id": user.id,
                 "name": user.name,
+                "left_class": user.id not in ids,
                 "submission_id": row.id if row else None,
                 "state": state,
                 "effective_due": await _due(db, assignment, user.id),

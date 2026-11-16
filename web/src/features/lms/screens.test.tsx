@@ -1,12 +1,17 @@
+import { type ReactElement, type ReactNode, isValidElement } from "react";
+import { lmsApi } from "../../api-client/lms";
+import { QuizEditor } from "./QuizEditor";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useResource } from "../../app/useResource";
+import { navigate } from "../../app/router";
 import { matchRoute } from "../../app/routes";
 import { AssignmentView } from "./AssignmentView";
 import { QuizResult } from "./QuizResult";
 import { QuizResults } from "./QuizResults";
 import { QuizTake } from "./QuizTake";
 
+vi.mock("../../app/router", async (importOriginal) => ({ ...(await importOriginal<object>()), navigate: vi.fn() }));
 vi.mock("../../app/useResource", () => ({ useResource: vi.fn(), errorMessage: String }));
 const mockedResource = vi.mocked(useResource);
 const resource = (data: unknown) => ({ data, error: null, loading: false, reload: vi.fn(), setData: vi.fn() });
@@ -99,5 +104,110 @@ describe("LMS backend response rendering", () => {
     expect(html).toContain("75%");
     expect(html).toContain("Học sinh A");
     expect(html).toContain("8/10");
+  });
+});
+
+// The suite uses server rendering; this small hook harness also exercises event handlers
+// without adding a browser environment dependency.
+const hookHarness = vi.hoisted(() => ({ active: false, values: [] as unknown[], cursor: 0 }));
+vi.mock("react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("react")>();
+  return { ...original, useState: (initial: unknown) => {
+    if (!hookHarness.active) return original.useState(initial);
+    const index = hookHarness.cursor++;
+    if (!(index in hookHarness.values)) hookHarness.values[index] = initial;
+    return [hookHarness.values[index], (value: unknown) => { hookHarness.values[index] = value; }];
+  } };
+});
+
+type TestElement = ReactElement<{ children?: ReactNode; onClick?: () => unknown; onChange?: (event: { target: { value: string } }) => void; value?: string; disabled?: boolean; href?: string }>;
+function expand(node: ReactNode): ReactNode {
+  if (Array.isArray(node)) return node.map((child, index) => {
+    const expanded = expand(child);
+    return isValidElement(expanded) ? { ...expanded, key: expanded.key ?? String(index) } : expanded;
+  });
+  if (!isValidElement(node)) return node;
+  const element = node as TestElement;
+  if (typeof element.type === "function") {
+    // ConfirmDialog is closed in these tests and owns unrelated effect/ref hooks.
+    if (element.type.name === "ConfirmDialog") return null;
+    return expand((element.type as (props: unknown) => ReactNode)(element.props));
+  }
+  return { ...element, props: { ...element.props, children: expand(element.props.children) } };
+}
+function elements(node: ReactNode): TestElement[] {
+  if (Array.isArray(node)) return node.flatMap(elements);
+  if (!isValidElement(node)) return [];
+  const element = node as TestElement;
+  return [element, ...elements(element.props.children)];
+}
+
+describe("Quiz editor copying", () => {
+  it.each(["class", "other-class"])("copies to a selected lesson in %s and links to the new editor", async (targetClassId) => {
+    hookHarness.active = true;
+    hookHarness.values = [];
+    const copy = vi.spyOn(lmsApi.quizzes, "copy").mockResolvedValue({ item_id: "new-quiz" } as never);
+    mockedResource.mockImplementation(((_loader: unknown, deps: readonly unknown[] = []) => {
+      if (deps[1] === "quiz") return resource({ ...quiz, questions: [] });
+      if (deps.length === 0) return resource([
+        { id: "class", name: "Lớp hiện tại", my_role: "teacher", archived: false },
+        { id: "other-class", name: "Lớp khác", my_role: "teacher", archived: false },
+        { id: "archived-class", name: "Lớp lưu trữ", my_role: "teacher", archived: true },
+        { id: "student-class", name: "Lớp học sinh", my_role: "student", archived: false },
+      ]);
+      return resource([
+        { id: "lesson", title: "Buổi học đích", status: "published" },
+        { id: "archived-lesson", title: "Bài lưu trữ", status: "archived" },
+      ]);
+    }) as unknown as typeof useResource);
+    const draw = () => {
+      hookHarness.cursor = 0;
+      return expand(<QuizEditor classId="class" quizId="quiz" />);
+    };
+    const button = (tree: ReactNode, text: string) => elements(tree).find((el) => el.type === "button" && renderToStaticMarkup(el).includes(text))!;
+    try {
+      let tree = draw();
+      button(tree, "Sao chép quiz").props.onClick!();
+      tree = draw();
+      expect(renderToStaticMarkup(<>{tree}</>)).toContain('role="dialog"');
+      expect(renderToStaticMarkup(<>{tree}</>)).not.toContain("Lớp lưu trữ");
+      expect(renderToStaticMarkup(<>{tree}</>)).not.toContain("Lớp học sinh");
+      expect(renderToStaticMarkup(<>{tree}</>)).not.toContain("Bài lưu trữ");
+      const selects = elements(tree).filter((el) => el.type === "select");
+      expect(selects.find((el) => el.props.value === "class")).toBeDefined();
+      selects.find((el) => el.props.value === "class")!.props.onChange!({ target: { value: targetClassId } });
+      tree = draw();
+      expect(button(tree, ">Sao chép<").props.disabled).toBe(true);
+      elements(tree).filter((el) => el.type === "select")[1].props.onChange!({ target: { value: "lesson" } });
+      tree = draw();
+      await button(tree, ">Sao chép<").props.onClick!();
+      expect(copy).toHaveBeenCalledWith("class", "quiz", "lesson");
+      const html = renderToStaticMarkup(<>{draw()}</>);
+      expect(html).toContain("Đã sao chép quiz sang Buổi học đích");
+      button(draw(), "Mở quiz đã sao chép").props.onClick!();
+      expect(navigate).toHaveBeenLastCalledWith(`/teacher/classes/${targetClassId}/quizzes/new-quiz`);
+    } finally {
+      hookHarness.active = false;
+      copy.mockRestore();
+    }
+  });
+});
+
+describe("Quiz editor question source", () => {
+  it("labels approved AI questions (FR-032)", () => {
+    hookHarness.active = true;
+    hookHarness.values = [];
+    const question = { kind: "single", prompt: "Câu", options: [], points: 1, explanation: "", rubric: null, answer_key: "a", position: 0, affects_submitted: 0 };
+    mockedResource.mockImplementation(((_loader: unknown, deps: readonly unknown[] = []) => {
+      if (deps[1] === "quiz") return resource({ ...quiz, questions: [{ ...question, id: "ai", source: "ai" }, { ...question, id: "manual", source: "teacher" }] });
+      return resource([]);
+    }) as unknown as typeof useResource);
+    try {
+      hookHarness.cursor = 0;
+      const html = renderToStaticMarkup(<>{expand(<QuizEditor classId="class" quizId="quiz" />)}</>);
+      expect(html.split("Nguồn: AI gợi ý, giáo viên duyệt").length - 1).toBe(1);
+    } finally {
+      hookHarness.active = false;
+    }
   });
 });

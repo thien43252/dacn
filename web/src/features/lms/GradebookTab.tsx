@@ -83,7 +83,7 @@ export function GradebookTab({ room }: { room: ClassRoom }) {
         <div>
           <h3>Sổ điểm lớp học</h3>
           <span className="ea-muted" style={{ fontSize: "0.85rem" }}>
-            {rows.length} học sinh · {columns.length} đầu điểm
+            {rows.filter((row) => !row.left_class).length} học sinh · {columns.length} đầu điểm
           </span>
         </div>
 
@@ -226,6 +226,7 @@ export function GradebookTab({ room }: { room: ClassRoom }) {
                   }}
                 >
                   {row.student.name}
+                  {row.left_class && <small className="ea-muted" style={{ marginLeft: "6px" }}>Đã rời lớp</small>}
                 </td>
 
                 {/* Cells */}

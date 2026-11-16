@@ -488,7 +488,7 @@ Mỗi bước đều chạy `pytest` và `vitest` toàn bộ để không làm h
 
 ## Phase 10: Convergence
 
-- [ ] T079 [US2] Thêm nút "Sao chép quiz" trong `web/src/features/lms/QuizEditor.tsx` (chọn buổi đích thuộc lớp này hoặc lớp khác của giáo viên) gọi `lmsApi.quizzes.copy` hiện chưa được dùng, kèm test trong `web/src/features/lms/screens.test.tsx` per FR-017 (partial)
-- [ ] T080 [US6] Hiện nhãn "Nguồn: AI gợi ý, giáo viên duyệt" cho câu hỏi có `source = "ai"` trong danh sách câu của `web/src/features/lms/QuizEditor.tsx`/`QuestionEditor.tsx` (backend đã trả `source`), kèm test per FR-032 (partial)
-- [ ] T081 [US2] Gửi thông báo `to_grade` cho giáo viên khi lượt làm quiz có câu tự luận chờ chấm và thông báo `returned` cho học sinh khi mọi câu tự luận của lượt đã chấm, trong `backend/app/lms/quizzes.py` (dedupe theo quiz/ngày và theo lượt), kèm test trong `backend/tests/test_lms_quizzes.py` per FR-025 (partial)
-- [ ] T082 [US4] Giữ học sinh đã rời lớp trong sổ điểm (`backend/app/lms/gradebook.py`) và danh sách bài nộp (`_roster` trong `backend/app/lms/assignments.py`) khi em có bài nộp hoặc lượt làm, đánh dấu "đã rời lớp" và không tính vào thống kê lớp, kèm test per spec Edge Cases "Học sinh rời lớp" (partial)
+- [X] T079 [US2] Thêm nút "Sao chép quiz" trong `web/src/features/lms/QuizEditor.tsx` (chọn buổi đích thuộc lớp này hoặc lớp khác của giáo viên) gọi `lmsApi.quizzes.copy` hiện chưa được dùng, kèm test trong `web/src/features/lms/screens.test.tsx` per FR-017 (partial)
+- [X] T080 [US6] Hiện nhãn "Nguồn: AI gợi ý, giáo viên duyệt" cho câu hỏi có `source = "ai"` trong danh sách câu của `web/src/features/lms/QuizEditor.tsx`/`QuestionEditor.tsx` (backend đã trả `source`), kèm test per FR-032 (partial)
+- [X] T081 [US2] Gửi thông báo `to_grade` cho giáo viên khi lượt làm quiz có câu tự luận chờ chấm và thông báo `returned` cho học sinh khi mọi câu tự luận của lượt đã chấm, trong `backend/app/lms/quizzes.py` (dedupe theo quiz/ngày và theo lượt), kèm test trong `backend/tests/test_lms_quizzes.py` per FR-025 (partial)
+- [X] T082 [US4] Giữ học sinh đã rời lớp trong sổ điểm (`backend/app/lms/gradebook.py`) và danh sách bài nộp (`_roster` trong `backend/app/lms/assignments.py`) khi em có bài nộp hoặc lượt làm, đánh dấu "đã rời lớp" và không tính vào thống kê lớp, kèm test per spec Edge Cases "Học sinh rời lớp" (partial)

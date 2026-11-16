@@ -219,6 +219,7 @@ export interface SubmissionVersion {
   is_late: boolean;
 }
 export interface SubmissionListItem {
+  left_class?: boolean;
   student_id: string;
   name: string;
   submission_id: string | null;
@@ -308,6 +309,7 @@ export interface GradebookCell {
 }
 
 export interface GradebookRow {
+  left_class?: boolean;
   student: {
     id: string;
     name: string;

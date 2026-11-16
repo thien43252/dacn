@@ -110,7 +110,7 @@ export function SubmissionsTable({
     <div className="ea-card lms-submissions-table" style={{ display: "grid", gap: "var(--space-3)" }}>
       <div className="ea-toolbar">
         <div>
-          <h3>Danh sách nộp bài ({roster.length} học sinh)</h3>
+          <h3>Danh sách nộp bài ({roster.filter((row) => !row.left_class).length} học sinh)</h3>
           <span className="ea-muted" style={{ fontSize: "0.85rem" }}>
             Theo dõi trạng thái nộp bài, gia hạn riêng và chấm bài
           </span>
@@ -168,7 +168,10 @@ export function SubmissionsTable({
 
                 return (
                   <tr key={row.student_id} style={{ borderBottom: "1px solid var(--line)" }}>
-                    <td style={{ padding: "8px", fontWeight: 600 }}>{row.name}</td>
+                    <td style={{ padding: "8px", fontWeight: 600 }}>
+                      {row.name}
+                      {row.left_class && <small className="ea-muted" style={{ marginLeft: "6px" }}>Đã rời lớp</small>}
+                    </td>
                     <td style={{ padding: "8px" }}>
                       <span
                         className={`ea-chip ${

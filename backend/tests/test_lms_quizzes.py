@@ -334,3 +334,34 @@ async def test_changed_kind_and_deleted_questions_keep_original_paper(as_user, s
     assert submitted.status_code == 200, submitted.text
     assert submitted.json()["score"] == 0
     assert (await teacher.post(f"{root}/questions/{multi['id']}/regrade")).json() == {"updated": 1}
+
+
+async def test_essay_attempt_notifies_teacher_then_student(as_user, sessionmaker, monkeypatch):
+    """FR-025 for quizzes: an attempt waiting for essay grading tells the teachers (once per quiz and day), and the
+    student hears once every essay is graded, unless the quiz never shows scores."""
+    monkeypatch.setattr("app.lms.now", lambda: TIME)
+    teacher, student, _, room = await class_with_student(as_user, consent=False)
+    root = f"{BASE}/{room['id']}"
+    qid, _ = await make_quiz(sessionmaker, room, teacher, max_attempts=0)
+    essay = await add_question(teacher, root, qid, "essay")
+    paths = []
+    for _ in range(2):
+        attempt = safe(await student.post(f"{root}/quizzes/{qid}/attempts"))
+        paths.append(f"{root}/attempts/{attempt['id']}")
+        assert (await student.post(f"{paths[-1]}/submit")).json()["status"] == "submitted"
+    inbox = (await teacher.get("/api/notifications")).json()
+    to_grade = [n for n in inbox["items"] if n["kind"] == "to_grade"]
+    assert len(to_grade) == 1 and to_grade[0]["link"].endswith(f"/quizzes/{qid}")
+    assert not [n for n in (await student.get("/api/notifications")).json()["items"] if n["kind"] == "returned"]
+
+    await teacher.put(f"{paths[0]}/scores/{essay['id']}", json={"points": 1})
+    await teacher.put(f"{paths[0]}/scores/{essay['id']}", json={"points": 2})
+    returned = [n for n in (await student.get("/api/notifications")).json()["items"] if n["kind"] == "returned"]
+    assert len(returned) == 1 and returned[0]["link"] == f"/student/classes/{room['id']}/quizzes/{qid}"
+
+    async with sessionmaker() as db:
+        (await db.get(Quiz, qid)).show_score = "never"
+        await db.commit()
+    await teacher.put(f"{paths[1]}/scores/{essay['id']}", json={"points": 1})
+    returned = [n for n in (await student.get("/api/notifications")).json()["items"] if n["kind"] == "returned"]
+    assert len(returned) == 1

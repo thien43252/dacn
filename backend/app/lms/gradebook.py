@@ -125,7 +125,7 @@ def _cell(item, config, sid, joined, submissions, attempts, extensions):
             state = "in_progress"
         else:
             state = "missing" if due and due <= lms.now() else "open"
-    if not has_data and due and due < lms.now() and lms.aware(joined) > due:
+    if not has_data and joined is not None and due and due < lms.now() and lms.aware(joined) > due:
         state = "not_assigned"
     return dict(item_id=item.id, state=state, score=score, final=final)
 
@@ -145,16 +145,31 @@ async def _book(db, cid):
     configs = {**assignments, **quizzes}
     items = [(i, lesson) for i, lesson in items if i.id in configs]
     columns = [_column(i, lesson, configs[i.id], maxima) for i, lesson in items]
-    roster = await db.execute(
-        select(User, ClassMember.joined_at)
-        .join(ClassMember, ClassMember.user_id == User.id)
-        .where(ClassMember.class_id == cid, ClassMember.role == "student")
-        .order_by(User.name, User.id)
+    roster = list(
+        await db.execute(
+            select(User, ClassMember.joined_at)
+            .join(ClassMember, ClassMember.user_id == User.id)
+            .where(ClassMember.class_id == cid, ClassMember.role == "student")
+            .order_by(User.name, User.id)
+        )
     )
+    current_ids = {student.id for student, _ in roster}
+    departed_ids = {sid for sid, _ in submissions} | {sid for sid, _ in attempts}
+    departed = await db.scalars(
+        select(User).where(User.id.in_(departed_ids - current_ids)).order_by(User.name, User.id)
+    )
+    roster.extend((student, None) for student in departed)
     rows = []
     for student, joined in roster:
         cells = [_cell(i, configs[i.id], student.id, joined, submissions, attempts, extensions) for i, _ in items]
-        rows.append(dict(student=dict(id=student.id, name=student.name), cells=cells, average=_average(columns, cells)))
+        rows.append(
+            dict(
+                student=dict(id=student.id, name=student.name),
+                left_class=student.id not in current_ids,
+                cells=cells,
+                average=_average(columns, cells),
+            )
+        )
     return dict(columns=columns, rows=rows)
 
 
@@ -188,7 +203,7 @@ async def gradebook_csv(cid: str, user: CurrentUser, db: DbSession):
     book = await _book(db, cid)
     output = io.StringIO(newline="")
     writer = csv.writer(output)
-    writer.writerow(["Học sinh", *(c["title"] for c in book["columns"]), "Điểm TB"])
+    writer.writerow(["Học sinh", *(c["title"] for c in book["columns"]), "Điểm TB", "Ghi chú"])
     for row in book["rows"]:
         writer.writerow(
             [
@@ -198,6 +213,7 @@ async def gradebook_csv(cid: str, user: CurrentUser, db: DbSession):
                     for c in row["cells"]
                 ),
                 row["average"],
+                "Đã rời lớp" if row["left_class"] else "",
             ]
         )
     slug = "-".join(words(room.name)) or "lop"
