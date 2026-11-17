@@ -592,15 +592,31 @@ async def _group_turn(
         yield sse({"type": "done", "message_id": message_id, "status": "ok", "agent": None, "seq": user_message.seq})
         return
     agents = await group_agents(db, conversation, user, room, role)
-    chosen = await route_group(
-        text,
-        agents,
-        people=await _member_names(db, conversation),
-        default=conversation.default_agent_slug,
-        role=role,
-        model=get_chat_model(),
-        mode=get_settings().router_mode,
-    )
+    people = await _member_names(db, conversation)
+    # Routing runs before (and decides whether there is) an agent turn, so it is a trace of its own in the session.
+    with tracing.start_trace(
+        "route-group-message",
+        user_id=user.id,
+        session_id=conversation.id,
+        tags=["group", role],
+        metadata={"class_id": room.id if room else None, "message_id": message_id},
+        input=text,
+        current=True,
+    ) as trace:
+        chosen = await route_group(
+            text,
+            agents,
+            people=people,
+            default=conversation.default_agent_slug,
+            role=role,
+            model=get_chat_model(),
+            mode=get_settings().router_mode,
+        )
+        if trace is not None:
+            trace.update(
+                output={"agent": chosen.slug if chosen else None},
+                metadata={"candidates": [agent.slug for agent in agents]},
+            )
     if chosen is None and verdict.action == "support" and agents:
         # A wellbeing signal always gets the supportive reply, shown only to the writer (FR-053).
         chosen = next((a for a in agents if a.slug == conversation.default_agent_slug), agents[0])

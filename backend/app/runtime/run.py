@@ -11,6 +11,7 @@ from typing import Any
 
 from sqlalchemy import select, update
 
+from app import tracing
 from app.chat import service as chat_service
 from app.chat.history import build_history
 from app.chat.models import ChatMessage
@@ -143,41 +144,57 @@ async def resume(run_id: str) -> None:
                     await handoffs.fail(db, handoff, final=True)
                 await db.commit()
             return
-        started = time.perf_counter()
-        try:
-            if (run.pending or {}).get("fresh"):
-                run.pending = {"items": []}
-                run.message_id = ctx.message_id
-                trigger = await db.get(ChatMessage, run.trigger_message_id) if run.trigger_message_id else None
-                history, _previous = await build_history(
-                    db, ctx.conversation, run.user_id, agent.slug, before_seq=trigger.seq if trigger else None
+        with tracing.start_trace(
+            "resume-run",
+            user_id=run.user_id,
+            session_id=run.conversation_id,
+            tags=[tag for tag in ("resume", run.role, run.source) if tag],
+            metadata={"run_id": run.id, "agent": agent.slug, "class_id": run.class_id, "handoff_id": run.handoff_id},
+            input=run.user_text,
+            current=True,
+        ) as trace:
+            ctx.trace = trace
+            started = time.perf_counter()
+            try:
+                if (run.pending or {}).get("fresh"):
+                    run.pending = {"items": []}
+                    run.message_id = ctx.message_id
+                    trigger = await db.get(ChatMessage, run.trigger_message_id) if run.trigger_message_id else None
+                    history, _previous = await build_history(
+                        db, ctx.conversation, run.user_id, agent.slug, before_seq=trigger.seq if trigger else None
+                    )
+                    final = await GRAPH.ainvoke(
+                        {"ctx": ctx, "text": run.user_text, "requested_agent": agent.slug, "history": history}
+                    )
+                else:
+                    note = await runs.resolution_note(db, run)
+                    await runs.mark_noted(db, run)
+                    asked_by = None
+                    if run.handoff_id:
+                        handoff = await db.get(Handoff, run.handoff_id)
+                        asker = next((a for a in ctx.agents if handoff and a.slug == handoff.from_agent), None)
+                        asked_by = asker.manifest.name if asker else None
+                    state = {
+                        "ctx": ctx,
+                        "agent": agent,
+                        "text": note,
+                        "transcript": runs.load_messages(run.transcript or []),
+                        "review_text": run.user_text,
+                    }
+                    if asked_by:
+                        state["asked_by"] = asked_by
+                    final = await RESUME_GRAPH.ainvoke(state)
+            except Exception:
+                log.exception("resuming run %s failed", run_id)
+                final = {"status": "error", "reply": ""}
+            final.setdefault("latency_ms", int((time.perf_counter() - started) * 1000))
+            if trace is not None:
+                trace.update(
+                    output=final.get("reply") or "",
+                    level={"blocked": "WARNING", "error": "ERROR"}.get(final.get("status", "error")),
+                    metadata={"status": final.get("status", "error"), "waiting": bool(ctx.waits)},
                 )
-                final = await GRAPH.ainvoke(
-                    {"ctx": ctx, "text": run.user_text, "requested_agent": agent.slug, "history": history}
-                )
-            else:
-                note = await runs.resolution_note(db, run)
-                await runs.mark_noted(db, run)
-                asked_by = None
-                if run.handoff_id:
-                    handoff = await db.get(Handoff, run.handoff_id)
-                    asker = next((a for a in ctx.agents if handoff and a.slug == handoff.from_agent), None)
-                    asked_by = asker.manifest.name if asker else None
-                state = {
-                    "ctx": ctx,
-                    "agent": agent,
-                    "text": note,
-                    "transcript": runs.load_messages(run.transcript or []),
-                    "review_text": run.user_text,
-                }
-                if asked_by:
-                    state["asked_by"] = asked_by
-                final = await RESUME_GRAPH.ainvoke(state)
-        except Exception:
-            log.exception("resuming run %s failed", run_id)
-            final = {"status": "error", "reply": ""}
-        final.setdefault("latency_ms", int((time.perf_counter() - started) * 1000))
-        await finish_run(ctx, agent, final)
+            await finish_run(ctx, agent, final)
 
 
 async def expire_cards(db) -> None:

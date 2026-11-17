@@ -58,7 +58,7 @@ async def test_openai_tool_call_and_reasoning_replay() -> None:
     _, final = await collect(model, [Message(role="user", content="2+?")], tools=[TOOL])
     assert final.stop_reason == "tool_use"
     assert final.message.tool_calls == [ToolCall(id="call_1", name="tinh_tong", arguments={"a": 2})]
-    assert sent[0]["reasoning"] == {"effort": "high"} and sent[0]["store"] is False
+    assert sent[0]["reasoning"] == {"effort": "high", "summary": "auto"} and sent[0]["store"] is False
     assert sent[0]["tools"][0]["strict"] is False
 
     # Next round: the model's own items (reasoning included) are replayed, then the tool result.
@@ -73,7 +73,32 @@ async def test_openai_tool_call_and_reasoning_replay() -> None:
         call.model_dump(),
         {"type": "function_call_output", "call_id": "call_1", "output": "4"},
     ]
-    assert sent[1]["reasoning"] == {"effort": "low"}
+    assert sent[1]["reasoning"] == {"effort": "low", "summary": "auto"}
+
+
+async def test_openai_keeps_reasoning_when_only_the_summary_is_rejected() -> None:
+    model = OpenAIChatModel("sk-test", "gpt-test", "gpt-test")
+    calls: list[dict] = []
+
+    async def create(**params):
+        calls.append(params)
+        if "summary" in params.get("reasoning", {}):
+            request = SimpleNamespace(method="POST", url="https://gateway.example/v1/responses")
+            raise openai.BadRequestError(
+                "Unsupported parameter: 'reasoning.summary'",
+                response=SimpleNamespace(status_code=400, headers={}, request=request),
+                body=None,
+            )
+        return openai_stream([Item(type="message", role="assistant", content=[])], deltas=["ok"])
+
+    model.client = SimpleNamespace(responses=SimpleNamespace(create=create))
+    await collect(model, [Message(role="user", content="hi")])
+    await collect(model, [Message(role="user", content="hi")])
+    assert [params.get("reasoning") for params in calls] == [
+        {"effort": "medium", "summary": "auto"},
+        {"effort": "medium"},
+        {"effort": "medium"},
+    ]
 
 
 async def test_openai_falls_back_without_reasoning_for_models_that_reject_it() -> None:

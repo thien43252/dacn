@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app import tracing
 from app.auth.deps import DbSession, require_roles
 from app.auth.models import Role, User
 from app.chat.router import record_usage
@@ -39,7 +40,17 @@ class ProgressRow(BaseModel):
 async def _report(db, viewer: User, student: User, days: int, audience: str, class_id: str | None) -> ReportOut:
     data = await service.activity(db, student.id, days, class_id)
     started = time.perf_counter()
-    text, usage = await service.narrative(get_chat_model(), student.name, data, audience)
+    with tracing.start_trace(
+        "generate-report",
+        user_id=viewer.id,
+        tags=["report", audience],
+        metadata={"student_id": student.id, "class_id": class_id, "days": str(days)},
+        input={"student_id": student.id, "audience": audience, "days": days, "activity": data},
+        current=True,
+    ) as trace:
+        text, usage = await service.narrative(get_chat_model(), student.name, data, audience)
+        if trace is not None:
+            trace.update(output=text)
     if usage is not None:
         record_usage(db, viewer.id, class_id, None, [("report", usage, int((time.perf_counter() - started) * 1000))])
         await db.commit()

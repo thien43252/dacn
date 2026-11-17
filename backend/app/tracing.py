@@ -1,15 +1,18 @@
 """Langfuse tracing. Off unless LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set; every helper is then a no-op.
 
-One chat turn (or one certification case) is one trace:
+One chat turn (or one certification case, resumed run, handoff run) is one trace; the conversation is the session:
 
     chat ─┬─ screen, classify, select_agent, gate, review   graph nodes (spans; guard and router calls nested)
-          └─ run_agent ─┬─ llm.main                        model call (generation: tokens, cost, time to first token)
-                        └─ <tool> ── llm.main              tool call, with the model calls the tool makes
+          └─ run_agent ─┬─ llm.main                        model call (generation: tokens, cost, thinking, TTFT)
+                        └─ <tool> ─┬─ llm.main             tool call, with the model calls the tool makes
+                                   └─ retrieve-class-docs  document search (retriever) ── embed-texts (embedding)
 
-Model calls outside a turn (reports, eval scripts) become traces of their own. Every string sent to Langfuse goes
-through the same PII redaction as the input guard, and users are identified by id only.
+Other entry points open their own named trace (route-group-message, generate-report, review-person-reply,
+ingest-document). Every string sent to Langfuse goes through the same PII redaction as the input guard, and users are
+identified by id only.
 """
 
+import json
 import logging
 from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
@@ -19,7 +22,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from app.config import get_settings
-from app.llm.base import ChatModel, Completion, Message, StreamEvent, TextDelta, Tier, ToolSpec
+from app.llm.base import ChatModel, Completion, Embedder, Message, StreamEvent, TextDelta, Tier, ToolCall, ToolSpec
 
 if TYPE_CHECKING:
     from langfuse import Langfuse
@@ -89,7 +92,10 @@ def start_trace(
     tags: list[str] | None = None,
     metadata: dict[str, str | None] | None = None,
     input: Any = None,
+    current: bool = False,
 ) -> Iterator[Trace | None]:
+    """`current=True` makes the root the active observation for the block, so model, embedding and retrieval calls
+    inside it nest under it without `node`. Only for plain awaits: never across the yields of a streaming generator."""
     client = get_langfuse()
     if client is None:
         yield None
@@ -104,6 +110,13 @@ def start_trace(
     # Propagated metadata values must be short strings; None values are dropped.
     if metadata:
         attributes["metadata"] = {key: value for key, value in metadata.items() if value is not None}
+    if current:
+        with (
+            propagate_attributes(**attributes),
+            client.start_as_current_observation(name=name, as_type="chain", input=input) as root,
+        ):
+            yield Trace(root, attributes)
+        return
     with propagate_attributes(**attributes):
         root = client.start_observation(name=name, as_type="chain", input=input)
     try:
@@ -138,13 +151,72 @@ def observe(name: str, *, as_type: str = "span", input: Any = None) -> Iterator[
         yield observation
 
 
+def _tool_call(call: ToolCall) -> dict[str, Any]:
+    # OpenAI chat shape with JSON-string arguments: Langfuse renders these as tool-call cards.
+    return {
+        "id": call.id,
+        "type": "function",
+        "function": {"name": call.name, "arguments": json.dumps(call.arguments, ensure_ascii=False)},
+    }
+
+
+def _reasoning(message: Message) -> str | None:
+    """Readable thinking from the provider-native content, when the provider returned any in clear text."""
+    raw = message.raw
+    if not raw:
+        return None
+    parts: list[str] = []
+    if message.raw_provider == "anthropic" and isinstance(raw, list):
+        parts = [block.get("thinking", "") for block in raw if block.get("type") == "thinking"]
+    elif message.raw_provider == "openai" and isinstance(raw, list):
+        for item in raw:
+            if item.get("type") == "reasoning":
+                parts += [summary.get("text", "") for summary in item.get("summary") or []]
+    elif message.raw_provider == "gemini" and isinstance(raw, dict):
+        parts = [part.get("text", "") for part in raw.get("parts") or [] if part.get("thought")]
+    return "\n\n".join(part for part in parts if part) or None
+
+
 def _message(message: Message) -> dict[str, Any]:
     shown: dict[str, Any] = {"role": message.role, "content": message.content}
+    reasoning = _reasoning(message) if message.role == "assistant" else None
+    if reasoning:
+        shown["reasoning"] = reasoning
     if message.tool_calls:
-        shown["tool_calls"] = [{"name": call.name, "arguments": call.arguments} for call in message.tool_calls]
+        shown["tool_calls"] = [_tool_call(call) for call in message.tool_calls]
     if message.tool_call_id:
         shown["tool_call_id"] = message.tool_call_id
     return shown
+
+
+class TracedEmbedder:
+    """Records every embedding call as a Langfuse `embedding` observation. Wraps the provider; behaviour is unchanged."""
+
+    def __init__(self, inner: Embedder) -> None:
+        self.inner = inner
+        self.provider = inner.provider
+        self.model = inner.model
+        self.dimensions = inner.dimensions
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        client = get_langfuse()
+        if client is None:
+            return await self.inner.embed(texts)
+        with client.start_as_current_observation(
+            name="embed-texts",
+            as_type="embedding",
+            model=self.model,
+            # A search query is worth reading; a document batch is summarised (the chunks are in the database).
+            input=texts[0] if len(texts) == 1 else {"texts": len(texts), "characters": sum(map(len, texts))},
+            metadata={"provider": self.provider, "dimensions": self.dimensions},
+        ) as observation:
+            try:
+                vectors = await self.inner.embed(texts)
+            except Exception as error:
+                observation.update(level="ERROR", status_message=f"{type(error).__name__}: {error}"[:500])
+                raise
+            observation.update(output={"vectors": len(vectors)})
+            return vectors
 
 
 class TracedChatModel:

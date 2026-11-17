@@ -11,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import tracing
 from app.config import get_settings
 from app.db import session_factory
 from app.knowledge.models import Document, DocumentChunk
@@ -148,43 +149,61 @@ async def process_document(document_id: str) -> None:
         document = await db.get(Document, document_id)
         if document is None:
             return
-        started = time.perf_counter()
-        try:
-            data = await asyncio.to_thread(Path(document.storage_path).read_bytes)
-            # Parsing large PDFs is CPU-bound; keep it off the event loop.
-            sections = await asyncio.to_thread(extract_sections, data, document.content_type)
-            chunks = chunk_sections(sections)
-            if not chunks:
-                raise ValueError("Không đọc được chữ trong tài liệu (có thể là ảnh scan).")
-            embedder = get_embedder()
-            vectors = await embed_all(embedder, [chunk.text for chunk in chunks])
-            await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
-            for position, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True)):
-                db.add(
-                    DocumentChunk(
-                        document_id=document.id,
-                        class_id=document.class_id,
-                        position=position,
-                        content=chunk.text,
-                        location=chunk.location,
-                        embedding=vector,
-                    )
+        with tracing.start_trace(
+            "ingest-document",
+            user_id=document.uploaded_by,
+            tags=["ingest"],
+            metadata={"class_id": document.class_id, "document_id": document.id, "content_type": document.content_type},
+            input={"title": document.title, "filename": document.filename, "size_bytes": document.size_bytes},
+            current=True,
+        ) as trace:
+            await _ingest(db, document)
+            if trace is not None:
+                trace.update(
+                    output={"status": document.status, "chunks": document.chunk_count, "error": document.error},
+                    level="ERROR" if document.status == "failed" else None,
+                    status_message=document.error,
                 )
-            document.status = "ready"
-            document.chunk_count = len(chunks)
-            document.error = None
-            document.meta = {
-                **(document.meta or {}),
-                "embedding_model": f"{embedder.provider}:{embedder.model}",
-                "processing_ms": int((time.perf_counter() - started) * 1000),
-            }
-        except (ValueError, LLMError, OSError) as error:
-            document.status = "failed"
-            document.error = str(error)[:500]
-        except Exception as error:  # parser libraries raise many types on malformed files
-            document.status = "failed"
-            document.error = f"Không xử lý được tệp: {type(error).__name__}"
-        await db.commit()
+
+
+async def _ingest(db: AsyncSession, document: Document) -> None:
+    started = time.perf_counter()
+    try:
+        data = await asyncio.to_thread(Path(document.storage_path).read_bytes)
+        # Parsing large PDFs is CPU-bound; keep it off the event loop.
+        sections = await asyncio.to_thread(extract_sections, data, document.content_type)
+        chunks = chunk_sections(sections)
+        if not chunks:
+            raise ValueError("Không đọc được chữ trong tài liệu (có thể là ảnh scan).")
+        embedder = get_embedder()
+        vectors = await embed_all(embedder, [chunk.text for chunk in chunks])
+        await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
+        for position, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True)):
+            db.add(
+                DocumentChunk(
+                    document_id=document.id,
+                    class_id=document.class_id,
+                    position=position,
+                    content=chunk.text,
+                    location=chunk.location,
+                    embedding=vector,
+                )
+            )
+        document.status = "ready"
+        document.chunk_count = len(chunks)
+        document.error = None
+        document.meta = {
+            **(document.meta or {}),
+            "embedding_model": f"{embedder.provider}:{embedder.model}",
+            "processing_ms": int((time.perf_counter() - started) * 1000),
+        }
+    except (ValueError, LLMError, OSError) as error:
+        document.status = "failed"
+        document.error = str(error)[:500]
+    except Exception as error:  # parser libraries raise many types on malformed files
+        document.status = "failed"
+        document.error = f"Không xử lý được tệp: {type(error).__name__}"
+    await db.commit()
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -195,6 +214,24 @@ def _cosine(a: list[float], b: list[float]) -> float:
 
 async def search(
     db: AsyncSession, class_id: str, query: str, top_k: int = 4, document_ids: list[str] | None = None
+) -> tuple[list[SearchHit], Usage]:
+    with tracing.observe(
+        "retrieve-class-docs", as_type="retriever", input={"query": query, "top_k": top_k}
+    ) as observation:
+        hits, usage = await _search(db, class_id, query, top_k, document_ids)
+        if observation is not None:
+            observation.update(
+                output=[
+                    {"title": hit.title, "location": hit.location, "score": hit.score, "content": hit.content[:1000]}
+                    for hit in hits
+                ],
+                metadata={"class_id": class_id, "document_ids": document_ids, "hits": len(hits)},
+            )
+        return hits, usage
+
+
+async def _search(
+    db: AsyncSession, class_id: str, query: str, top_k: int, document_ids: list[str] | None
 ) -> tuple[list[SearchHit], Usage]:
     embedder = get_embedder()
     [vector] = await embedder.embed([query])

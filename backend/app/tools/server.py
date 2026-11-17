@@ -8,6 +8,7 @@ caller's identity and class, so the model never supplies (or sees) who it is act
 import json
 from typing import Literal
 
+from mcp.server._otel import OpenTelemetryMiddleware
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
@@ -18,6 +19,9 @@ server = MCPServer(
     name="eduagent-tools",
     instructions="Công cụ đã kiểm chứng của EduAgent Hub. Tham số ctx do nền tảng cấp, không do mô hình điền.",
 )
+# The runtime already records each call as a Langfuse `tool` observation (with arguments, result and status); the SDK's
+# own `tools/call` span would show up as a second, empty tool of the same name inside it.
+server.middleware[:] = [m for m in server.middleware if not isinstance(m, OpenTelemetryMiddleware)]
 
 
 async def _run(ctx: str, fn, args) -> str:

@@ -484,7 +484,9 @@ def _traced(fn: Callable[[ChatState], Awaitable[ChatState]], as_type: str = "spa
 
     @wraps(fn)
     async def node(state: ChatState) -> ChatState:
-        with tracing.node(state["ctx"].trace, fn.__name__, as_type=as_type) as observation:
+        # What the step looks at: the output guard reviews the reply, every other step the (possibly redacted) message.
+        shown_input = state.get("reply") if fn.__name__ == "review" else state.get("text")
+        with tracing.node(state["ctx"].trace, fn.__name__, as_type=as_type, input=shown_input) as observation:
             update = await fn(state)
             if observation is not None:
                 shown = {key: value for key, value in update.items() if key != "agent"}

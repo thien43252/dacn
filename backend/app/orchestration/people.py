@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import tracing
 from app.auth.models import User
 from app.chat.models import ChatMessage, Conversation, ConversationMember
 from app.chat.serialize import SUBJECT_NAMES, role_label
@@ -408,7 +409,21 @@ async def _review_blocks(db: AsyncSession, request: PersonRequest, reply: str) -
         return False
     # The "no direct answers" policy is about agents; what a teacher or parent decides to tell the student is theirs to
     # decide, so only unsuitable content is held back.
-    verdict, _usage = await classifier.review_output(get_chat_model(), reply, request.body, role, False)
+    with tracing.start_trace(
+        "review-person-reply",
+        user_id=request.recipient_id,
+        session_id=run.conversation_id if run else None,
+        tags=["person-reply", role],
+        metadata={"request_id": request.id, "run_id": request.run_id, "requester_id": request.requester_id},
+        input={"question": request.body, "reply": reply},
+        current=True,
+    ) as trace:
+        verdict, _usage = await classifier.review_output(get_chat_model(), reply, request.body, role, False)
+        if trace is not None:
+            trace.update(
+                output={"action": verdict.action, "category": verdict.category, "blocks": verdict.blocks},
+                level="WARNING" if verdict.blocks else None,
+            )
     return verdict.blocks
 
 

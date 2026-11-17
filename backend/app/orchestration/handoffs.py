@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 
+from app import tracing
 from app.agents.models import Installation
 from app.agents.service import ResolvedAgent
 from app.chat import events
@@ -263,17 +264,43 @@ async def execute(handoff_id: str) -> None:
         asker = next((a for a in ctx.agents if a.slug == handoff.from_agent), None)
         text = task_message(handoff, asker.manifest.name if asker else handoff.from_agent)
         ctx.user_text = text
-        try:
-            final = await GRAPH.ainvoke({"ctx": ctx, "text": text, "requested_agent": agent.slug, "history": []})
-        except Exception:
-            log.exception("handoff %s failed", handoff_id)
-            await db.rollback()
-            async with session_factory()() as retry_db:
-                fresh = await retry_db.get(Handoff, handoff_id)
-                if fresh is not None:
-                    await fail(retry_db, fresh, final=fresh.attempts >= get_settings().handoff_max_attempts)
-            return
-        await finish_run(ctx, agent, final)
+        # The asked agent's run is its own trace in the conversation's session, next to the asking turn.
+        with tracing.start_trace(
+            "handoff",
+            user_id=parent.user_id,
+            session_id=parent.conversation_id,
+            tags=[tag for tag in ("handoff", parent.role, parent.source) if tag],
+            metadata={
+                "handoff_id": handoff.id,
+                "from_agent": handoff.from_agent,
+                "to_agent": handoff.to_agent,
+                "parent_run_id": parent.id,
+                "depth": str(handoff.depth),
+                "attempt": str(handoff.attempts),
+            },
+            input=text,
+            current=True,
+        ) as trace:
+            ctx.trace = trace
+            try:
+                final = await GRAPH.ainvoke({"ctx": ctx, "text": text, "requested_agent": agent.slug, "history": []})
+            except Exception as error:
+                log.exception("handoff %s failed", handoff_id)
+                if trace is not None:
+                    trace.update(level="ERROR", status_message=f"{type(error).__name__}: {error}"[:500])
+                await db.rollback()
+                async with session_factory()() as retry_db:
+                    fresh = await retry_db.get(Handoff, handoff_id)
+                    if fresh is not None:
+                        await fail(retry_db, fresh, final=fresh.attempts >= get_settings().handoff_max_attempts)
+                return
+            if trace is not None:
+                trace.update(
+                    output=final.get("reply") or "",
+                    level={"blocked": "WARNING", "error": "ERROR"}.get(final.get("status", "error")),
+                    metadata={"status": final.get("status", "error")},
+                )
+            await finish_run(ctx, agent, final)
 
 
 async def fail(db, handoff: Handoff, *, final: bool) -> None:

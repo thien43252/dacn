@@ -62,3 +62,9 @@ Thumbs.db
 # Archify: diagram output and the installed skill (reinstall from skills-lock.json, see README)
 .archify/
 .claude/skills/archify/
+
+# SSH keys (keep them in ~/.ssh, never in the repo)
+ssh-key*
+*.key.pub
+id_rsa*
+id_ed25519*

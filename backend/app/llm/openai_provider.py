@@ -73,18 +73,27 @@ class OpenAIChatModel:
         self.effort = effort
         # Switched off per model after it rejects the reasoning parameters, for the rest of the process.
         self.no_reasoning: set[str] = set()
+        # Models (or gateways) that reject reasoning summaries; reasoning itself stays on for them.
+        self.no_summary: set[str] = set()
 
     def model_for(self, tier: Tier) -> str:
         return self.models[tier]
 
     async def _create(self, params: dict[str, Any], effort: str):
         model = params["model"]
-        if model not in self.no_reasoning:
+        while model not in self.no_reasoning:
+            reasoning: dict[str, Any] = {"effort": effort}
+            if model not in self.no_summary:
+                # A readable summary of the reasoning (the full reasoning only comes back encrypted); traced as thinking.
+                reasoning["summary"] = "auto"
             try:
                 return await self.client.responses.create(
-                    **params, reasoning={"effort": effort}, include=["reasoning.encrypted_content"]
+                    **params, reasoning=reasoning, include=["reasoning.encrypted_content"]
                 )
             except openai.BadRequestError as error:
+                if "summary" in reasoning and "summary" in str(error):
+                    self.no_summary.add(model)
+                    continue
                 if "reasoning" not in str(error):
                     raise
                 self.no_reasoning.add(model)

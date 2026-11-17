@@ -3,7 +3,7 @@
 from app.config import get_settings
 from app.llm.base import ChatModel, Embedder, LLMError
 from app.llm.fake import FakeChatModel, FakeEmbedder
-from app.tracing import TracedChatModel, get_langfuse
+from app.tracing import TracedChatModel, TracedEmbedder, get_langfuse
 
 EMBEDDING_DIMENSIONS = 768
 
@@ -79,7 +79,7 @@ def get_chat_model() -> ChatModel:
 def get_embedder() -> Embedder:
     global _embedder
     if _embedder is None:
-        _embedder = build_embedder()
+        _embedder = TracedEmbedder(build_embedder()) if get_langfuse() else build_embedder()
     return _embedder
 
 
