@@ -14,6 +14,10 @@ import { AnswerAutosave } from "./answerAutosave";
 import { useCountdown } from "./countdown";
 import "./lms.css";
 
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 export function QuizTake({ classId, quizId }: { classId: string; quizId: string }) {
   const quizResource = useResource(
     () => lmsApi.quizzes.get(classId, quizId) as Promise<QuizStudentView>,
@@ -168,79 +172,99 @@ export function QuizTake({ classId, quizId }: { classId: string; quizId: string 
           <Icon name="chevron-left" /> Về lớp học
         </button>
 
-        <div className="ea-card" style={{ maxWidth: "700px", margin: "0 auto" }}>
-          <h2>{quiz.title || "Bài kiểm tra"}</h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: "var(--space-3)",
-              margin: "var(--space-4) 0",
-            }}
-          >
-            <div>
-              <span className="ea-muted">Trạng thái:</span>
-              <p style={{ fontWeight: 600 }}>
-                {(quiz.state === "open") ? (
+        <section className="ea-card quiz-intro">
+          <header className="quiz-intro__head">
+            <span className="quiz-intro__badge" aria-hidden="true"><Icon name="file" /></span>
+            <div className="quiz-intro__heading">
+              <div className="quiz-intro__eyebrow">
+                <span>Bài kiểm tra</span>
+                {quiz.state === "open" ? (
                   <span className="ea-chip ea-chip--ok">Đang mở</span>
                 ) : (
                   <span className="ea-chip ea-chip--warn">{quiz.state === "upcoming" ? "Sắp mở" : "Đã đóng"}</span>
                 )}
-              </p>
+              </div>
+              <h2>{quiz.title || "Bài kiểm tra"}</h2>
+              {quiz.state === "upcoming" && quiz.open_at && (
+                <p className="quiz-intro__window"><Icon name="calendar" /> Mở lúc {formatDateTime(quiz.open_at)}</p>
+              )}
+              {quiz.state !== "upcoming" && quiz.close_at && (
+                <p className="quiz-intro__window"><Icon name="calendar" /> {quiz.state === "closed" ? "Đã đóng lúc" : "Hạn nộp"} {formatDateTime(quiz.close_at)}</p>
+              )}
             </div>
+          </header>
 
+          <dl className="quiz-intro__stats">
             <div>
-              <span className="ea-muted">Thời lượng:</span>
-              <p style={{ fontWeight: 600 }}>
-                {quiz.duration_minutes ? `${quiz.duration_minutes} phút` : "Không giới hạn"}
-              </p>
+              <dt><Icon name="clock" /> Thời gian</dt>
+              <dd>{quiz.duration_minutes ? `${quiz.duration_minutes} phút` : "Không giới hạn"}</dd>
             </div>
+            <div>
+              <dt><Icon name="book" /> Số câu</dt>
+              <dd>{quiz.question_count} câu</dd>
+            </div>
+            <div>
+              <dt><Icon name="check" /> Điểm tối đa</dt>
+              <dd>{quiz.max_points} điểm</dd>
+            </div>
+            <div>
+              <dt><Icon name="history" /> Lượt đã làm</dt>
+              <dd>{attemptsUsed} / {maxAttempts === 0 ? "∞" : maxAttempts}</dd>
+            </div>
+          </dl>
 
-            <div>
-              <span className="ea-muted">Số câu hỏi:</span>
-              <p style={{ fontWeight: 600 }}>{quiz.question_count} câu</p>
-            </div>
-
-            <div>
-              <span className="ea-muted">Số lượt làm bài:</span>
-              <p style={{ fontWeight: 600 }}>
-                {attemptsUsed} / {maxAttempts === 0 ? "Không giới hạn" : `${maxAttempts} lượt`}
-              </p>
-            </div>
+          <div className="quiz-intro__notes">
+            <h3>Trước khi bắt đầu</h3>
+            <ul>
+              {quiz.duration_minutes ? (
+                <li>Đồng hồ {quiz.duration_minutes} phút chạy ngay khi bạn bấm bắt đầu. Hết giờ, bài sẽ được nộp tự động.</li>
+              ) : null}
+              <li>Câu trả lời được lưu tự động trong lúc làm, bạn có thể tải lại trang mà không mất bài.</li>
+              {quiz.block_agents && <li>Không dùng trợ lý AI trong khi làm bài kiểm tra này.</li>}
+              {quiz.show_score === "on_submit" && <li>Bạn sẽ xem được điểm ngay sau khi nộp bài.</li>}
+              {quiz.show_score === "after_close" && <li>Điểm sẽ được công bố sau khi bài kiểm tra đóng.</li>}
+            </ul>
           </div>
 
-          {errorNotice && <div className="ea-error" style={{ marginBottom: "var(--space-3)" }}>{errorNotice}</div>}
-
           {attemptsUsed > 0 && (
-            <div style={{ marginBottom: "var(--space-4)" }}>
-              <h4>Lịch sử các lượt làm bài</h4>
-              <ul style={{ paddingLeft: "20px" }}>
+            <div className="quiz-intro__history">
+              <div className="quiz-intro__history-head">
+                <h3>Các lượt đã làm</h3>
+                <button
+                  type="button"
+                  className="button button--ghost button--sm"
+                  onClick={() => navigate(`/student/classes/${classId}/quizzes/${quizId}/result`)}
+                >
+                  Xem kết quả <Icon name="chevron-right" />
+                </button>
+              </div>
+              <ul>
                 {quiz.attempts.map((att) => (
-                  <li key={att.id} style={{ margin: "4px 0" }}>
-                    Lần {att.attempt_no}:{" "}
-                    <strong>
+                  <li key={att.id}>
+                    <span>Lần {att.attempt_no}</span>
+                    <span className="ea-muted">{att.submitted_at ? formatDateTime(att.submitted_at) : "—"}</span>
+                    <span className={`ea-chip ${att.status === "in_progress" ? "ea-chip--warn" : "ea-chip--ok"}`}>
                       {att.status === "in_progress" ? "Đang làm" : "Đã nộp"}
-                    </strong>{" "}
-                    ({att.submitted_at ? new Date(att.submitted_at).toLocaleString("vi-VN") : "Đang làm"})
+                    </span>
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                className="button button--secondary"
-                style={{ marginTop: "8px" }}
-                onClick={() => navigate(`/student/classes/${classId}/quizzes/${quizId}/result`)}
-              >
-                Xem chi tiết kết quả lượt đã làm
-              </button>
             </div>
           )}
 
-          <div style={{ marginTop: "var(--space-4)" }}>
+          {errorNotice && <div className="ea-error">{errorNotice}</div>}
+
+          <footer className="quiz-intro__actions">
+            {!canStart && (
+              <p className="ea-muted">
+                {!hasAttemptsLeft
+                  ? "Bạn đã hết số lượt làm bài kiểm tra này."
+                  : "Bài kiểm tra hiện chưa mở hoặc đã kết thúc."}
+              </p>
+            )}
             <button
               type="button"
-              className="button button--primary"
+              className="button button--primary quiz-intro__start"
               disabled={!canStart || starting}
               onClick={handleStartOrResume}
             >
@@ -249,16 +273,10 @@ export function QuizTake({ classId, quizId }: { classId: string; quizId: string 
                 : resumable ? "Tiếp tục làm bài" : attemptsUsed > 0
                   ? "Bắt đầu lượt làm mới"
                   : "Bắt đầu làm bài"}
+              {!starting && <Icon name="arrow-right" />}
             </button>
-            {!canStart && (
-              <p className="ea-muted" style={{ marginTop: "8px" }}>
-                {!hasAttemptsLeft
-                  ? "Bạn đã hết số lượt làm bài kiểm tra này."
-                  : "Bài kiểm tra hiện chưa mở hoặc đã kết thúc."}
-              </p>
-            )}
-          </div>
-        </div>
+          </footer>
+        </section>
       </div>
     );
   }

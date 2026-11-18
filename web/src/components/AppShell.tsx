@@ -12,7 +12,7 @@ import { ChatPanel } from "./ChatPanel";
 import { Icon } from "./Icon";
 import { Logo } from "./Logo";
 import { ScreenBanner, toneOf } from "./ScreenBanner";
-import { NotificationBell } from "../features/lms/NotificationBell";
+import { useNotifications } from "../features/lms/notifications";
 import "../styles/workspace-readability.css";
 import "../styles/studio-screens.css";
 import "../features/chat/messenger.css";
@@ -42,6 +42,7 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
   const closeAccount = useCallback(() => setAccountOpen(false), []);
   const guide = useGuide(user, pathname);
   const [inboxOpen, setInboxOpen] = useState(0);
+  const notifications = useNotifications(Boolean(user));
 
   // Badge on "Hộp yêu cầu": open questions waiting for this user's answer (FR-028).
   useEffect(() => {
@@ -117,14 +118,18 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
             aria-haspopup="dialog"
             aria-expanded={accountOpen}
             aria-controls={accountOpen ? "account-popover" : undefined}
-            aria-label="Mở thông tin tài khoản"
+            aria-label={`Mở thông tin tài khoản${notifications.unreadCount > 0 ? ` (${notifications.unreadCount} thông báo chưa đọc)` : ""}`}
             title={collapsed ? user.name : undefined}
           >
-            <span className="profile-avatar" aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
+            <span className="profile-avatar" aria-hidden="true">
+              {user.name.charAt(0).toUpperCase()}
+              {notifications.unreadCount > 0 && (
+                <span className="profile-avatar__badge">{notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}</span>
+              )}
+            </span>
             {!collapsed && <div><strong>{user.name}</strong><small>{roleLabels[user.role]}</small></div>}
+            {!collapsed && <Icon name="chevron-up" className="sidebar__account-chevron" />}
           </button>
-          <NotificationBell />
-          <button className="icon-button" type="button" onClick={signOut} aria-label="Đăng xuất"><Icon name="logout" /></button>
         </div>
       </aside>
 
@@ -136,6 +141,7 @@ export function AppShell({ pathname, pattern, title, eyebrow, description, child
           onLogout={signOut}
           guides={guide.canReplay && guide.overview ? [guide.overview, ...guide.areaGuides] : []}
           onReplayGuide={(item) => { closeAccount(); guide.replay(item); }}
+          notifications={notifications}
         />
       )}
 
